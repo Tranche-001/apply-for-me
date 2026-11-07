@@ -95,7 +95,21 @@ describe('buildAnalysisPrompt', () => {
     expect(p.request).toContain('- Visio AI: AI Engineer Intern')
     expect(p.context).not.toContain('pgvector')
     expect(p.context).toContain('<experiences_notes>')
-    expect(p.system).toContain('waitingOn is that question')
+    expect(p.system).not.toContain('waitingOn')
+  })
+
+  test('the task asks for ids, verbatim quotes, drafts before any answer, matches and left-out versions', () => {
+    const { system } = buildAnalysisPrompt({ job: JOB, library: LIBRARY, experiences: [], rules: [], answers: [], instruction: null, previousDrafts: [] })
+    expect(system).toContain('"r1"')
+    expect(system).toContain('word for word')
+    expect(system).toContain('keys')
+    expect(system).toContain('requirementId')
+    expect(system).toContain('improvedBy')
+    expect(system).toContain('your answer to q1 can fill this')
+    expect(system).toContain('fromVersionId')
+    expect(system).toContain('matches')
+    expect(system).toContain('leftOut')
+    expect(system).toContain('Never invent')
   })
 
   test('a first run has only the analysis request', () => {

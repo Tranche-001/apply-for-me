@@ -41,7 +41,7 @@ describe('strictJsonSchema', () => {
     const props = schema.properties as Record<string, { items: { properties: Record<string, unknown>; additionalProperties: boolean; required: string[] } }>
     expect(props.requirements.items.properties.status).toMatchObject({ type: 'string', enum: ['covered', 'partial', 'missing'] })
     expect(props.requirements.items.additionalProperties).toBe(false)
-    expect(props.drafts.items.required).toEqual(['blockId', 'newBlock', 'title', 'bullets', 'waitingOn', 'note'])
+    expect(props.drafts.items.required).toEqual(['blockId', 'newBlock', 'fromVersionId', 'title', 'bullets', 'improvedBy', 'matches', 'note'])
     expect(props.drafts.items.properties.blockId).toMatchObject({ anyOf: [{ type: 'string' }, { type: 'null' }] })
   })
 })

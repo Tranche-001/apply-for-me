@@ -107,10 +107,25 @@ describe('generateCvPlan', () => {
 
 describe('analyzeJob / analyzePosting', () => {
   const analysis = {
-    requirements: [{ text: 'Python', status: 'covered', evidence: 'Visio AI' }, { text: 'RAG', status: 'missing', evidence: 'No block' }],
-    asks: [{ id: 'q1', text: 'Built RAG?', experienceId: EXPERIENCE.id }],
-    drafts: [{ blockId: null, newBlock: { name: 'RAG', section: 'PROJECT', org: '', location: '', dates: '', stack: '' }, title: 'RAG', bullets: [], waitingOn: 'q1', note: 'Waiting.' }],
-    reused: [{ versionId: 'v-bi-llm', why: 'Fits.' }],
+    requirements: [
+      { id: 'r1', text: 'Python', status: 'covered', evidence: 'Visio AI', quotes: ['We want Python in production and RAG experience.', 'Ten years of Rust.'], keys: ['Python in production'] },
+      { id: 'r2', text: 'RAG', status: 'missing', evidence: 'No block', quotes: [], keys: [] },
+    ],
+    asks: [{ id: 'q1', text: 'Built RAG?', experienceId: EXPERIENCE.id, requirementId: 'r2' }],
+    drafts: [
+      {
+        blockId: null,
+        newBlock: { name: 'RAG', section: 'PROJECT', org: '', location: '', dates: '', stack: '' },
+        fromVersionId: null,
+        title: 'RAG',
+        bullets: [],
+        improvedBy: 'q1',
+        matches: [],
+        note: 'Hint.',
+      },
+    ],
+    reused: [{ versionId: 'v-bi-llm', why: 'Fits.', matches: [] }],
+    leftOut: [],
     report: [],
   }
 
@@ -121,7 +136,7 @@ describe('analyzeJob / analyzePosting', () => {
       { text: 'Python', covered: true },
       { text: 'RAG', covered: false },
     ])
-    expect(res.ok && res.data.drafts[0]).toEqual({ blockId: null, newBlock: analysis.drafts[0].newBlock, name: 'Base', title: 'RAG', bullets: [], waitingOn: 'q1' })
+    expect(res.ok && res.data.drafts[0]).toEqual({ blockId: null, newBlock: analysis.drafts[0].newBlock, name: 'Base', title: 'RAG', bullets: [], waitingOn: null })
   })
 
   test('answers and change requests reach the prompt; output shape errors are caught', async () => {
@@ -136,7 +151,9 @@ describe('analyzeJob / analyzePosting', () => {
   test('each gap question names the experience it is about; the prompt lists experiences by id', async () => {
     replyWith(analysis)
     const res = await analyzeJob({ jobId: JOB.id })
-    expect(res.ok && res.data.asks).toEqual([{ id: 'q1', text: 'Built RAG?', experienceId: EXPERIENCE.id }])
+    expect(res.ok && res.data.asks).toEqual([{ id: 'q1', text: 'Built RAG?', experienceId: EXPERIENCE.id, requirementId: 'r2' }])
+    // The saved posting text reaches finalizeAnalysis: the quote that is in it stays, the invented one is dropped.
+    expect(res.ok && res.data.requirements[0]).toMatchObject({ quotes: ['We want Python in production and RAG experience.'], keys: ['Python in production'] })
     const context = stream.mock.calls[0][0].messages[0].content[0].text as string
     expect(context).toContain(`id="${EXPERIENCE.id}"`)
     expect(context).toContain('id="e-empty"')

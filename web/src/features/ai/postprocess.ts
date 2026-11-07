@@ -1,11 +1,11 @@
 // Turns validated model output into the app's result types, checking it against the real library:
 // ids that don't exist are dropped (and reported), a block appears once, positions are renumbered,
-// and a draft that waits on a question carries no text (P1).
+// and quotes, keys and phrases are kept only when they really occur in the posting or the bullets (P1).
 import type { Section } from '@prisma/client'
 import type { ExperienceContext, LibraryBlock, LibraryVersion } from './context-types'
 import { SECTIONS } from './context-types'
 import type { AnalysisOutput, BlockDraftOutput, CvPlanOutput } from './schemas'
-import type { AiAsk, AiReportLine, AnalysisDraft, CvPlan, DraftBullet, DraftVersion, JobAnalysis, ReusedVersion } from './types'
+import type { AiAsk, AiReportLine, AnalysisDraft, CvPlan, DraftBullet, DraftVersion, JobAnalysis, JobRequirement, RequirementMatch, VersionView } from './types'
 
 export const MAX_BULLETS = 4
 const MAX_ASKS_CV = 3
@@ -57,11 +57,19 @@ export function normalizeSectionOrder(order: Section[]): Section[] {
   return [...seen, ...SECTIONS.filter((s) => !seen.includes(s))]
 }
 
-/** Trims bullets, keeps MISSING ones as empty gaps, drops empty ones, caps the count. */
-export function cleanBullets(bullets: DraftBullet[]): DraftBullet[] {
+const MAX_HINT = 200
+
+/**
+ * Trims bullets, keeps MISSING ones as gaps, drops empty ones, caps the count. A gap is empty unless
+ * `hints` is given (Job analysis): then it keeps its short hint text, ids turned into names, 200 characters at most.
+ */
+export function cleanBullets(bullets: DraftBullet[], hints?: IdNames): DraftBullet[] {
   return bullets
     .map((b): DraftBullet | null => {
-      if (b.kind === 'MISSING') return { kind: 'MISSING', text: '', want: b.want && b.want !== 'MISSING' ? b.want : null }
+      if (b.kind === 'MISSING') {
+        const text = hints ? nameIds(b.text, hints).slice(0, MAX_HINT).trim() : ''
+        return { kind: 'MISSING', text, want: b.want && b.want !== 'MISSING' ? b.want : null }
+      }
       const text = b.text.trim()
       return text ? { kind: b.kind, text, want: null } : null
     })
@@ -109,31 +117,163 @@ export function finalizeCvPlan(raw: CvPlanOutput, library: LibraryBlock[], pages
   }
 }
 
-/** Unique ids; `experienceId` kept only when it names one of your experiences (never a made-up id). */
-function uniqueAskIds(asks: AnalysisOutput['asks'], experienceIds: ReadonlySet<string>, names: IdNames): AiAsk[] {
+// ---- Job analysis: every quote, key and phrase is checked against the real text (P1: drop, never invent) ----
+
+const MAX_QUOTES = 3
+
+/** The text as it is compared: straight quotes and dashes, one space for any run of whitespace. Keeps where each character came from. */
+function normalizeWithMap(text: string): { norm: string; map: number[] } {
+  let norm = ''
+  const map: number[] = []
+  for (let i = 0; i < text.length; i += 1) {
+    let ch = text[i]
+    if (/[‘’‚′]/.test(ch)) ch = "'"
+    else if (/[“”„″]/.test(ch)) ch = '"'
+    else if (/[‐‑‒–—―−]/.test(ch)) ch = '-'
+    else if (/\s/.test(ch)) ch = ' '
+    if (ch === ' ' && norm.endsWith(' ')) continue
+    norm += ch
+    map.push(i)
+  }
+  return { norm, map }
+}
+
+/** `needle` as it is written in `haystack` (same words, whitespace collapsed), or null when it does not occur there. */
+export function findWording(haystack: string, needle: string): string | null {
+  const wanted = normalizeWithMap(needle).norm.trim()
+  if (!wanted) return null
+  const { norm, map } = normalizeWithMap(haystack)
+  const at = norm.indexOf(wanted)
+  if (at < 0) return null
+  return haystack.slice(map[at], map[at + wanted.length - 1] + 1).replace(/\s+/g, ' ')
+}
+
+function firstWording(texts: readonly string[], needle: string): string | null {
+  for (const text of texts) {
+    const found = findWording(text, needle)
+    if (found) return found
+  }
+  return null
+}
+
+const unique = (items: string[]): string[] => items.filter((s, i) => items.indexOf(s) === i)
+
+/** Up to 3 sentences that really are in the posting, in the posting's own wording. */
+function cleanQuotes(quotes: string[], posting: string): string[] {
+  return unique(quotes.map((q) => findWording(posting, q)).filter((q): q is string => q !== null)).slice(0, MAX_QUOTES)
+}
+
+type RawRequirement = AnalysisOutput['requirements'][number]
+
+function cleanRequirements(raw: RawRequirement[], posting: string, names: IdNames): JobRequirement[] {
+  const used = new Set<string>()
+  return raw
+    .map((r) => ({ r, text: nameIds(r.text, names) }))
+    .filter(({ text }) => text)
+    .map(({ r, text }, i) => {
+      let id = r.id.trim() || `r${i + 1}`
+      while (used.has(id)) id = `${id}-${i + 1}`
+      used.add(id)
+      const quotes = cleanQuotes(r.quotes, posting)
+      const keys = unique(r.keys.map((k) => firstWording(quotes, k)).filter((k): k is string => k !== null))
+      return { id, text, status: r.status, evidence: nameIds(r.evidence, names), quotes, keys }
+    })
+}
+
+type RawMatch = AnalysisOutput['reused'][number]['matches'][number]
+
+/** Matches of known requirements, each phrase found word for word in one of `bullets`; a match with no phrase left is dropped. */
+function cleanMatches(matches: RawMatch[], requirementIds: ReadonlySet<string>, bullets: readonly string[]): RequirementMatch[] {
+  return matches.flatMap((m) => {
+    const requirementId = m.requirementId.trim()
+    if (!requirementIds.has(requirementId)) return []
+    const phrases = unique(m.phrases.map((p) => firstWording(bullets, p)).filter((p): p is string => p !== null))
+    return phrases.length ? [{ requirementId, phrases, partly: m.partly }] : []
+  })
+}
+
+const bulletTexts = (bullets: readonly DraftBullet[]): string[] => bullets.filter((b) => b.kind !== 'MISSING').map((b) => b.text)
+
+/** Unique ids; `experienceId` and `requirementId` kept only when they name something real (never a made-up id). */
+function uniqueAskIds(asks: AnalysisOutput['asks'], experienceIds: ReadonlySet<string>, requirementIds: ReadonlySet<string>, names: IdNames): AiAsk[] {
   const used = new Set<string>()
   return asks
-    .map((a) => ({ id: a.id.trim(), text: nameIds(a.text, names), experienceId: a.experienceId?.trim() ?? null }))
+    .map((a) => ({ id: a.id.trim(), text: nameIds(a.text, names), experienceId: a.experienceId?.trim() ?? null, requirementId: a.requirementId?.trim() ?? null }))
     .filter((a) => a.text)
     .slice(0, MAX_ASKS_ANALYSIS)
     .map((a, i) => {
       let id = a.id || `q${i + 1}`
       while (used.has(id)) id = `${id}-${i + 1}`
       used.add(id)
-      return { id, text: a.text, experienceId: a.experienceId && experienceIds.has(a.experienceId) ? a.experienceId : null }
+      return {
+        id,
+        text: a.text,
+        experienceId: a.experienceId && experienceIds.has(a.experienceId) ? a.experienceId : null,
+        requirementId: a.requirementId && requirementIds.has(a.requirementId) ? a.requirementId : null,
+      }
     })
 }
 
+function viewOf({ block, version }: VersionHit): VersionView {
+  return {
+    versionId: version.id,
+    blockId: block.id,
+    blockName: block.name,
+    versionName: version.name,
+    section: block.section,
+    title: version.title,
+    org: block.org,
+    location: block.location,
+    dates: block.dates,
+    stack: block.stack,
+    bullets: version.bullets.map((b) => ({ kind: b.kind, text: b.text, want: b.want })),
+  }
+}
+
+type RawVersionUse = AnalysisOutput['reused'][number]
+
+/** Library versions written out in full. Unknown ids are counted, versions already in `taken` are skipped silently. */
+function collectVersions(
+  items: RawVersionUse[],
+  index: ReadonlyMap<string, VersionHit>,
+  requirementIds: ReadonlySet<string>,
+  names: IdNames,
+  taken: Set<string>,
+): { views: (VersionView & { why: string; matches: RequirementMatch[] })[]; unknown: number } {
+  const views: (VersionView & { why: string; matches: RequirementMatch[] })[] = []
+  let unknown = 0
+  for (const item of items) {
+    const hit = index.get(item.versionId)
+    if (!hit) {
+      unknown += 1
+      continue
+    }
+    if (taken.has(hit.version.id)) continue
+    taken.add(hit.version.id)
+    const view = viewOf(hit)
+    views.push({ ...view, why: nameIds(item.why, names), matches: cleanMatches(item.matches, requirementIds, bulletTexts(view.bullets)) })
+  }
+  return { views, unknown }
+}
+
+/**
+ * `postingText` is the saved posting: quotes are kept only when they occur in it. Phrases are kept only when they
+ * occur in the bullets they claim to come from; ids (requirements, questions, versions) must exist, else they are dropped.
+ */
 export function finalizeAnalysis(
   raw: AnalysisOutput,
   library: LibraryBlock[],
   jobName: string,
   experiences: readonly { id: string; title: string }[] = [],
+  postingText = '',
 ): JobAnalysis {
   const index = indexVersions(library)
   const blocks = new Map(library.map((b) => [b.id, b]))
   const names = idNames(library, experiences)
-  const asks = uniqueAskIds(raw.asks, new Set(experiences.map((e) => e.id)), names)
+  const requirements = cleanRequirements(raw.requirements, postingText, names)
+  const requirementIds = new Set(requirements.map((r) => r.id))
+  const asks = uniqueAskIds(raw.asks, new Set(experiences.map((e) => e.id)), requirementIds, names)
+  const askIds = new Set(asks.map((a) => a.id))
   let unknownBlocks = 0
 
   const drafts: AnalysisDraft[] = []
@@ -144,7 +284,9 @@ export function finalizeAnalysis(
       unknownBlocks += 1
       return
     }
-    const waitingOn = d.waitingOn?.trim() || null
+    const bullets = cleanBullets(d.bullets, names)
+    const from = block && d.fromVersionId ? block.versions.find((v) => v.id === d.fromVersionId) : undefined
+    const improvedBy = d.improvedBy?.trim() ?? ''
     drafts.push({
       key: `d${i + 1}`,
       blockId: block ? block.id : null,
@@ -153,33 +295,28 @@ export function finalizeAnalysis(
       // A version made for a job takes the job's name; a new block starts as its Base.
       name: block ? jobName : 'Base',
       title: d.title.trim(),
-      bullets: waitingOn ? [] : cleanBullets(d.bullets),
-      waitingOn,
+      bullets,
+      waitingOn: null,
       note: nameIds(d.note, names),
+      fromVersionId: from ? from.id : null,
+      fromVersionName: from ? from.name : null,
+      improvedBy: askIds.has(improvedBy) ? improvedBy : null,
+      matches: cleanMatches(d.matches, requirementIds, bulletTexts(bullets)),
     })
   })
 
-  const seen = new Set<string>()
-  const reused: ReusedVersion[] = []
-  let unknownVersions = 0
-  for (const r of raw.reused) {
-    const hit = index.get(r.versionId)
-    if (!hit) {
-      unknownVersions += 1
-      continue
-    }
-    if (seen.has(hit.version.id)) continue
-    seen.add(hit.version.id)
-    reused.push({ versionId: hit.version.id, blockName: hit.block.name, versionName: hit.version.name, why: nameIds(r.why, names) })
-  }
+  // A version is reused or left out, never both: reused wins.
+  const taken = new Set<string>()
+  const reused = collectVersions(raw.reused, index, requirementIds, names, taken)
+  const leftOut = collectVersions(raw.leftOut, index, requirementIds, names, taken)
+  const unknownVersions = reused.unknown + leftOut.unknown
 
   return {
-    requirements: raw.requirements
-      .map((r) => ({ text: nameIds(r.text, names), status: r.status, evidence: nameIds(r.evidence, names) }))
-      .filter((r) => r.text),
+    requirements,
     asks,
     drafts,
-    reused,
+    reused: reused.views,
+    leftOut: leftOut.views,
     report: [
       ...cleanReport(raw.report, names),
       ...skippedNote(unknownBlocks, unknownBlocks === 1 ? 'block' : 'blocks'),

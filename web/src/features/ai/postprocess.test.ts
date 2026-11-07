@@ -74,56 +74,250 @@ const analysisOutput = (over: Partial<AnalysisOutput> = {}): AnalysisOutput => (
   asks: [],
   drafts: [],
   reused: [],
+  leftOut: [],
   report: [],
   ...over,
 })
 
-describe('finalizeAnalysis', () => {
-  test('names job versions after the job, new blocks Base, and empties drafts that wait on a question', () => {
-    const a = finalizeAnalysis(
+const req = (over: Partial<AnalysisOutput['requirements'][number]> = {}): AnalysisOutput['requirements'][number] => ({
+  id: 'r1',
+  text: 'Python',
+  status: 'covered',
+  evidence: 'Visio AI',
+  quotes: [],
+  keys: [],
+  ...over,
+})
+
+const draft = (over: Partial<AnalysisOutput['drafts'][number]> = {}): AnalysisOutput['drafts'][number] => ({
+  blockId: 'b-visio',
+  newBlock: null,
+  fromVersionId: null,
+  title: 'AI Intern',
+  bullets: [{ kind: 'PROJECT', text: 'Built X.', want: null }],
+  improvedBy: null,
+  matches: [],
+  note: 'Leads with AI.',
+  ...over,
+})
+
+const POSTING = 'We want Python in production and RAG experience.\n\nYou will build   “retrieval” pipelines — end-to-end.'
+const run = (raw: AnalysisOutput, posting = POSTING, experiences: { id: string; title: string }[] = []) =>
+  finalizeAnalysis(raw, LIBRARY, 'iFood · GenAI Engineer', experiences, posting)
+
+describe('finalizeAnalysis: requirements and quotes (P1)', () => {
+  test('keeps a quote only when it occurs in the posting, returning the posting’s own wording', () => {
+    const a = run(
       analysisOutput({
-        requirements: [{ text: ' Python ', status: 'covered', evidence: 'Visio AI' }, { text: '', status: 'missing', evidence: '' }],
-        asks: [
-          { id: 'q1', text: 'RAG?', experienceId: 'e-visio' },
-          { id: 'q1', text: 'Evals?', experienceId: 'e-made-up' },
-          { id: '', text: 'Gemini?', experienceId: null },
+        requirements: [
+          req({
+            quotes: [
+              'We want Python in production and RAG experience.',
+              'You will build "retrieval" pipelines - end-to-end.', // straight quotes / hyphen for the typographic ones
+              'You must have ten years of Rust.', // invented
+              '  ',
+            ],
+          }),
         ],
-        drafts: [
-          { blockId: 'b-visio', newBlock: null, title: 'AI Intern', bullets: [{ kind: 'PROJECT', text: 'Built X.', want: null }], waitingOn: null, note: 'Leads with AI.' },
-          { blockId: null, newBlock: { name: 'RAG project', section: 'PROJECT', org: '', location: '', dates: '', stack: '' }, title: 'RAG', bullets: [{ kind: 'PROJECT', text: 'Invented.', want: null }], waitingOn: 'q1', note: 'Waiting.' },
-          { blockId: 'nope', newBlock: null, title: 'x', bullets: [], waitingOn: null, note: '' },
-        ],
-        reused: [{ versionId: 'v-bi-llm', why: 'Made for this job.' }, { versionId: 'v-bi-llm', why: 'dup' }, { versionId: 'ghost', why: '' }],
       }),
-      LIBRARY,
-      'iFood · GenAI Engineer',
-      [{ id: 'e-visio', title: 'Visio AI' }],
     )
-    expect(a.requirements).toEqual([{ text: 'Python', status: 'covered', evidence: 'Visio AI' }])
-    expect(a.asks.map((q) => q.id)).toEqual(['q1', 'q1-2', 'q3'])
-    // An answer goes to the experience the AI named, only when that experience exists.
-    expect(a.asks.map((q) => q.experienceId)).toEqual(['e-visio', null, null])
-    expect(a.drafts).toHaveLength(2)
-    expect(a.drafts[0]).toMatchObject({ key: 'd1', blockId: 'b-visio', blockName: 'Visio AI', name: 'iFood · GenAI Engineer' })
-    expect(a.drafts[1]).toMatchObject({ blockId: null, name: 'Base', blockName: 'RAG project', bullets: [], waitingOn: 'q1' })
-    expect(a.reused).toEqual([{ versionId: 'v-bi-llm', blockName: 'BI Dashboard', versionName: 'iFood · GenAI Engineer', why: 'Made for this job.' }])
-    expect(a.report.map((r) => r.text)).toEqual([
-      'Skipped 1 block the AI named that is not in your library.',
-      'Skipped 1 version the AI named that is not in your library.',
+    expect(a.requirements[0].quotes).toEqual([
+      'We want Python in production and RAG experience.',
+      'You will build “retrieval” pipelines — end-to-end.',
     ])
   })
 
-  test('toPostingSummary maps statuses to the fixed covered boolean', () => {
-    const a = finalizeAnalysis(
+  test('keeps at most 3 quotes and drops duplicates', () => {
+    const q = 'We want Python in production and RAG experience.'
+    const a = run(analysisOutput({ requirements: [req({ quotes: [q, q, 'Python in production', 'RAG experience', 'build'] })] }))
+    expect(a.requirements[0].quotes).toEqual([q, 'Python in production', 'RAG experience'])
+  })
+
+  test('a key is kept only when it occurs inside a kept quote', () => {
+    const a = run(
       analysisOutput({
         requirements: [
-          { text: 'A', status: 'covered', evidence: '' },
-          { text: 'B', status: 'partial', evidence: '' },
+          req({ quotes: ['We want Python in production and RAG experience.', 'Rust forever.'], keys: ['Python in production', 'RAG', 'Rust', 'Kubernetes', ' '] }),
         ],
       }),
-      LIBRARY,
-      'Job',
     )
+    expect(a.requirements[0].keys).toEqual(['Python in production', 'RAG'])
+  })
+
+  test('with no posting text every quote and key is dropped, never invented', () => {
+    const a = run(analysisOutput({ requirements: [req({ quotes: ['We want Python.'], keys: ['Python'] })] }), '')
+    expect(a.requirements[0]).toMatchObject({ quotes: [], keys: [] })
+  })
+
+  test('ids: kept, missing ones become r{n}, duplicates get a suffix, empty text drops the requirement', () => {
+    const a = run(
+      analysisOutput({
+        requirements: [req({ id: 'r1' }), req({ id: 'r1', text: 'RAG' }), req({ id: '', text: 'Evals' }), req({ id: 'r9', text: '' })],
+      }),
+    )
+    expect(a.requirements.map((r) => r.id)).toEqual(['r1', 'r1-2', 'r3'])
+    expect(a.requirements.map((r) => r.text)).toEqual(['Python', 'RAG', 'Evals'])
+  })
+})
+
+describe('finalizeAnalysis: asks', () => {
+  test('ids stay unique, experienceId and requirementId must exist else null', () => {
+    const a = run(
+      analysisOutput({
+        requirements: [req({ id: 'r1' }), req({ id: 'r2', text: 'RAG' })],
+        asks: [
+          { id: 'q1', text: 'RAG?', experienceId: 'e-visio', requirementId: 'r2' },
+          { id: 'q1', text: 'Evals?', experienceId: 'e-made-up', requirementId: 'r77' },
+          { id: '', text: 'Gemini?', experienceId: null, requirementId: null },
+        ],
+      }),
+      POSTING,
+      [{ id: 'e-visio', title: 'Visio AI' }],
+    )
+    expect(a.asks.map((q) => q.id)).toEqual(['q1', 'q1-2', 'q3'])
+    expect(a.asks.map((q) => q.experienceId)).toEqual(['e-visio', null, null])
+    expect(a.asks.map((q) => q.requirementId)).toEqual(['r2', null, null])
+  })
+})
+
+describe('finalizeAnalysis: drafts', () => {
+  const asks = [{ id: 'q1', text: 'RAG?', experienceId: null, requirementId: 'r1' }]
+
+  test('job versions take the job name, new blocks Base, unknown blocks are skipped and reported', () => {
+    const a = run(
+      analysisOutput({
+        drafts: [
+          draft(),
+          draft({ blockId: null, newBlock: { name: 'RAG project', section: 'PROJECT', org: '', location: '', dates: '', stack: '' }, title: 'RAG' }),
+          draft({ blockId: 'nope', title: 'x' }),
+        ],
+      }),
+    )
+    expect(a.drafts).toHaveLength(2)
+    expect(a.drafts[0]).toMatchObject({ key: 'd1', blockId: 'b-visio', blockName: 'Visio AI', name: 'iFood · GenAI Engineer', waitingOn: null })
+    expect(a.drafts[1]).toMatchObject({ blockId: null, name: 'Base', blockName: 'RAG project', waitingOn: null })
+    expect(a.report.map((r) => r.text)).toEqual(['Skipped 1 block the AI named that is not in your library.'])
+  })
+
+  test('a MISSING bullet keeps its trimmed hint (200 chars at most); other bullets are unchanged', () => {
+    const long = 'x'.repeat(300)
+    const a = run(
+      analysisOutput({
+        asks,
+        requirements: [req()],
+        drafts: [
+          draft({
+            improvedBy: 'q1',
+            bullets: [
+              { kind: 'PROJECT', text: 'Built X.', want: null },
+              { kind: 'MISSING', text: '  RAG: your answer to q1 can fill this ', want: 'IMPACT' },
+              { kind: 'MISSING', text: long, want: null },
+            ],
+          }),
+        ],
+      }),
+    )
+    const bullets = a.drafts[0].bullets
+    expect(bullets[1]).toEqual({ kind: 'MISSING', text: 'RAG: your answer to q1 can fill this', want: 'IMPACT' })
+    expect(bullets[2].text).toHaveLength(200)
+    expect(a.drafts[0].improvedBy).toBe('q1')
+  })
+
+  test('improvedBy must be an ask id, else null', () => {
+    const a = run(analysisOutput({ asks, drafts: [draft({ improvedBy: 'q9' }), draft({ improvedBy: 'q1' })] }))
+    expect(a.drafts.map((d) => d.improvedBy)).toEqual([null, 'q1'])
+  })
+
+  test('fromVersionId must be a version of that draft’s block; its name is filled', () => {
+    const a = run(
+      analysisOutput({
+        drafts: [
+          draft({ blockId: 'b-bi', fromVersionId: 'v-bi-llm' }),
+          draft({ blockId: 'b-bi', fromVersionId: 'v-visio-base' }), // other block
+          draft({ blockId: 'b-bi', fromVersionId: 'ghost' }),
+          draft({ blockId: null, newBlock: { name: 'N', section: 'PROJECT', org: '', location: '', dates: '', stack: '' }, fromVersionId: 'v-bi-llm' }),
+        ],
+      }),
+    )
+    expect(a.drafts.map((d) => d.fromVersionId)).toEqual(['v-bi-llm', null, null, null])
+    expect(a.drafts.map((d) => d.fromVersionName)).toEqual(['iFood · GenAI Engineer', null, null, null])
+  })
+
+  test('match phrases must occur in the draft’s bullets and the requirement must exist', () => {
+    const a = run(
+      analysisOutput({
+        requirements: [req({ id: 'r1' })],
+        drafts: [
+          draft({
+            matches: [
+              { requirementId: 'r1', phrases: ['Built X', 'Built Y', ''], partly: false },
+              { requirementId: 'r5', phrases: ['Built X'], partly: false }, // unknown requirement
+              { requirementId: 'r1', phrases: ['nothing here'], partly: true }, // no phrase survives
+            ],
+          }),
+        ],
+      }),
+    )
+    expect(a.drafts[0].matches).toEqual([{ requirementId: 'r1', phrases: ['Built X'], partly: false }])
+  })
+})
+
+describe('finalizeAnalysis: reused and left out', () => {
+  test('are written out in full from the library, with their matches checked against the real bullets', () => {
+    const a = run(
+      analysisOutput({
+        requirements: [req({ id: 'r1' })],
+        reused: [
+          { versionId: 'v-bi-llm', why: 'Made for this job.', matches: [{ requirementId: 'r1', phrases: ['lead-analysis time', 'invented'], partly: true }] },
+          { versionId: 'v-bi-llm', why: 'dup', matches: [] },
+          { versionId: 'ghost', why: '', matches: [] },
+        ],
+        leftOut: [{ versionId: 'v-visio-base', why: 'Not about AI.', matches: [{ requirementId: 'r1', phrases: ['reconciliation platform'], partly: false }] }],
+      }),
+    )
+    expect(a.reused).toEqual([
+      {
+        versionId: 'v-bi-llm',
+        blockId: 'b-bi',
+        blockName: 'BI Dashboard',
+        versionName: 'iFood · GenAI Engineer',
+        section: 'PROJECT',
+        title: 'LLM-Powered CRM Insights Pipeline',
+        org: '',
+        location: '',
+        dates: '',
+        stack: 'n8n, Python, Gemini',
+        bullets: [{ kind: 'IMPACT', text: 'Cut lead-analysis time from 10 hours to minutes.', want: null }],
+        why: 'Made for this job.',
+        matches: [{ requirementId: 'r1', phrases: ['lead-analysis time'], partly: true }],
+      },
+    ])
+    expect(a.leftOut).toHaveLength(1)
+    expect(a.leftOut[0]).toMatchObject({ versionId: 'v-visio-base', blockName: 'Visio AI', why: 'Not about AI.', title: 'Software Engineer Intern' })
+    expect(a.leftOut[0].bullets).toHaveLength(2)
+    expect(a.leftOut[0].matches).toEqual([{ requirementId: 'r1', phrases: ['reconciliation platform'], partly: false }])
+    expect(a.report.map((r) => r.text)).toEqual(['Skipped 1 version the AI named that is not in your library.'])
+  })
+
+  test('a version cannot be both reused and left out: reused wins', () => {
+    const a = run(
+      analysisOutput({
+        reused: [{ versionId: 'v-bi-llm', why: 'fits', matches: [] }],
+        leftOut: [
+          { versionId: 'v-bi-llm', why: 'also out?', matches: [] },
+          { versionId: 'v-bi-base', why: 'Empty.', matches: [] },
+          { versionId: 'v-bi-base', why: 'dup', matches: [] },
+        ],
+      }),
+    )
+    expect(a.reused.map((r) => r.versionId)).toEqual(['v-bi-llm'])
+    expect(a.leftOut.map((r) => r.versionId)).toEqual(['v-bi-base'])
+  })
+})
+
+describe('finalizeAnalysis: other', () => {
+  test('toPostingSummary maps statuses to the fixed covered boolean', () => {
+    const a = run(analysisOutput({ requirements: [req({ id: 'r1', text: 'A' }), req({ id: 'r2', text: 'B', status: 'partial' })] }))
     expect(toPostingSummary(a).requirements).toEqual([
       { text: 'A', covered: true },
       { text: 'B', covered: false },

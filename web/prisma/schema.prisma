@@ -99,6 +99,9 @@ model Job {
   versions    VersionJob[]
   cv          Cv?
   tailored    TailoredAnswer[]
+  /// Job analysis v2 session (validated by parseSession on load); null until the first analysis.
+  analysis    Json?
+  analyzedAt  DateTime?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 

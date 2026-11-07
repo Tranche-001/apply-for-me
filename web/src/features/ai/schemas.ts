@@ -41,12 +41,21 @@ export const cvPlanOutputSchema = z.object({
 })
 export type CvPlanOutput = z.infer<typeof cvPlanOutputSchema>
 
+export const requirementMatchSchema = z.object({
+  requirementId: z.string().describe('Id of the requirement (r1, r2...) these words show.'),
+  phrases: z.array(z.string()).describe('Short phrases copied exactly, word for word, from the bullets of this block or version.'),
+  partly: z.boolean().describe('true when the words only partly show the requirement.'),
+})
+
 export const analysisOutputSchema = z.object({
   requirements: z.array(
     z.object({
+      id: z.string().describe('"r1", "r2", and so on, in order.'),
       text: z.string().describe('A requirement of the job, in a few words.'),
       status: z.enum(['covered', 'partial', 'missing']),
       evidence: z.string().describe('Which blocks or versions show it, or what is missing.'),
+      quotes: z.array(z.string()).describe('1 to 3 sentences of the posting that state this requirement, copied word for word.'),
+      keys: z.array(z.string()).describe('Short pieces of those quotes, copied exactly, that carry the requirement (to highlight).'),
     }),
   ),
   asks: z.array(
@@ -54,19 +63,25 @@ export const analysisOutputSchema = z.object({
       id: z.string(),
       text: z.string(),
       experienceId: z.string().nullable().describe('Id of the <experience> this question is about (where he would have done it), or null when none fits.'),
+      requirementId: z.string().nullable().describe('Id of the requirement this question is about, or null.'),
     }),
   ),
   drafts: z.array(
     z.object({
       blockId: z.string().nullable().describe('Existing block for a new version; null for a new block.'),
       newBlock: newBlockSchema.nullable().describe('Only for a new block; null otherwise.'),
+      fromVersionId: z.string().nullable().describe('Id of the version of that block this draft starts from, or null.'),
       title: z.string(),
       bullets: z.array(draftBulletSchema),
-      waitingOn: z.string().nullable().describe('Id of the unanswered question this draft depends on, or null.'),
+      improvedBy: z.string().nullable().describe('Id of the question whose answer can fill this draft\'s MISSING bullet, or null.'),
+      matches: z.array(requirementMatchSchema).describe('The requirements this draft shows, with the words that show them.'),
       note: z.string().describe('One sentence: what this draft changes compared with the existing versions, and why.'),
     }),
   ),
-  reused: z.array(z.object({ versionId: z.string(), why: z.string() })),
+  reused: z.array(z.object({ versionId: z.string(), why: z.string(), matches: z.array(requirementMatchSchema) })),
+  leftOut: z
+    .array(z.object({ versionId: z.string(), why: z.string().describe('One sentence: why this version is not used for this job.'), matches: z.array(requirementMatchSchema) }))
+    .describe('Relevant library versions you did not use, with why.'),
   report: z.array(reportLineSchema),
 })
 export type AnalysisOutput = z.infer<typeof analysisOutputSchema>

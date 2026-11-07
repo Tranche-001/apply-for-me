@@ -157,18 +157,20 @@ export type AnalysisPromptInput = {
 }
 
 export function buildAnalysisPrompt(input: AnalysisPromptInput): Prompt {
-  const task = `Task: read the job posting, compare it with his library, ask about the gaps, and draft what would make his CV fit this job better.
-- requirements: the 5 to 10 requirements that matter most in the posting. status "covered" when a block shows it clearly, "partial" when a block hints at it but does not say how, "missing" when nothing does. evidence names the blocks (and versions) that show it, or says what is missing.
-- asks: up to 4 questions about the gaps, each about something only he knows: did he do X, how did he use Y, what was the result. Ids "q1", "q2", and so on; keep the ids of questions you asked before. Do not ask again what his answers already settle. experienceId: the id of the <experience> where he would have done it (his answer is added to that experience's notes), or null when none fits.
+  const task = `Task: read the job posting, compare it with his library, ask about the gaps, and draft what would make his CV fit this job better. Draft first, from what the library already has; his answers come later and only improve the drafts.
+- requirements: the 5 to 10 requirements that matter most in the posting. id "r1", "r2", and so on, in order. status "covered" when a block shows it clearly, "partial" when a block hints at it but does not say how, "missing" when nothing does. evidence names the blocks (and versions) that show it, or says what is missing. quotes: 1 to 3 sentences of the posting that state the requirement, copied word for word from the posting, never reworded. keys: short pieces of those quotes, copied exactly, that carry the requirement (they are highlighted).
+- asks: up to 4 questions about the gaps, each about something only he knows: did he do X, how did he use Y, what was the result. Ids "q1", "q2", and so on; keep the ids of questions you asked before. Do not ask again what his answers already settle. requirementId: the id of the requirement the question is about, or null. experienceId: the id of the <experience> where he would have done it (his answer is added to that experience's notes), or null when none fits.
 - reused: versions that already fit this job as they are, with why. Prefer reusing to drafting.
-- drafts: only where no existing version fits.
-  - A new version of an existing block: blockId set, newBlock null. Lead with what this job cares about, using only facts from that block's versions, his Experiences notes (matched by block_ids) or his answers. If only the title needs to change, copy the bullets of the version you start from unchanged and say so in the note.
-  - A new block: blockId null and newBlock filled. Only when his answers or notes describe something no block covers.
-  - A draft that depends on a question he has not answered yet: waitingOn is that question's id, bullets empty, title a short label of the topic. Write nothing else for it.
+- drafts: only where no existing version fits. Make every draft now, before any answer, from what his library and notes already say.
+  - A new version of an existing block: blockId set, newBlock null. fromVersionId is the version of that block it starts from (an id from the library), or null. Lead with what this job cares about, using only facts from that block's versions, his Experiences notes (matched by block_ids) or his answers. If only the title needs to change, copy the bullets of the version you start from unchanged and say so in the note.
+  - A new block: blockId null, fromVersionId null and newBlock filled. Only when his answers or notes describe something no block covers.
+  - A gap a question can fill: add a MISSING bullet whose text is a short hint naming the question, for example "RAG or vector search: your answer to q1 can fill this", and set improvedBy to that question's id. Never write the fact itself. A draft with nothing waiting on a question has improvedBy null. Never leave a draft empty because a question is open.
   - A question he answered "Don't have it": draft nothing for it and do not ask it again.
-  - Bullets: if a kind has no facts, use MISSING with want set to that kind instead of inventing.
+  - Bullets: if a kind has no facts, use MISSING with want set to that kind instead of inventing. A MISSING bullet without a question to fill it has an empty text.
   - note: one sentence on what the draft changes compared with his existing versions, and why.
-- report: one NEW line per draft, one REUSED line per reused version, NOTE lines for anything else. English, one sentence each.`
+- matches: for every draft and every reused or leftOut version, the requirements its bullets show. Each match has the requirementId, the phrases (copied exactly, word for word, from the bullets of that same draft or version) and partly (true when the words only partly show the requirement). Skip a requirement it does not show.
+- leftOut: library versions that look relevant to this posting but you did not use, each with why in one sentence. Not a version you reused. Skip versions that have nothing to do with the job.
+- report: one NEW line per draft, one REUSED line per reused version, one LEFT OUT line per leftOut version, NOTE lines for anything else. English, one sentence each.`
   const previous = input.previousDrafts.length
     ? `Your previous drafts, which he wants revised:\n${input.previousDrafts
         .map((d) => `- ${d.blockName}: ${d.title}\n${d.bullets.map((b) => `    - ${b}`).join('\n')}`)
