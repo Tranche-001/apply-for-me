@@ -1,0 +1,23 @@
+# Personal CV files: real phone, email and address. Never commit.
+Curriculos e Aplicacoes/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# OS / editor
+.DS_Store
+*.log
+
+# Session notes saved by /save-session-local (may hold personal details)
+.claude/session-data/

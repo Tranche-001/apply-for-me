@@ -1,0 +1,30 @@
+import 'server-only'
+import { db } from '@/lib/db'
+import { jobLabel } from '../ai/labels'
+import { tailoredKey, type BehavioralData } from './types'
+
+export async function loadBehavioral(): Promise<BehavioralData> {
+  const [questions, tailored, jobs] = await Promise.all([
+    db.behavioralQuestion.findMany({ orderBy: { position: 'asc' } }),
+    db.tailoredAnswer.findMany({ select: { questionId: true, jobId: true, text: true } }),
+    db.job.findMany({ orderBy: [{ updatedAt: 'desc' }], select: { id: true, company: true, role: true } }),
+  ])
+  return {
+    questions: questions.map((q, i) => ({
+      id: q.id,
+      key: q.key,
+      n: String(i + 1).padStart(2, '0'),
+      short: q.short,
+      full: q.full,
+      looksFor: q.looksFor,
+      answer: q.answer,
+      theory: q.theory,
+      references: q.references,
+      useFounder: q.useFounder,
+      founderNotes: q.founderNotes,
+      founderRefs: q.founderRefs,
+    })),
+    tailored: Object.fromEntries(tailored.map((t) => [tailoredKey(t.questionId, t.jobId), t.text])),
+    jobs: jobs.map((j) => ({ id: j.id, label: jobLabel(j), company: j.company.trim() || j.role.trim() })),
+  }
+}

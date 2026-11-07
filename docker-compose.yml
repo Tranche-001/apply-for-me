@@ -1,0 +1,39 @@
+# apply-for-me: the Next.js app and its Postgres database.
+#   docker compose up -d db         # just the database (run the app with `npm run dev` in web/)
+#   docker compose up -d --build    # database + app on http://localhost:3000
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: apply
+      POSTGRES_PASSWORD: apply
+      POSTGRES_DB: apply_for_me
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apply -d apply_for_me"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build: ./web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://apply:apply@db:5432/apply_for_me
+      # The AI: ANTHROPIC_API_KEY (Claude) or GEMINI_API_KEY (Gemini), from ./.env or your shell.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
+      AI_PROVIDER: ${AI_PROVIDER:-}
+    ports:
+      - "3000:3000"
+
+volumes:
+  db-data:

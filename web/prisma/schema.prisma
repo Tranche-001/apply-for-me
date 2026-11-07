@@ -1,0 +1,209 @@
+// apply-for-me data model.
+// An Experience is what happened at a place, in your own words (raw context for the AI).
+// A Block is one CV entry; it has Versions (title + bullets). A Job has links and the CV saved for it.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Section {
+  EXPERIENCE
+  PROJECT
+}
+
+enum BulletKind {
+  PROJECT
+  STACK
+  IMPACT
+  PROJECT_STACK
+  PROJECT_IMPACT
+  STACK_IMPACT
+  MISSING // a gap the AI must not fill by itself; `want` says which kind is missing
+}
+
+enum LinkKind {
+  POSTING
+  APPLICATION
+  COMPANY
+  OTHER
+}
+
+model Experience {
+  id        String   @id @default(cuid())
+  title     String
+  where     String   @default("")
+  when      String   @default("")
+  notes     String   @default("")
+  position  Int      @default(0)
+  blocks    Block[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Block {
+  id           String      @id @default(cuid())
+  slug         String      @unique
+  name         String
+  section      Section
+  org          String      @default("")
+  location     String      @default("")
+  dates        String      @default("")
+  stack        String      @default("")
+  position     Int         @default(0)
+  experienceId String?
+  experience   Experience? @relation(fields: [experienceId], references: [id], onDelete: SetNull)
+  versions     Version[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Version {
+  id        String       @id @default(cuid())
+  blockId   String
+  block     Block        @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  name      String
+  title     String
+  isBase    Boolean      @default(false)
+  themes    String[]
+  position  Int          @default(0)
+  bullets   Bullet[]
+  jobs      VersionJob[]
+  cvItems   CvItem[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([blockId, name])
+}
+
+model Bullet {
+  id        String      @id @default(cuid())
+  versionId String
+  version   Version     @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  kind      BulletKind
+  text      String
+  want      BulletKind?
+  position  Int
+}
+
+model Job {
+  id          String           @id @default(cuid())
+  company     String           @default("")
+  role        String
+  postingText String           @default("")
+  links       JobLink[]
+  versions    VersionJob[]
+  cv          Cv?
+  tailored    TailoredAnswer[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([company, role])
+}
+
+model JobLink {
+  id       String   @id @default(cuid())
+  jobId    String
+  job      Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  kind     LinkKind
+  url      String
+  position Int      @default(0)
+}
+
+// A version made for a job (it is named after the job).
+model VersionJob {
+  versionId String
+  version   Version @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  jobId     String
+  job       Job     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@id([versionId, jobId])
+}
+
+// The CV saved for one job.
+model Cv {
+  id               String    @id @default(cuid())
+  jobId            String    @unique
+  job              Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  pages            Int       @default(1)
+  sectionOrder     Section[]
+  showEducation    Boolean   @default(true)
+  showSkills       Boolean   @default(true)
+  showAchievements Boolean   @default(false)
+  source           String    @default("")
+  items            CvItem[]
+  savedAt          DateTime  @default(now())
+}
+
+model CvItem {
+  id        String  @id @default(cuid())
+  cvId      String
+  cv        Cv      @relation(fields: [cvId], references: [id], onDelete: Cascade)
+  versionId String
+  version   Version @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  section   Section
+  position  Int
+}
+
+model EducationEntry {
+  id       String @id @default(cuid())
+  degree   String
+  dates    String @default("")
+  school   String @default("")
+  location String @default("")
+  position Int    @default(0)
+}
+
+model SkillLine {
+  id       String @id @default(cuid())
+  label    String
+  text     String
+  position Int    @default(0)
+}
+
+model Achievement {
+  id          String @id @default(cuid())
+  title       String
+  description String @default("")
+  position    Int    @default(0)
+}
+
+model BehavioralQuestion {
+  id           String           @id @default(cuid())
+  key          String           @unique
+  position     Int
+  short        String
+  full         String
+  looksFor     String[]
+  answer       String           @default("")
+  theory       String           @default("")
+  references   String[]
+  useFounder   Boolean          @default(true)
+  founderNotes String           @default("")
+  founderRefs  String[]
+  tailored     TailoredAnswer[]
+}
+
+model TailoredAnswer {
+  questionId String
+  question   BehavioralQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  jobId      String
+  job        Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  text       String
+
+  @@id([questionId, jobId])
+}
+
+// What the AI learned: rules distilled from your edits, each switchable.
+model PreferenceRule {
+  id       String  @id @default(cuid())
+  group    String
+  text     String
+  source   String  @default("")
+  on       Boolean @default(true)
+  position Int     @default(0)
+}

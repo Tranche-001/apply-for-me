@@ -1,0 +1,42 @@
+/* Hover and focus states of the approved canvas. Base looks are inline styles (as in the canvas), so the
+   hover rules need !important, exactly like the canvas helmet styles. */
+
+.btnP:hover:not(:disabled) { background: #3730a3 !important; border-color: #3730a3 !important; color: #ffffff !important; }
+.btnS:hover:not(:disabled) { border-color: #4338ca !important; color: #3730a3 !important; }
+.iconB:hover:not(:disabled) { background: #eef0f3 !important; color: #14161b !important; }
+.opt:hover { background: #f6f7f9 !important; }
+.jobO:hover { background: #f6f7f9 !important; }
+.addB:hover { background: #eef0fe !important; color: #3730a3 !important; }
+.field::placeholder { color: #6b7180; }
+
+/* "Like the CV" inputs: no boxes, a highlight on hover and focus. */
+.cvIn { background: transparent; }
+.cvIn::placeholder { color: #6b7180; }
+.cvIn:hover { background: #f6f7f9 !important; }
+.cvIn:focus { background: #ffffff !important; box-shadow: 0 0 0 2px #c7cbfa; outline: none; }
+
+/* A block on the preview page. */
+.pvEn { cursor: pointer; transition: background-color 0.35s ease, box-shadow 0.35s ease; }
+.pvEn:hover { background: #f6f7f9; }
+
+/* Row name in Compose: the pencil shows on hover or keyboard focus. */
+.rowEd:hover { background: #eef0f3 !important; }
+.rowPen { opacity: 0; transition: opacity 0.15s; }
+.rowEd:hover .rowPen,
+.rowEd:focus-visible .rowPen { opacity: 1; }
+
+.secH:focus { outline: none; }
+.secH:focus-visible { outline: 2px solid #4338ca; outline-offset: 4px; }
+
+/* The yellow fit warning pops in when the CV goes over its page limit. */
+.warnB { animation: warnIn 0.32s ease-out; }
+.warnB:hover { background: #fff5e6 !important; }
+@keyframes warnIn {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .warnB { animation: none; }
+  .pvEn, .rowPen { transition: none; }
+}

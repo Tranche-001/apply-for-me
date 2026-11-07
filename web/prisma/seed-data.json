@@ -1,0 +1,1486 @@
+{
+  "blocks": [
+    {
+      "slug": "visio",
+      "name": "Visio AI",
+      "section": "EXPERIENCE",
+      "org": "Visio AI",
+      "location": "São Carlos, SP",
+      "dates": "June 2026 – Present",
+      "stack": "",
+      "position": 0,
+      "versions": [
+        {
+          "key": "visio-base",
+          "name": "Base",
+          "title": "Software Engineer Intern — Visio AI",
+          "isBase": true,
+          "themes": [
+            "Fintech",
+            "Data",
+            "Backend",
+            "Cloud"
+          ],
+          "jobs": [],
+          "bullets": [
+            {
+              "kind": "PROJECT_IMPACT",
+              "text": "Built a full credit card reconciliation platform end-to-end for 100+ merchant clients, reconciling $150K+ in monthly card transactions per store ($1.8M+ annually) — from ERP data ingestion through acquirer certification with Fiserv, Getnet, and Linx — giving merchants exact visibility into whether, when, and how much they get paid on every credit sale",
+              "want": null
+            },
+            {
+              "kind": "STACK",
+              "text": "Engineered 19 Python scripts across 4 repos — a card reconciliation pipeline, production loaders from BigQuery and acquirers EDIs, and a headless web scraper",
+              "want": null
+            },
+            {
+              "kind": "STACK",
+              "text": "Worked across a modern cloud and AI stack including AWS, Supabase, BigQuery, Netlify, Next.js, and Claude to deliver features from data infrastructure through deployment",
+              "want": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "iaas",
+      "name": "IAAS!",
+      "section": "EXPERIENCE",
+      "org": "IAAS!",
+      "location": "São Paulo, SP",
+      "dates": "January 2026 – April 2026",
+      "stack": "",
+      "position": 1,
+      "versions": [
+        {
+          "key": "iaas-base",
+          "name": "Base",
+          "title": "Full-Stack Engineer Intern — IAAS!",
+          "isBase": true,
+          "themes": [
+            "Full-stack",
+            "Security"
+          ],
+          "jobs": [],
+          "bullets": [
+            {
+              "kind": "PROJECT",
+              "text": "Built Angular + .NET features automating legislative document workflows for 130+ Asset Manager clients, replacing error-prone manual backoffice processes",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Identified 1 security vulnerabilities and 1 automation opportunities while auditing JWT authentication flows, patching auth exploits and eliminating repetitive manual steps in backoffice operations",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Owned PostgreSQL database and REST API maintenance in a production environment, sustaining a weekly release cadence across Agile/Scrum sprint cycles",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "iaas-fin",
+          "name": "Fintech",
+          "title": "Full-Stack Engineer Intern — IAAS! Fintech",
+          "isBase": false,
+          "themes": [
+            "Fintech",
+            "Full-stack"
+          ],
+          "jobs": [],
+          "bullets": [
+            {
+              "kind": "PROJECT",
+              "text": "Built Angular + .NET features automating legislative document workflows for 130+ Asset Manager clients, replacing error-prone manual backoffice processes",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Identified 1 security vulnerabilities and 1 automation opportunities while auditing JWT authentication flows, patching auth exploits and eliminating repetitive manual steps in backoffice operations",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Owned PostgreSQL database and REST API maintenance in a production environment, sustaining a weekly release cadence across Agile/Scrum sprint cycles",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "iaas-tb",
+          "name": "Tool Builder",
+          "title": "Full-Stack Engineer Intern — IAAS!",
+          "isBase": false,
+          "themes": [
+            "Full-stack",
+            "Security"
+          ],
+          "jobs": [
+            "Tool Builder"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT",
+              "text": "Built Angular + .NET features automating legislative document workflows for 130+ Asset Manager clients, replacing error-prone manual backoffice processes",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Identified 1 auth exploit and 1 automation opportunity while auditing JWT authentication flows, patching the vulnerability and eliminating repetitive manual steps in backoffice operations",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Owned PostgreSQL database and REST API maintenance in a production environment, sustaining a weekly release cadence across Agile/Scrum sprint cycles",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "iaas-jb",
+          "name": "JackBox",
+          "title": "Full-Stack Engineer Intern — IAAS!",
+          "isBase": false,
+          "themes": [
+            "Full-stack",
+            "Databases"
+          ],
+          "jobs": [
+            "JackBox"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT",
+              "text": "Shipped end-to-end Angular + .NET features automating legislative document workflows for 130+ Asset Manager clients, owning well-scoped features in production with guidance from senior engineers",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Owned PostgreSQL relational database and REST API maintenance in production, sustaining a weekly release cadence across Agile/Scrum rituals (standups, sprint planning, retros)",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Identified 1 security vulnerability and 1 automation opportunity while auditing JWT authentication flows, patching auth exploits and eliminating repetitive manual steps in backoffice operations",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "iaas-wfs",
+          "name": "Web Full-Stack",
+          "title": "Full-Stack Engineer Intern — IAAS!",
+          "isBase": false,
+          "themes": [
+            "Full-stack",
+            "Security"
+          ],
+          "jobs": [
+            "Web Full-Stack"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT",
+              "text": "Built end-to-end Angular + .NET features automating legislative document workflows for 130+ Asset Manager clients, replacing error-prone manual backoffice processes",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Owned PostgreSQL database and REST API maintenance in production, sustaining a weekly release cadence across Agile/Scrum sprint cycles",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Identified 1 critical JWT authentication vulnerability and 1 automation opportunity while auditing authentication flows end-to-end, flagging both to the team for remediation",
+              "want": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "rats",
+      "name": "Study Rats",
+      "section": "EXPERIENCE",
+      "org": "Codelab USP — Development Group",
+      "location": "São Carlos, SP",
+      "dates": "March 2026 – Present",
+      "stack": "",
+      "position": 2,
+      "versions": [
+        {
+          "key": "rats-base",
+          "name": "Base",
+          "title": "Tech Lead, Full-Stack — Study Rats",
+          "isBase": true,
+          "themes": [
+            "Leadership",
+            "Mobile",
+            "Backend"
+          ],
+          "jobs": [],
+          "bullets": [
+            {
+              "kind": "PROJECT",
+              "text": "Led a 7-engineer team in .NET and React Native to design and ship Study Rats, a time management and competition app currently in active development",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Architected scalable backend using Clean Architecture, DDD, CQRS, and Repository Patterns, enabling all 7 engineers to develop features in parallel without merge conflicts",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Standardized API contracts across the codebase via Global Exception Handling, Swagger docs, and Result Patterns (FluentResults), eliminating undefined error states in production",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "rats-swe",
+          "name": "Software Engineer",
+          "title": "Software Engineer — Study Rats",
+          "isBase": false,
+          "themes": [
+            "Backend",
+            "Mobile"
+          ],
+          "jobs": [
+            "AWS · Software Developer"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT",
+              "text": "Led a 7-engineer team in .NET and React Native to design and ship Study Rats, a time management and competition app currently in active development",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Architected scalable backend using Clean Architecture, DDD, CQRS, and Repository Patterns, enabling all 7 engineers to develop features in parallel without merge conflicts",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Standardized API contracts across the codebase via Global Exception Handling, Swagger docs, and Result Patterns (FluentResults), eliminating undefined error states in production",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "rats-tb",
+          "name": "Tool Builder",
+          "title": "Tech Lead, Full-Stack — Study Rats",
+          "isBase": false,
+          "themes": [
+            "Leadership",
+            "Mobile"
+          ],
+          "jobs": [
+            "Tool Builder"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT_STACK",
+              "text": "Led a 7-engineer team to design and ship Study Rats in React Native and .NET, architecting the system with Clean Architecture, Domain-Driven Design (DDD), and CQRS so all 7 engineers could build features in parallel without merge conflicts",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Standardized API contracts via Global Exception Handling, Swagger docs, and Result Patterns (FluentResults), eliminating undefined error states across the production codebase",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "rats-jb",
+          "name": "JackBox",
+          "title": "Tech Lead, Full-Stack — Study Rats",
+          "isBase": false,
+          "themes": [
+            "Leadership",
+            "Mobile"
+          ],
+          "jobs": [
+            "JackBox"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT_STACK",
+              "text": "Led a 7-engineer team shipping Study Rats in React Native + .NET, architecting with Clean Architecture, Domain-Driven Design (DDD), and CQRS so all 7 engineers build features in parallel without merge conflicts",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Standardized API contracts and code-review practices via Global Exception Handling, Swagger docs, and Result Patterns (FluentResults), eliminating undefined error states across the production codebase",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "rats-wfs",
+          "name": "Web Full-Stack",
+          "title": "Tech Lead, Full-Stack — Study Rats",
+          "isBase": false,
+          "themes": [
+            "Full-stack",
+            "Mobile"
+          ],
+          "jobs": [
+            "Web Full-Stack"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT_STACK",
+              "text": "Led a 7-engineer team delivering a React Native + .NET app using Clean Architecture, Domain-Driven Design (DDD), CQRS, and Repository Patterns, enabling all engineers to develop in parallel.",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Standardized API contracts across the codebase via Global Exception Handling, Swagger docs, and Result Patterns (FluentResults), eliminating undefined error states in production",
+              "want": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "attendance",
+      "name": "Attendance Control App",
+      "section": "EXPERIENCE",
+      "org": "Codelab USP — Development Group",
+      "location": "São Carlos, SP",
+      "dates": "September 2025 – January 2026",
+      "stack": "",
+      "position": 3,
+      "versions": [
+        {
+          "key": "att-base",
+          "name": "Base",
+          "title": "Back-End Developer — Attendance Control App",
+          "isBase": true,
+          "themes": [
+            "Backend",
+            "DevOps"
+          ],
+          "jobs": [],
+          "bullets": [
+            {
+              "kind": "PROJECT_STACK",
+              "text": "Designed and built the complete backend from scratch — JWT auth, MongoDB data modeling, and REST APIs via Express — serving 40+ users tracking attendance across the organization",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Containerized the full application with Docker, eliminating environment inconsistencies across development, testing, and deployment",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Defined development standards for a 4-engineer team, enabling independent parallel workstreams and consistent practices from day one",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "att-tb",
+          "name": "Tool Builder",
+          "title": "Back-End Developer — Attendance Control App",
+          "isBase": false,
+          "themes": [
+            "Backend",
+            "DevOps"
+          ],
+          "jobs": [
+            "Tool Builder"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT_STACK",
+              "text": "Designed and built the complete backend from scratch — JWT auth, MongoDB data modeling, and REST APIs via Express — serving 40+ users tracking attendance across the organization",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Containerized the full application with Docker and defined development standards for a 4-engineer team, enabling independent parallel workstreams from day one",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "att-jb",
+          "name": "JackBox",
+          "title": "Back-End Developer — Attendance Control App",
+          "isBase": false,
+          "themes": [
+            "Backend",
+            "DevOps"
+          ],
+          "jobs": [
+            "JackBox"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT_STACK",
+              "text": "Designed and built the complete backend from scratch (JWT auth, MongoDB, REST APIs via Node.js/Express) serving 40+ users; containerized with Docker/Compose and set development standards for a 4-engineer team",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "att-wfs",
+          "name": "Web Full-Stack",
+          "title": "Back-End Developer — Attendance Control App",
+          "isBase": false,
+          "themes": [
+            "Backend",
+            "DevOps"
+          ],
+          "jobs": [
+            "Web Full-Stack"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT_STACK",
+              "text": "Designed and shipped complete backend from scratch — JWT auth, MongoDB data modeling, and REST APIs via Node.js/Express — serving 40+ users tracking attendance across the organization",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Containerized the full application with Docker/Compose, eliminating environment inconsistencies across development, testing, and deployment for a 4-engineer team",
+              "want": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "semcomp",
+      "name": "Semcomp website",
+      "section": "EXPERIENCE",
+      "org": "University of São Paulo",
+      "location": "São Carlos, SP",
+      "dates": "March 2025 – November 2025",
+      "stack": "",
+      "position": 4,
+      "versions": [
+        {
+          "key": "sem-base",
+          "name": "Base",
+          "title": "Web Developer — Computer Science Week Website (Semcomp)",
+          "isBase": true,
+          "themes": [
+            "Frontend",
+            "Full-stack"
+          ],
+          "jobs": [],
+          "bullets": [
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Built email confirmation system using React, Express, TypeScript, and Nodemailer, handling registration for 500+ event attendees",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Eliminated a backoffice performance bottleneck by refactoring client-side filters — which loaded the full record set into the browser on every request — into server-side queries, reducing page load time from seconds to milliseconds for the internal team",
+              "want": null
+            },
+            {
+              "kind": "MISSING",
+              "text": "No project bullet yet. What was the site for, and what did you own?",
+              "want": "PROJECT"
+            }
+          ]
+        },
+        {
+          "key": "sem-tb",
+          "name": "Tool Builder",
+          "title": "Web Developer — Computer Science Week Website (Semcomp)",
+          "isBase": false,
+          "themes": [
+            "Frontend",
+            "Full-stack",
+            "Databases"
+          ],
+          "jobs": [
+            "Tool Builder"
+          ],
+          "bullets": [
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Built email confirmation system using React, TypeScript, Express, and Nodemailer, handling registration for 500+ event attendees",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Eliminated a backoffice performance bottleneck by refactoring client-side filters into server-side PostgreSQL queries, reducing page load time from seconds to milliseconds for the internal team",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "sem-jb",
+          "name": "JackBox",
+          "title": "Web Developer — Computer Science Week Website (Semcomp)",
+          "isBase": false,
+          "themes": [
+            "Frontend",
+            "Full-stack",
+            "Databases"
+          ],
+          "jobs": [
+            "JackBox"
+          ],
+          "bullets": [
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Built email confirmation system in React, TypeScript, and Express, handling registration for 500+ attendees",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Eliminated a backoffice performance bottleneck by refactoring client-side filters into server-side PostgreSQL queries, reducing page load time from seconds to milliseconds for the internal team",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "sem-wfs",
+          "name": "Web Full-Stack",
+          "title": "Web Developer — Computer Science Week Website (Semcomp)",
+          "isBase": false,
+          "themes": [
+            "Frontend",
+            "Full-stack",
+            "Databases"
+          ],
+          "jobs": [
+            "Web Full-Stack"
+          ],
+          "bullets": [
+            {
+              "kind": "IMPACT",
+              "text": "Eliminated a critical backoffice performance bottleneck by refactoring client-side filters into server-side PostgreSQL queries, reducing page load from seconds to milliseconds for the internal team",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Built email confirmation system in React, TypeScript, Express, and Nodemailer, handling registration for 500+ event attendees with responsive, accessible UI",
+              "want": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "bi",
+      "name": "BI Dashboard",
+      "section": "PROJECT",
+      "org": "",
+      "location": "",
+      "dates": "",
+      "stack": "Lovable, n8n, Supabase, Python, Gemini, Telegram Bot",
+      "position": 5,
+      "versions": [
+        {
+          "key": "bi-base",
+          "name": "Base",
+          "title": "Automated Business Intelligence Dashboard",
+          "isBase": true,
+          "themes": [
+            "Automation",
+            "Data",
+            "GenAI"
+          ],
+          "jobs": [],
+          "bullets": [
+            {
+              "kind": "PROJECT_IMPACT",
+              "text": "Built and deployed a production BI dashboard for a real client to visualize hundreds of CRM leads, reducing data analysis time from 10 hours to minutes and replacing manual spreadsheet-based reporting",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Automated the full data pipeline using n8n + Telegram Bot trigger, Python processing, and Supabase storage, enabling on-demand data refresh with zero manual intervention",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "bi-tb",
+          "name": "Tool Builder",
+          "title": "AI-Powered Business Intelligence Platform",
+          "isBase": false,
+          "themes": [
+            "Automation",
+            "Data",
+            "GenAI",
+            "Full-stack"
+          ],
+          "jobs": [
+            "Tool Builder"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT_IMPACT",
+              "text": "Designed and shipped a production BI dashboard for a real client — from database schema to frontend UI — reducing data analysis time from 10 hours to under 5 minutes and eliminating manual spreadsheet-based reporting entirely",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Built the full automated data pipeline using n8n orchestration, Python processing, and Supabase (PostgreSQL) storage with a Telegram Bot trigger, enabling on-demand refresh with zero manual intervention",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "bi-jb",
+          "name": "JackBox",
+          "title": "Automated Business Intelligence Dashboard",
+          "isBase": false,
+          "themes": [
+            "Automation",
+            "Data"
+          ],
+          "jobs": [
+            "JackBox"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT_STACK",
+              "text": "Built and deployed a production BI dashboard for a real client visualizing hundreds of CRM leads — automating the full data pipeline (n8n + Telegram Bot trigger, Python processing, Supabase/PostgreSQL storage) and reducing analysis time from 10 hours to minutes with zero manual intervention",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "bi-wfs",
+          "name": "Web Full-Stack",
+          "title": "Automated Business Intelligence Dashboard",
+          "isBase": false,
+          "themes": [
+            "Automation",
+            "Data"
+          ],
+          "jobs": [
+            "Web Full-Stack"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT_IMPACT",
+              "text": "Built and deployed a production BI dashboard for a real client to visualize hundreds of CRM leads, reducing data analysis time from 10 hours to minutes and replacing manual spreadsheet-based reporting",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Automated the full data pipeline using n8n + Telegram Bot trigger, Python processing, and Supabase storage, enabling on-demand refresh with zero manual intervention",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "bi-llm",
+          "name": "LLM pipeline",
+          "title": "LLM-Powered CRM Insights Pipeline",
+          "isBase": false,
+          "themes": [
+            "GenAI",
+            "Data"
+          ],
+          "jobs": [
+            "iFood · GenAI Engineer"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT",
+              "text": "Built and deployed an LLM-backed insights pipeline for a real client, using Gemini to process hundreds of CRM leads on demand.",
+              "want": null
+            },
+            {
+              "kind": "STACK",
+              "text": "Orchestrated with n8n and a Telegram bot trigger; Python processing and Supabase storage.",
+              "want": null
+            },
+            {
+              "kind": "IMPACT",
+              "text": "Cut lead-analysis time from 10 hours to minutes, with zero manual intervention per refresh.",
+              "want": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "termo",
+      "name": "Termo",
+      "section": "PROJECT",
+      "org": "",
+      "location": "",
+      "dates": "",
+      "stack": "React, TypeScript, Python, Django, Docker, MongoDB Atlas, CI/CD, Render",
+      "position": 6,
+      "versions": [
+        {
+          "key": "termo-base",
+          "name": "Base",
+          "title": "Termo — Portuguese Wordle Web Game",
+          "isBase": true,
+          "themes": [
+            "Full-stack",
+            "DevOps",
+            "Frontend"
+          ],
+          "jobs": [],
+          "bullets": [
+            {
+              "kind": "PROJECT_STACK",
+              "text": "Shipped a production word game (live) across 104 commits, containerizing a React frontend and Django backend with Docker and deploying via CI/CD pipelines to Render and MongoDB Atlas",
+              "want": null
+            },
+            {
+              "kind": "MISSING",
+              "text": "No impact bullet yet. Players, uptime, or what you learned shipping it?",
+              "want": "IMPACT"
+            }
+          ]
+        },
+        {
+          "key": "termo-tb",
+          "name": "Tool Builder",
+          "title": "Termo — Portuguese Wordle Web Application",
+          "isBase": false,
+          "themes": [
+            "Full-stack",
+            "DevOps",
+            "GenAI"
+          ],
+          "jobs": [
+            "Tool Builder"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT_STACK",
+              "text": "Shipped a production web application (live) across 104 commits, containerizing a React/TypeScript frontend and Django backend with Docker and deploying via Continuous Integration/Continuous Deployment (CI/CD) pipelines to Render",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Leveraged Claude Code (AI-assisted development) to design and implement a new keyboard feature and refactor existing screens, shipping production-ready improvements faster while maintaining code quality",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "termo-jb",
+          "name": "JackBox",
+          "title": "Termo — Portuguese Wordle Web Application",
+          "isBase": false,
+          "themes": [
+            "Full-stack",
+            "DevOps",
+            "GenAI"
+          ],
+          "jobs": [
+            "JackBox"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT_STACK",
+              "text": "Shipped a production web app (live) across 104 commits: React + TypeScript frontend, Django backend, containerized with Docker and deployed to the cloud via Continuous Integration/Continuous Deployment (CI/CD) pipelines",
+              "want": null
+            },
+            {
+              "kind": "STACK_IMPACT",
+              "text": "Leveraged Claude Code (AI-assisted coding) to design a new keyboard feature and refactor existing screens, shipping production-ready improvements faster while maintaining code quality",
+              "want": null
+            }
+          ]
+        },
+        {
+          "key": "termo-wfs",
+          "name": "Web Full-Stack",
+          "title": "Termo — Portuguese Wordle Web Game",
+          "isBase": false,
+          "themes": [
+            "Full-stack",
+            "DevOps"
+          ],
+          "jobs": [
+            "Web Full-Stack"
+          ],
+          "bullets": [
+            {
+              "kind": "PROJECT_STACK",
+              "text": "Shipped a production word game (live) across 104 commits, containerizing a React + TypeScript frontend and Django backend with Docker and deploying via CI/CD pipelines to MongoDB Atlas",
+              "want": null
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "jobs": [
+    {
+      "company": "iFood",
+      "role": "GenAI Engineer",
+      "label": "iFood · GenAI Engineer",
+      "links": [
+        {
+          "kind": "POSTING",
+          "url": "https://www.linkedin.com/jobs/"
+        },
+        {
+          "kind": "COMPANY",
+          "url": "https://www.ifood.com.br/"
+        }
+      ],
+      "cv": {
+        "pages": 1,
+        "sectionOrder": [
+          "PROJECT",
+          "EXPERIENCE"
+        ],
+        "showEducation": true,
+        "showSkills": true,
+        "showAchievements": false,
+        "source": "Saved Nov 3",
+        "items": [
+          {
+            "section": "EXPERIENCE",
+            "position": 0,
+            "blockSlug": "visio",
+            "versionKey": "visio-base"
+          },
+          {
+            "section": "EXPERIENCE",
+            "position": 1,
+            "blockSlug": "rats",
+            "versionKey": "rats-base"
+          },
+          {
+            "section": "EXPERIENCE",
+            "position": 2,
+            "blockSlug": "iaas",
+            "versionKey": "iaas-base"
+          },
+          {
+            "section": "PROJECT",
+            "position": 0,
+            "blockSlug": "bi",
+            "versionKey": "bi-llm"
+          }
+        ]
+      }
+    },
+    {
+      "company": "AWS",
+      "role": "Software Developer",
+      "label": "AWS · Software Developer",
+      "links": [
+        {
+          "kind": "APPLICATION",
+          "url": "https://www.amazon.jobs/"
+        },
+        {
+          "kind": "COMPANY",
+          "url": "https://aws.amazon.com/"
+        }
+      ],
+      "cv": {
+        "pages": 1,
+        "sectionOrder": [
+          "EXPERIENCE",
+          "PROJECT"
+        ],
+        "showEducation": true,
+        "showSkills": true,
+        "showAchievements": false,
+        "source": "Saved Nov 4",
+        "items": [
+          {
+            "section": "EXPERIENCE",
+            "position": 0,
+            "blockSlug": "visio",
+            "versionKey": "visio-base"
+          },
+          {
+            "section": "EXPERIENCE",
+            "position": 1,
+            "blockSlug": "rats",
+            "versionKey": "rats-swe"
+          },
+          {
+            "section": "EXPERIENCE",
+            "position": 2,
+            "blockSlug": "iaas",
+            "versionKey": "iaas-base"
+          },
+          {
+            "section": "EXPERIENCE",
+            "position": 3,
+            "blockSlug": "attendance",
+            "versionKey": "att-base"
+          }
+        ]
+      }
+    },
+    {
+      "company": "",
+      "role": "Tool Builder",
+      "label": "Tool Builder",
+      "links": [],
+      "cv": {
+        "pages": 2,
+        "sectionOrder": [
+          "PROJECT",
+          "EXPERIENCE"
+        ],
+        "showEducation": true,
+        "showSkills": true,
+        "showAchievements": true,
+        "source": "From toolbuilder.tex",
+        "items": [
+          {
+            "section": "EXPERIENCE",
+            "position": 0,
+            "blockSlug": "rats",
+            "versionKey": "rats-tb"
+          },
+          {
+            "section": "EXPERIENCE",
+            "position": 1,
+            "blockSlug": "iaas",
+            "versionKey": "iaas-tb"
+          },
+          {
+            "section": "EXPERIENCE",
+            "position": 2,
+            "blockSlug": "attendance",
+            "versionKey": "att-tb"
+          },
+          {
+            "section": "EXPERIENCE",
+            "position": 3,
+            "blockSlug": "semcomp",
+            "versionKey": "sem-tb"
+          },
+          {
+            "section": "PROJECT",
+            "position": 0,
+            "blockSlug": "bi",
+            "versionKey": "bi-tb"
+          },
+          {
+            "section": "PROJECT",
+            "position": 1,
+            "blockSlug": "termo",
+            "versionKey": "termo-tb"
+          }
+        ]
+      }
+    },
+    {
+      "company": "",
+      "role": "JackBox",
+      "label": "JackBox",
+      "links": [],
+      "cv": {
+        "pages": 2,
+        "sectionOrder": [
+          "EXPERIENCE",
+          "PROJECT"
+        ],
+        "showEducation": true,
+        "showSkills": true,
+        "showAchievements": true,
+        "source": "From JackBox.tex",
+        "items": [
+          {
+            "section": "EXPERIENCE",
+            "position": 0,
+            "blockSlug": "iaas",
+            "versionKey": "iaas-jb"
+          },
+          {
+            "section": "EXPERIENCE",
+            "position": 1,
+            "blockSlug": "rats",
+            "versionKey": "rats-jb"
+          },
+          {
+            "section": "EXPERIENCE",
+            "position": 2,
+            "blockSlug": "semcomp",
+            "versionKey": "sem-jb"
+          },
+          {
+            "section": "EXPERIENCE",
+            "position": 3,
+            "blockSlug": "attendance",
+            "versionKey": "att-jb"
+          },
+          {
+            "section": "PROJECT",
+            "position": 0,
+            "blockSlug": "termo",
+            "versionKey": "termo-jb"
+          },
+          {
+            "section": "PROJECT",
+            "position": 1,
+            "blockSlug": "bi",
+            "versionKey": "bi-jb"
+          }
+        ]
+      }
+    },
+    {
+      "company": "",
+      "role": "Web Full-Stack",
+      "label": "Web Full-Stack",
+      "links": [],
+      "cv": {
+        "pages": 2,
+        "sectionOrder": [
+          "EXPERIENCE",
+          "PROJECT"
+        ],
+        "showEducation": true,
+        "showSkills": true,
+        "showAchievements": true,
+        "source": "From WebFullStack.tex",
+        "items": [
+          {
+            "section": "EXPERIENCE",
+            "position": 0,
+            "blockSlug": "iaas",
+            "versionKey": "iaas-wfs"
+          },
+          {
+            "section": "EXPERIENCE",
+            "position": 1,
+            "blockSlug": "rats",
+            "versionKey": "rats-wfs"
+          },
+          {
+            "section": "EXPERIENCE",
+            "position": 2,
+            "blockSlug": "attendance",
+            "versionKey": "att-wfs"
+          },
+          {
+            "section": "EXPERIENCE",
+            "position": 3,
+            "blockSlug": "semcomp",
+            "versionKey": "sem-wfs"
+          },
+          {
+            "section": "PROJECT",
+            "position": 0,
+            "blockSlug": "bi",
+            "versionKey": "bi-wfs"
+          },
+          {
+            "section": "PROJECT",
+            "position": 1,
+            "blockSlug": "termo",
+            "versionKey": "termo-wfs"
+          }
+        ]
+      }
+    }
+  ],
+  "profile": {
+    "education": [
+      {
+        "degree": "Bachelor of Information Systems",
+        "dates": "March 2024 – December 2027",
+        "school": "University of São Paulo",
+        "location": "São Carlos, SP",
+        "position": 0
+      }
+    ],
+    "skills": [
+      {
+        "label": "Languages",
+        "text": "Python, JavaScript, TypeScript, C#, HTML, CSS, Java, C/C++, Swift",
+        "position": 0
+      },
+      {
+        "label": "Frameworks",
+        "text": "React, React Native, Next.js, Node.js, Express.js, Angular, .NET, Tailwind, Material-UI",
+        "position": 1
+      },
+      {
+        "label": "Tools",
+        "text": "Git, Docker, AWS, Supabase, BigQuery, Netlify, PostgreSQL, MongoDB/Atlas, PrismaORM, CI/CD, Swagger",
+        "position": 2
+      },
+      {
+        "label": "English",
+        "text": "SAT (Scholastic Aptitude Test) 1490/1600 | Duolingo English Test 130/160",
+        "position": 3
+      }
+    ],
+    "achievements": [
+      {
+        "title": "Author of the book “How to Pass Any Exam”",
+        "description": "Published guide on exam strategy, demonstrating ability to synthesize and communicate complex knowledge.",
+        "position": 0
+      },
+      {
+        "title": "Mathematics Olympiads",
+        "description": "8 years, 10+ awards — including 3x top-40 finalist out of 6.2 million competitors in national competition.",
+        "position": 1
+      },
+      {
+        "title": "Forró Dance Teacher (30+ students)",
+        "description": "Instructed students of varied skill levels, adapting teaching style for each.",
+        "position": 2
+      },
+      {
+        "title": "Scientific Initiation PIBIC 2023",
+        "description": "Researched methodological innovations in higher Computing education in Brazil.",
+        "position": 3
+      },
+      {
+        "title": "Manager — Education Guardians",
+        "description": "Led multidisciplinary team driving strategic educational initiatives.",
+        "position": 4
+      },
+      {
+        "title": "Volunteer — Winter Clothing Drive",
+        "description": "Commitment to social causes.",
+        "position": 5
+      }
+    ]
+  },
+  "questions": [
+    {
+      "key": "q1",
+      "position": 0,
+      "short": "Problema que ninguém pediu para resolver",
+      "full": "Conte sobre uma situação (acadêmica, profissional ou pessoal) em que você identificou um problema ou oportunidade de melhoria que ninguém havia te pedido para resolver. O que você fez, como assumiu a responsabilidade e qual foi o impacto gerado?",
+      "looksFor": [
+        "Iniciativa: você agiu sem ninguém pedir",
+        "Responsabilidade: você levou até o fim",
+        "Impacto concreto, de preferência com número"
+      ],
+      "answer": "Situação: no estágio na IAAS!, eu desenvolvia features em Angular e .NET que automatizavam fluxos de documentos legislativos para mais de 130 clientes gestores de ativos.\n\nTarefa: ninguém me pediu, mas trabalhando perto da autenticação percebi que valia revisar como os tokens JWT eram validados.\n\nAção: auditei os fluxos de autenticação JWT, documentei o que encontrei e levei a correção ao time. Na mesma revisão, achei um passo manual do backoffice que dava para automatizar.\n\nResultado: corrigimos uma vulnerabilidade de segurança e eliminamos um processo manual repetitivo. [Adicione: como o time reagiu e o que mudou depois]",
+      "founderNotes": "Estrutura STAR: Situação, Tarefa, Ação e Resultado. Pouco tempo na situação, a maior parte na ação.\nDeixe claro que ninguém pediu: conte como você percebeu o problema antes dos outros.\nUse “eu”, não “nós”, para o que você fez.\nFeche com o impacto em número e com o que continuou funcionando depois.",
+      "founderRefs": [
+        "Método STAR para entrevistas comportamentais",
+        "Princípios de Liderança da Amazon: Ownership e Bias for Action",
+        "Cracking the Coding Interview, Gayle Laakmann McDowell: capítulo de perguntas comportamentais"
+      ],
+      "tailored": [
+        {
+          "jobLabel": "iFood · GenAI Engineer",
+          "text": "Na IAAS!, eu atendia mais de 130 clientes com automações em Angular e .NET. Sem ninguém pedir, decidi auditar a autenticação JWT, porque um erro ali afetaria todos os clientes de uma vez. Encontrei uma vulnerabilidade, documentei, propus a correção e ela foi aplicada. Na mesma revisão, automatizei um passo manual do backoffice.\n\nO que levo disso para uma vaga de GenAI é o hábito de olhar para onde o risco é maior, mesmo fora do meu escopo, e de transformar o que é repetitivo em automação. [Adicione: um exemplo de como você faria isso com modelos de linguagem]"
+        }
+      ]
+    },
+    {
+      "key": "q2",
+      "position": 1,
+      "short": "Discordou de um colega ou líder",
+      "full": "Conte sobre uma vez em que você discordou da opinião de um colega ou líder em um trabalho em grupo. Como você defendeu suas ideias e como chegaram a um consenso?",
+      "looksFor": [
+        "Argumentos com dados, não com hierarquia",
+        "Escuta: o que você aprendeu com o outro lado",
+        "Consenso com a relação preservada"
+      ],
+      "answer": "",
+      "founderNotes": "",
+      "founderRefs": [],
+      "tailored": []
+    },
+    {
+      "key": "q3",
+      "position": 2,
+      "short": "Algo não saiu como planejado",
+      "full": "Relate uma ocasião em que algo não saiu como o planejado ou em que você cometeu um erro em um projeto. Como você reagiu no momento, o que aprendeu com essa experiência e o que mudou na sua forma de trabalhar depois disso?",
+      "looksFor": [
+        "Assumir o erro sem culpar outras pessoas",
+        "O que você aprendeu",
+        "Uma mudança concreta no seu processo"
+      ],
+      "answer": "",
+      "founderNotes": "",
+      "founderRefs": [],
+      "tailored": []
+    },
+    {
+      "key": "q4",
+      "position": 3,
+      "short": "Trocar o pneu com o carro andando",
+      "full": "Conte uma vez em que você precisou “trocar o pneu com o carro em movimento”, ou seja, manter algo funcionando enquanto tentava melhorar o processo. O que você priorizou em cada etapa para não deixar a peteca cair?",
+      "looksFor": [
+        "Priorização sob pressão",
+        "Como você evitou quebrar o que funcionava",
+        "Comunicação com quem dependia de você"
+      ],
+      "answer": "",
+      "founderNotes": "",
+      "founderRefs": [],
+      "tailored": []
+    },
+    {
+      "key": "q5",
+      "position": 4,
+      "short": "IA na sua rotina",
+      "full": "Como a Inteligência Artificial faz parte da sua rotina atual? Como você a utiliza para resolver problemas cotidianos sem perder a visão crítica do resultado? Consegue nos dar algum exemplo mais concreto?",
+      "looksFor": [
+        "Uso real e frequente, com um exemplo",
+        "Senso crítico: como você confere o resultado",
+        "Limites da ferramenta que você conhece"
+      ],
+      "answer": "",
+      "founderNotes": "",
+      "founderRefs": [],
+      "tailored": []
+    },
+    {
+      "key": "q6",
+      "position": 5,
+      "short": "Fale sobre você",
+      "full": "Fale sobre você.",
+      "looksFor": [
+        "Linha do tempo curta: presente, passado, próximo passo",
+        "Ligação com a vaga no final",
+        "Entre 1 e 2 minutos falando"
+      ],
+      "answer": "Sou estudante de Sistemas de Informação na USP de São Carlos, com formatura em 2027, e trabalho com desenvolvimento full-stack. Hoje estagio como Software Engineer na Visio AI, onde construí uma plataforma de conciliação de cartões de crédito para mais de 100 lojistas, e sou tech lead do Study Rats no Codelab USP, liderando 7 engenheiros em .NET e React Native. Antes estagiei na IAAS!, automatizando fluxos de documentos para mais de 130 clientes. Também construo projetos de IA e automação, como um dashboard de BI com n8n, Python e Gemini que reduziu uma análise de 10 horas para minutos. Fora do código, escrevi o livro “Como passar em qualquer prova” e dou aula de forró para mais de 30 alunos.",
+      "founderNotes": "Presente, passado e futuro: o que você faz hoje, como chegou aqui e por que esta vaga é o próximo passo.\nEscolha 2 ou 3 destaques, cada um com um número.\nTermine ligando a sua história à vaga.\nEntre 1 e 2 minutos falando.",
+      "founderRefs": [
+        "Cracking the Coding Interview, Gayle Laakmann McDowell: capítulo de perguntas comportamentais"
+      ],
+      "tailored": []
+    },
+    {
+      "key": "q7",
+      "position": 6,
+      "short": "Maior desafio da sua vida",
+      "full": "Qual foi o maior desafio na sua vida?",
+      "looksFor": [
+        "Resiliência",
+        "O que mudou em você",
+        "História pessoal, mas curta"
+      ],
+      "answer": "",
+      "founderNotes": "",
+      "founderRefs": [],
+      "tailored": []
+    },
+    {
+      "key": "q8",
+      "position": 7,
+      "short": "Você daqui a 5 anos",
+      "full": "Como você se vê daqui a 5 anos?",
+      "looksFor": [
+        "Ambição que cabe na empresa",
+        "Plano de crescimento realista"
+      ],
+      "answer": "",
+      "founderNotes": "",
+      "founderRefs": [],
+      "tailored": []
+    },
+    {
+      "key": "q9",
+      "position": 8,
+      "short": "Projeto mais desafiador",
+      "full": "Qual foi seu projeto mais desafiador? (Escolha um projeto de destaque)",
+      "looksFor": [
+        "Complexidade técnica real",
+        "Seu papel exato no projeto",
+        "Resultado e o que faria diferente"
+      ],
+      "answer": "",
+      "founderNotes": "",
+      "founderRefs": [],
+      "tailored": []
+    },
+    {
+      "key": "q10",
+      "position": 9,
+      "short": "Por que quer trabalhar aqui?",
+      "full": "Por que você quer trabalhar aqui?",
+      "looksFor": [
+        "Pesquisa real sobre a empresa",
+        "Ligação entre o produto e a sua experiência"
+      ],
+      "answer": "",
+      "founderNotes": "",
+      "founderRefs": [],
+      "tailored": []
+    },
+    {
+      "key": "q11",
+      "position": 10,
+      "short": "Sua maior fraqueza",
+      "full": "Me fale de uma fraqueza. Qual é a sua maior fraqueza?",
+      "looksFor": [
+        "Fraqueza real, não uma qualidade disfarçada",
+        "O que você já faz para melhorar"
+      ],
+      "answer": "",
+      "founderNotes": "",
+      "founderRefs": [],
+      "tailored": []
+    },
+    {
+      "key": "q12",
+      "position": 11,
+      "short": "Resolveu algo sem pedir permissão",
+      "full": "Conte sobre uma vez em que você resolveu um problema sem pedir permissão.",
+      "looksFor": [
+        "Julgamento: quando agir sozinho faz sentido",
+        "Como você comunicou depois"
+      ],
+      "answer": "",
+      "founderNotes": "",
+      "founderRefs": [],
+      "tailored": []
+    },
+    {
+      "key": "q13",
+      "position": 12,
+      "short": "Seus pontos fortes",
+      "full": "Me fale seus pontos fortes.",
+      "looksFor": [
+        "2 ou 3 forças, cada uma com evidência",
+        "Ligação com a vaga"
+      ],
+      "answer": "",
+      "founderNotes": "",
+      "founderRefs": [],
+      "tailored": []
+    }
+  ],
+  "rules": [
+    {
+      "group": "cv",
+      "text": "Start every bullet with a strong past-tense verb: Led, Built, Architected, Owned.",
+      "source": "From your LaTeX CVs",
+      "on": true,
+      "position": 0
+    },
+    {
+      "group": "cv",
+      "text": "Put a number in the impact bullet whenever there is one: 130+ clients, 500+ attendees, 7 engineers.",
+      "source": "From your LaTeX CVs",
+      "on": true,
+      "position": 1
+    },
+    {
+      "group": "cv",
+      "text": "Show impact as before and after when you can: 10 hours to minutes, seconds to milliseconds.",
+      "source": "From your LaTeX CVs",
+      "on": true,
+      "position": 2
+    },
+    {
+      "group": "cv",
+      "text": "Bold the numbers and the key technologies in the LaTeX export.",
+      "source": "From your LaTeX CVs",
+      "on": true,
+      "position": 3
+    },
+    {
+      "group": "cv",
+      "text": "Avoid “utilized”. Use the specific verb, and say what the change removed or fixed.",
+      "source": "From 1 edit, see the right",
+      "on": false,
+      "position": 4
+    },
+    {
+      "group": "qa",
+      "text": "Write behavioral answers in Portuguese, first person, in STAR order.",
+      "source": "You added this",
+      "on": true,
+      "position": 5
+    },
+    {
+      "group": "qa",
+      "text": "Mark facts the AI could not confirm with [brackets] instead of inventing them.",
+      "source": "You added this",
+      "on": true,
+      "position": 6
+    }
+  ],
+  "experiences": [
+    {
+      "title": "Visio AI",
+      "where": "Visio AI · São Carlos, SP",
+      "when": "June 2026 – Present",
+      "notes": "Started from your CV files. Add what the CV leaves out: feedback, situations, what was hard.\n\nSomething I did: Built a credit card reconciliation platform end-to-end for 100+ merchant clients, from ERP data ingestion through acquirer certification with Fiserv, Getnet and Linx.\n\nA number or result: It reconciles $150K+ in monthly card transactions per store ($1.8M+ a year). Merchants see whether, when and how much they get paid on every credit sale.\n\nSomething I did: Wrote 19 Python scripts across 4 repos: a card reconciliation pipeline, production loaders from BigQuery and the acquirers’ EDIs, and a headless web scraper.\n\nTools I used: AWS, Supabase, BigQuery, Netlify, Next.js and Claude, from data infrastructure through deployment.",
+      "position": 0,
+      "blockSlugs": [
+        "Visio AI"
+      ]
+    },
+    {
+      "title": "IAAS!",
+      "where": "IAAS! · São Paulo, SP",
+      "when": "January 2026 – April 2026",
+      "notes": "Started from your CV files. Add what the CV leaves out: feedback, situations, what was hard.\n\nSomething I did: Built Angular + .NET features that automate legislative document workflows for 130+ Asset Manager clients, replacing manual backoffice processes. I owned well-scoped features in production with guidance from senior engineers.\n\nSomething I did: While auditing the JWT authentication flows, I found 1 security vulnerability and 1 automation opportunity.\n\nTo check: your CV versions disagree here. Most say you patched the auth exploit and removed repetitive manual steps; the Web Full-Stack version says you flagged both to the team for remediation. Which one happened?\n\nSomething I did: Owned PostgreSQL database and REST API maintenance in production, with a weekly release cadence in Agile/Scrum sprints (standups, sprint planning, retros).",
+      "position": 1,
+      "blockSlugs": [
+        "IAAS!"
+      ]
+    },
+    {
+      "title": "Study Rats",
+      "where": "Codelab USP — Development Group · São Carlos, SP",
+      "when": "March 2026 – Present",
+      "notes": "",
+      "position": 2,
+      "blockSlugs": [
+        "Study Rats"
+      ]
+    },
+    {
+      "title": "Attendance Control App",
+      "where": "Codelab USP — Development Group · São Carlos, SP",
+      "when": "September 2025 – January 2026",
+      "notes": "",
+      "position": 3,
+      "blockSlugs": [
+        "Attendance Control App"
+      ]
+    },
+    {
+      "title": "Semcomp website",
+      "where": "University of São Paulo · São Carlos, SP",
+      "when": "March 2025 – November 2025",
+      "notes": "",
+      "position": 4,
+      "blockSlugs": [
+        "Semcomp website"
+      ]
+    },
+    {
+      "title": "Automated BI Dashboard",
+      "where": "AI & Automation project",
+      "when": "",
+      "notes": "",
+      "position": 5,
+      "blockSlugs": [
+        "BI Dashboard"
+      ]
+    },
+    {
+      "title": "Termo",
+      "where": "AI & Automation project",
+      "when": "",
+      "notes": "",
+      "position": 6,
+      "blockSlugs": [
+        "Termo"
+      ]
+    }
+  ]
+}

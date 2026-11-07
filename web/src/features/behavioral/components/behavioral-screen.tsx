@@ -1,0 +1,153 @@
+'use client'
+
+// Behavioral → Interview answers. The screen keeps its own copy of what you type and autosaves it;
+// the job you pick goes into the link so Interview mode opens on the same job.
+import { useState } from 'react'
+import { SaveStatus } from '@/features/ai/ui/save-status'
+import { useAutosave, type SaveStatus as Status } from '@/features/ai/ui/use-autosave'
+import { saveAnswer, saveTailored, saveTheory, setUseFounder } from '../actions'
+import { tailoredKey, type BehavioralData } from '../types'
+import { GeneralistSection, TailoredSection } from './answer-sections'
+import { BehavioralPills } from './behavioral-pills'
+import { QuestionList } from './question-list'
+import { FounderSection, MyTheorySection } from './theory-sections'
+
+type Theory = { theory: string; references: string[] }
+type AnswerSave = { questionId: string; answer: string }
+type TheorySave = Theory & { questionId: string }
+type TailoredSave = { questionId: string; jobId: string; text: string }
+
+const sameQuestion = (a: { questionId: string }, b: { questionId: string }) => a.questionId === b.questionId
+const sameTailored = (a: TailoredSave, b: TailoredSave) => a.questionId === b.questionId && a.jobId === b.jobId
+
+/** One status for all autosaves on the screen: an error wins, then saving, then saved. */
+function combined(saves: { status: Status; error: string | null }[]): { status: Status; error: string | null } {
+  const failed = saves.find((s) => s.status === 'error')
+  if (failed) return failed
+  if (saves.some((s) => s.status === 'saving')) return { status: 'saving', error: null }
+  if (saves.some((s) => s.status === 'saved')) return { status: 'saved', error: null }
+  return { status: 'idle', error: null }
+}
+
+type Props = { data: BehavioralData; initialJobId: string | null; aiReady: boolean }
+
+export function BehavioralScreen({ data, initialJobId, aiReady }: Props) {
+  const { questions, jobs } = data
+  const [selectedId, setSelectedId] = useState(questions[0]?.id ?? '')
+  const [jobId, setJobId] = useState(initialJobId)
+  const [answers, setAnswers] = useState<Record<string, string>>(() => Object.fromEntries(questions.map((q) => [q.id, q.answer])))
+  const [theories, setTheories] = useState<Record<string, Theory>>(() =>
+    Object.fromEntries(questions.map((q) => [q.id, { theory: q.theory, references: q.references }])),
+  )
+  const [useFounder, setUseFounderState] = useState<Record<string, boolean>>(() => Object.fromEntries(questions.map((q) => [q.id, q.useFounder])))
+  const [founderError, setFounderError] = useState<string | null>(null)
+  const [tailored, setTailored] = useState(data.tailored)
+
+  const answerSave = useAutosave<AnswerSave>(saveAnswer, { sameTarget: sameQuestion })
+  const theorySave = useAutosave<TheorySave>(saveTheory, { sameTarget: sameQuestion })
+  const tailoredSave = useAutosave<TailoredSave>(saveTailored, { sameTarget: sameTailored })
+  const status = combined([answerSave, theorySave, tailoredSave])
+
+  const question = questions.find((q) => q.id === selectedId) ?? questions[0]
+  if (!question) return <p className="m-0 text-[14px] text-[var(--muted)]">No behavioral questions yet.</p>
+
+  const flushAll = () => {
+    answerSave.flush()
+    theorySave.flush()
+    tailoredSave.flush()
+  }
+
+  const setAnswer = (text: string) => {
+    setAnswers((all) => ({ ...all, [question.id]: text }))
+    answerSave.queue({ questionId: question.id, answer: text })
+  }
+
+  const setTheory = (next: Theory) => {
+    setTheories((all) => ({ ...all, [question.id]: next }))
+    theorySave.queue({ questionId: question.id, ...next })
+  }
+
+  const setTailoredText = (text: string) => {
+    if (!jobId) return
+    setTailored((all) => ({ ...all, [tailoredKey(question.id, jobId)]: text }))
+    tailoredSave.queue({ questionId: question.id, jobId, text })
+  }
+
+  const toggleFounder = async (next: boolean) => {
+    const id = question.id
+    setFounderError(null)
+    setUseFounderState((all) => ({ ...all, [id]: next }))
+    const res = await setUseFounder({ questionId: id, useFounder: next })
+    if (!res.ok) {
+      setUseFounderState((all) => ({ ...all, [id]: !next }))
+      setFounderError(res.error)
+    }
+  }
+
+  const chooseJob = (id: string) => {
+    tailoredSave.flush()
+    setJobId(id)
+    window.history.replaceState(null, '', `?job=${encodeURIComponent(id)}`)
+  }
+
+  const select = (id: string) => {
+    flushAll()
+    setFounderError(null)
+    setSelectedId(id)
+  }
+
+  return (
+    <div className="mx-auto flex max-w-[1180px] flex-col gap-5 px-3.5 pb-14 pt-[18px]">
+      <header className="flex flex-col gap-1.5">
+        <p className="eyebrow text-[12px]">BEHAVIORAL</p>
+        <h1 className="sr-only">Interview answers</h1>
+        <BehavioralPills current="answers" jobId={jobId} />
+        <SaveStatus status={status.status} error={status.error} className="text-[12px]" />
+        <p className="m-0 max-w-[660px] text-[14px] leading-[1.5] text-[var(--muted)]">
+          Keep one generalist answer per question, then let the AI adapt it to each job. Your own notes on how to answer live at the bottom.
+        </p>
+      </header>
+
+      <div className="flex flex-wrap items-start gap-4">
+        <QuestionList questions={questions} answers={answers} tailored={tailored} selectedId={question.id} onSelect={select} />
+
+        <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
+          <section className="flex flex-col gap-3.5 rounded-xl border border-[var(--border)] bg-white p-5">
+            <p className="m-0 font-mono text-[12px] text-[var(--muted)]">Question {question.n}</p>
+            <h2 lang="pt-BR" className="m-0 text-[19px] font-semibold leading-[1.4] tracking-[-0.01em]">
+              {question.full}
+            </h2>
+            {question.looksFor.length > 0 && (
+              <div className="flex flex-col gap-2 rounded-[10px] border border-[var(--amber-line)] bg-[var(--amber-soft)] p-3.5">
+                <h3 className="m-0 flex items-center gap-2 text-[13px] font-semibold text-[var(--amber-ink)]">What interviewers look for here</h3>
+                <ul lang="pt-BR" className="m-0 flex list-disc flex-col gap-1 pl-[18px] text-[13px] leading-[1.5] text-[var(--amber-ink)]">
+                  {question.looksFor.map((l) => (
+                    <li key={l}>{l}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+
+          <GeneralistSection key={question.id} questionId={question.id} answer={answers[question.id] ?? ''} onAnswer={setAnswer} aiReady={aiReady} flushAll={flushAll} />
+
+          <TailoredSection
+            key={`t-${question.id}`}
+            questionId={question.id}
+            jobs={jobs}
+            jobId={jobId}
+            onJob={chooseJob}
+            text={jobId ? (tailored[tailoredKey(question.id, jobId)] ?? '') : ''}
+            onText={setTailoredText}
+            aiReady={aiReady}
+            flushAll={flushAll}
+          />
+
+          <FounderSection question={question} useFounder={useFounder[question.id] ?? true} onToggle={toggleFounder} error={founderError} />
+
+          <MyTheorySection key={`m-${question.id}`} question={question} value={theories[question.id] ?? { theory: '', references: [] }} onChange={setTheory} />
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -1,0 +1,46 @@
+import 'server-only'
+import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenAI } from '@google/genai'
+import type { z } from 'zod'
+import { runGeminiStructured } from './gemini-run'
+import { GEMINI_ATTEMPT_TIMEOUT_MS, GEMINI_DEFAULT_MODEL, GEMINI_FALLBACK_MODEL, MAX_RETRIES, REQUEST_TIMEOUT_MS } from './model'
+import type { Prompt } from './prompts'
+import { aiProvider, type ProviderId } from './provider'
+import { runStructured, type TaskConfig } from './run'
+
+/** One structured AI call, whichever provider web/.env picked. */
+export type AiRunner = {
+  provider: ProviderId
+  run<T>(prompt: Prompt, schema: z.ZodType<T>, task: TaskConfig): Promise<T>
+}
+
+// One client per server process and key. Keys stay on the server and are never logged.
+let claude: { key: string; client: Anthropic } | null = null
+let gemini: { key: string; client: GoogleGenAI } | null = null
+
+function claudeClient(key: string): Anthropic {
+  if (claude?.key !== key) claude = { key, client: new Anthropic({ apiKey: key, timeout: REQUEST_TIMEOUT_MS, maxRetries: MAX_RETRIES }) }
+  return claude.client
+}
+
+function geminiClient(key: string): GoogleGenAI {
+  // No SDK retries: runGeminiStructured moves on to the fallback model instead of waiting twice.
+  if (gemini?.key !== key) gemini = { key, client: new GoogleGenAI({ apiKey: key, httpOptions: { timeout: GEMINI_ATTEMPT_TIMEOUT_MS } }) }
+  return gemini.client
+}
+
+/** The AI for this request, or null when no key is set (screens then say how to set it up). */
+export function getAi(): AiRunner | null {
+  const provider = aiProvider()
+  if (provider === 'claude') {
+    const client = claudeClient(process.env.ANTHROPIC_API_KEY!.trim())
+    return { provider, run: (prompt, schema, task) => runStructured(client, prompt, schema, task) }
+  }
+  if (provider === 'gemini') {
+    const client = geminiClient(process.env.GEMINI_API_KEY!.trim())
+    const model = process.env.GEMINI_MODEL?.trim() || GEMINI_DEFAULT_MODEL
+    const models = [...new Set([model, GEMINI_FALLBACK_MODEL])]
+    return { provider, run: (prompt, schema, task) => runGeminiStructured(client, models, prompt, schema, task) }
+  }
+  return null
+}
