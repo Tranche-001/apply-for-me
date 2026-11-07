@@ -59,6 +59,20 @@ export function findQuoteLine(lines: readonly string[], quote: string): number {
 export type QuoteContext = { before: string | null; line: string; after: string | null }
 
 /** The line holding the quote, with the line before and after (grey context on screen). */
+/** A short line with no sentence ending reads as a heading ("Requirements", "What you will do:"). */
+const looksLikeHeading = (line: string): boolean => {
+  const t = line.trim()
+  return t.length > 0 && t.length <= 60 && !/[.!?;,]$/.test(t) && t.split(/\s+/).length <= 8
+}
+
+/** The section a posting line sits in: the nearest heading above it (without its colon), or null. */
+export function sectionTitle(lines: readonly string[], index: number): string | null {
+  for (let i = index - 1; i >= 0; i -= 1) {
+    if (looksLikeHeading(lines[i])) return lines[i].trim().replace(/:$/, '').trim()
+  }
+  return null
+}
+
 export function quoteContext(lines: readonly string[], quote: string): QuoteContext | null {
   const i = findQuoteLine(lines, quote)
   if (i < 0) return null

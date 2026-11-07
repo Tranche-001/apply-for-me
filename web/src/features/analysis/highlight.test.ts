@@ -1,5 +1,32 @@
 import { describe, expect, it } from 'vitest'
-import { findQuoteLine, hasMark, markSegments, postingLines, quoteContext } from './highlight'
+import { findQuoteLine, hasMark, markSegments, postingLines, quoteContext, sectionTitle } from './highlight'
+
+describe('sectionTitle', () => {
+  const lines = [
+    'Senior GenAI Engineer',
+    'About us',
+    'ExampleCo builds AI assistants for finance teams.',
+    'What you will do:',
+    'Design, build and run RAG pipelines in production.',
+    'Own our vector search layer (we use pgvector on PostgreSQL).',
+    'Requirements',
+    '3+ years building backend or data systems in Python.',
+  ]
+
+  it('finds the nearest heading above the line, without its colon', () => {
+    expect(sectionTitle(lines, 5)).toBe('What you will do')
+    expect(sectionTitle(lines, 7)).toBe('Requirements')
+  })
+
+  it('skips sentences on the way up', () => {
+    expect(sectionTitle(lines, 4)).toBe('What you will do')
+  })
+
+  it('returns null when nothing above looks like a heading', () => {
+    expect(sectionTitle(['A long first sentence of the posting.', 'Another sentence here.'], 1)).toBeNull()
+    expect(sectionTitle(lines, 0)).toBeNull()
+  })
+})
 
 describe('markSegments', () => {
   it('marks a phrase and keeps the text around it', () => {

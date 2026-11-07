@@ -22,6 +22,14 @@
   --ok-ink: #14632f;
   --warn: #b45309;
   --danger: #b42318;
+  /* Job analysis v2 (from the approved prototype). */
+  --ok-soft: #e9f7ee;
+  --scrim: rgb(20 22 27 / 0.38);
+  --mark: #fde68a;
+  --mark-line: #f5d061;
+  --tip-muted: #b7bcc8;
+  --tip-ok: #a5b4fc;
+  --tip-part: #f2cf94;
 }
 
 @theme inline {
