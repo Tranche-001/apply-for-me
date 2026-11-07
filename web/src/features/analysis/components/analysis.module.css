@@ -426,3 +426,93 @@ mark.a-key { background: var(--indigo-soft); color: var(--indigo); border-bottom
 .a-seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; background: var(--surface); }
 .a-seg span { padding: 6px 10px; font-size: 11.5px; color: var(--muted); }
 .a-seg span.on { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--indigo); }
+
+/* ── Blocks for this CV, Review & save, and their popovers (draft-card, blocks-panel, review-view,
+   met / not-met / block popovers, saved-banner). Prototype rules missing above, then the real controls that
+   replace the prototype's static spans. ── */
+.a-link-btn { border: 0; background: none; padding: 0; color: var(--text); text-decoration: underline; text-underline-offset: 2px; font-size: 12.5px; cursor: pointer; }
+.src-b { width: 960px; }
+.src-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; align-items: start; }
+.src-col { display: grid; gap: 8px; align-content: start; }
+.src-col > .a-btn { justify-self: start; }
+/* The prototype drew these as spans (or in a dialog with no button reset); as real buttons the
+   .screen / .modal-scrim reset (0,1,1) would win, so their own font and colour are restated at (0,2,0). */
+.a-panel > .a-btn, .a-stage-bar .a-btn, .modal-scrim .a-btn { font-size: 12.5px; font-weight: 500; }
+.a-ok-banner .a-btn.sm, .modal-scrim .a-btn.sm { font-size: 11.5px; font-weight: 500; }
+/* …and a span is content-box (32px + borders = 34px tall), a button border-box: keep the spans' height. */
+.a-panel > .a-btn, .a-stage-bar .a-btn, .a-ok-banner .a-btn { box-sizing: content-box; }
+.a-draft .a-icon:not(.pen), .a-ask .a-icon { color: var(--text-2); }
+.modal-scrim .x { font-size: 18px; line-height: 1; color: var(--text-2); }
+.modal-scrim .a-link2 { font: 500 12px var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; color: var(--indigo); }
+.modal-scrim .a-link-btn { font-size: 12.5px; color: var(--text); }
+.modal-scrim .a-chip-btn { font: 400 11.5px var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; color: var(--text-2); }
+.modal-scrim .a-chip-btn:hover { color: var(--indigo); }
+.modal-scrim .blk-req { font: 400 12.5px/1.4 var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; }
+/* Keep: a real checkbox behind the prototype's ✓ box; unticked shows an empty box. */
+.a-keep { cursor: pointer; }
+.a-keep.off i { background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--border-strong); color: transparent; }
+.a-keep:has(input:focus-visible) i { outline: 2px solid var(--indigo); outline-offset: 2px; }
+/* "Ask for changes": a real input where the prototype drew its placeholder. */
+.a-ask input { flex: 1; min-width: 0; height: 30px; box-sizing: content-box; border: 1px solid var(--border-strong); border-radius: 7px; padding: 0 9px; background: var(--surface); color: var(--text); font: 400 12px var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; }
+.a-ask input::placeholder { color: var(--faint); }
+.a-ask input:focus { outline: none; border-color: var(--indigo); box-shadow: 0 0 0 3px var(--indigo-soft); }
+.a-ask .a-icon:disabled { opacity: 0.4; cursor: default; }
+/* "Discarded <block>. Undo" under the cards. */
+.a-sub .a-link-btn { font-size: inherit; }
+/* 1 page / 2 pages: buttons with the prototype's segment look. */
+.a-seg button { border: 0; background: none; padding: 6px 10px; font-size: 11.5px; color: var(--muted); cursor: pointer; }
+.a-seg button.on { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--indigo); }
+/* The review's CV blocks (CvPreview entries): dashed outline on hover and focus, "NEW" in the margin.
+   CvPreview's page padding is 34px (the prototype's was 46px), so the tag sits at -26px to stay on the page. */
+.cv-block { cursor: pointer; outline: 1px solid transparent; }
+.cv-block:hover, .cv-block:focus-visible { outline: 1px dashed var(--indigo); background: #fafaff; }
+.cv-block.new::before { content: "NEW"; position: absolute; left: -26px; top: 4px; font: 500 8px/1 var(--font-geist-mono), ui-monospace, monospace; color: var(--indigo); background: var(--indigo-soft); padding: 2px 3px; border-radius: 3px; }
+/* Tailwind's preflight makes every box border-box; in the prototype the side-by-side popover (960px + padding)
+   and its text field (32px + borders) were content-box. The popover still fits a narrow window. */
+.a-pop.src-b { box-sizing: content-box; max-width: calc(100% - 40px); }
+.a-field > .a-in { box-sizing: content-box; }
+/* "Met" / "Not met" keep their margin over the .screen p reset (0,1,1), as over the prototype's p { margin: 0 }. */
+.a-sum .a-reqs-sub { margin: 2px 0 -1px; }
+
+/* ── v2 components: start card, job header, status line, requirements, requirement + posting popovers ──
+   (.a-link-btn, .src-*, and the .modal-scrim button restatements are in the block above.) */
+.a-last { color: var(--muted); }
+/* The prototype drew "Analyze" and "Analyze again" as spans; as real buttons they restate the a-btn type
+   at (0,2,0) so the .screen button reset (0,1,1) doesn't win. */
+.a-start .a-btn { font-size: 12.5px; font-weight: 500; }
+.a-jobline .a-btn.sm { font-size: 11.5px; font-weight: 500; }
+/* Start card: a real field inside the prototype's .a-url box, and the "Paste the job text" mode. */
+.a-url input { flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; padding: 0; font: inherit; color: inherit; }
+.a-url div:focus-within { box-shadow: 0 0 0 3px var(--indigo-soft); }
+.a-start .a-ta { min-height: 160px; }
+.a-start > .a-btn { justify-self: start; }
+.a-start .a-warn { font-size: 12px; color: var(--amber); }
+/* Job line: the posting's link chip opens it. */
+a.a-chip { text-decoration: none; }
+a.a-chip:hover { border-color: var(--indigo-line); }
+/* Status line, error variant: plain language in amber, like AiError (features/ai/ui/ai-changes.tsx). */
+.a-status.err { border: 1px solid var(--amber-line); background: var(--amber-soft); color: var(--amber-ink); border-radius: 8px; padding: 8px 12px; font-size: 13px; line-height: 1.45; }
+.a-status .retry { border: 0; background: none; padding: 0; font-weight: 600; color: var(--indigo); text-decoration: underline; cursor: pointer; }
+/* Full posting: the saved text has no list markup, so lines are paragraphs under their headings. */
+.posting > div > p + p { margin-top: 4px; }
+
+/* ── Questions about the gaps: question cards, answer popover, sent answers, "Check where your answers go"
+   (questions-panel, answer-popover, answers-done, placement-popover, experience-picker). ── */
+/* donePanel's inline style="border-top:0;padding-top:0" on its .a-filed. */
+.a-filed.flush { border-top: 0; padding-top: 0; }
+/* Option B's width (the prototype's ".pv-b { width: 860px }"). */
+.pv-b { width: 860px; }
+/* "Update drafts with my answers" / "Add and update drafts" were spans with .dis (opacity .45); as real
+   disabled buttons .a-btn[disabled] (.4) would win. */
+.a-btn.dis[disabled] { opacity: 0.45; }
+/* The answer popover was a dialog with no button reset: the tabs keep their own type and colour over the
+   .modal-scrim button reset (0,1,1). */
+.modal-scrim .ans-tab { font: 500 12px var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; color: var(--text-2); }
+.modal-scrim .ans-tab.on { color: var(--indigo); }
+/* The prototype ran on the browser's box model (content-box; only real buttons are border-box) and Tailwind's
+   preflight makes everything border-box. These v2 pieces set a size, so they restore content-box to measure
+   like the prototype (pill 27px, card 686px, link field 41px). The card stays inside a narrow column. */
+.a-steps .a-step, .a-step i, .a-url div, .a-start .a-btn, .a-jobline .a-chip, .a-jobline .a-btn.sm { box-sizing: content-box; }
+.a-start { box-sizing: content-box; max-width: calc(100% - 46px); }
+/* Preflight removes list markers; the prototype's hit cards (and the full posting's lists) show discs. */
+.a-hl ul, .posting ul { list-style: disc; }

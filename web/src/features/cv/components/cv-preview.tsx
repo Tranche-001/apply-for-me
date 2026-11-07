@@ -1,4 +1,4 @@
-import type { CSSProperties, MouseEvent, ReactNode } from 'react'
+import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { C, SANS, SERIF, cls } from '@/components/ui/styles'
 import type { ProfileData, ProfileKind } from '@/features/profile/types'
 import { PROFILE_HEADINGS } from '@/features/profile/types'
@@ -16,6 +16,11 @@ export type EntryUi = {
   onClick?: () => void
   onDoubleClick?: () => void
   title?: string
+  /** Job analysis review: its own look (hover outline, the "NEW" margin tag). */
+  className?: string
+  /** With onKeyDown, lets the keyboard reach the block (Enter edits it on Job analysis). */
+  tabIndex?: number
+  onKeyDown?: (ev: KeyboardEvent<HTMLDivElement>) => void
 }
 
 type Props = {
@@ -44,13 +49,16 @@ function noSelect(ev: MouseEvent) {
 function Entry({ entry, ui }: { entry: LayoutEntry; ui: EntryUi }) {
   const { block, version } = entry
   const interactive = !!ui.onClick
+  const className = [interactive ? cls.pvEn : '', ui.className ?? ''].filter(Boolean).join(' ')
   return (
     <div
       id={`pv-${block.id}`}
-      className={interactive ? cls.pvEn : undefined}
+      className={className || undefined}
       onClick={ui.onClick}
       onDoubleClick={ui.onDoubleClick}
-      onMouseDown={interactive ? noSelect : undefined}
+      onMouseDown={interactive || ui.onDoubleClick ? noSelect : undefined}
+      onKeyDown={ui.onKeyDown}
+      tabIndex={ui.tabIndex}
       title={ui.title}
       style={{ position: 'relative', scrollMarginTop: 110, display: 'flex', flexDirection: 'column', gap: 1, margin: '0 -6px', padding: '2px 6px', borderRadius: 4, ...HIGHLIGHT[ui.highlight ?? 'none'] }}
     >
