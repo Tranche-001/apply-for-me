@@ -76,5 +76,7 @@ export function sectionTitle(lines: readonly string[], index: number): string | 
 export function quoteContext(lines: readonly string[], quote: string): QuoteContext | null {
   const i = findQuoteLine(lines, quote)
   if (i < 0) return null
-  return { before: lines[i - 1] ?? null, line: lines[i], after: lines[i + 1] ?? null }
+  // Context stays inside the quote's section: a heading above or below is not shown as context.
+  const near = (j: number): string | null => (lines[j] !== undefined && !looksLikeHeading(lines[j]) ? lines[j] : null)
+  return { before: near(i - 1), line: lines[i], after: near(i + 1) }
 }

@@ -1,6 +1,6 @@
 // What Job analysis works with (serializable), plus pure helpers (unit-tested).
 import type { LinkKind } from '@prisma/client'
-import type { AiAsk, AnalysisDraft, JobAnalysis } from '../ai/types'
+import type { AnalysisDraft, JobAnalysis } from '../ai/types'
 
 export type JobLinkItem = { id: string; kind: LinkKind; url: string }
 
@@ -16,15 +16,8 @@ export type JobSummary = {
 
 export type ReadResult = { url: string; ok: boolean; title: string | null; message: string | null }
 
-export type MadeDraft = AnalysisDraft & { keep: boolean; editing: boolean }
-
-export type Phase = 'idle' | 'reading' | 'analyzing' | 'saving'
-
-/** An experience a gap answer can go to ("Adds to" under each question). */
+/** An experience an answer can go to (the "Goes to" picker). */
 export type ExperienceOption = { id: string; title: string }
-
-/** Where an answer was added in Experiences, and the exact text added. */
-export type FiledAnswer = { answer: string; experienceId: string; title: string }
 
 // ---- Job analysis v2: the session saved with the job (Job.analysis), so a reload or "Analyze again" resumes ----
 
@@ -71,45 +64,7 @@ export type AnalysisSession = {
   savedAt: string | null
 }
 
-/**
- * Where a question's answer goes: your pick, else the experience the AI named, else `fallback`: the id of
- * "Answers to the AI's questions" when it exists, or "" (the server creates it).
- */
-export function destinationOf(ask: AiAsk, picked: Record<string, string>, fallback = ''): string {
-  return picked[ask.id] ?? ask.experienceId ?? fallback
-}
-
-/** Answers to add to Experiences now: written, not "Don't have it", and not already added word for word. */
-export function answersToFile(
-  asks: AiAsk[],
-  answers: Record<string, string>,
-  noAnswer: Record<string, boolean>,
-  filed: Record<string, FiledAnswer>,
-): { ask: AiAsk; answer: string }[] {
-  return asks
-    .map((ask) => ({ ask, answer: (answers[ask.id] ?? '').trim() }))
-    .filter(({ ask, answer }) => answer && !noAnswer[ask.id] && filed[ask.id]?.answer !== answer)
-}
-
 export const STEP_NAMES = ['Read posting', 'Compare with blocks', 'Your input', 'Drafts', 'Review & save'] as const
-
-/** Which step is current: reading 0, comparing 1, waiting for answers 2, drafting again 3, reviewing 4; 5 = all done. */
-export function currentStep(state: { phase: Phase; analysis: JobAnalysis | null; openAsks: number; saved: boolean; redrafting: boolean }): number {
-  if (state.saved) return STEP_NAMES.length
-  if (state.phase === 'reading') return 0
-  if (state.phase === 'analyzing') return state.redrafting ? 3 : 1
-  if (!state.analysis) return 0
-  return state.openAsks > 0 ? 2 : 4
-}
-
-/** Links typed or pasted into the box: split on spaces, commas or new lines; duplicates dropped. */
-export function parseUrls(text: string): string[] {
-  const seen = new Set<string>()
-  return text
-    .split(/[\s,]+/)
-    .map((u) => u.trim())
-    .filter((u) => u && !seen.has(u) && seen.add(u))
-}
 
 const APPLICATION_HOSTS = [
   'gupy.io',
@@ -141,21 +96,4 @@ export function guessLinkKind(url: string): LinkKind {
   }
   if (APPLICATION_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))) return 'APPLICATION'
   return 'POSTING'
-}
-
-/** "2 new versions · 1 new block (waiting)". */
-export function madeSummary(made: MadeDraft[]): string {
-  const versions = made.filter((m) => m.blockId).length
-  const blocks = made.filter((m) => !m.blockId).length
-  const waiting = made.filter((m) => m.waitingOn).length
-  const parts = [
-    versions ? `${versions} new ${versions === 1 ? 'version' : 'versions'}` : '',
-    blocks ? `${blocks} new ${blocks === 1 ? 'block' : 'blocks'}${waiting ? ' (waiting)' : ''}` : '',
-  ].filter(Boolean)
-  return parts.join(' · ') || 'Nothing yet'
-}
-
-/** Drafts the Save button would store: kept and not waiting on a question. */
-export function toSave(made: MadeDraft[]): MadeDraft[] {
-  return made.filter((m) => m.keep && !m.waitingOn)
 }

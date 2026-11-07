@@ -101,7 +101,7 @@ describe('postingLines', () => {
 })
 
 describe('findQuoteLine / quoteContext', () => {
-  const lines = ['Requirements', 'Experience with Python and TypeScript', 'Mentor junior engineers', 'Nice to have']
+  const lines = ['Requirements', 'Experience with Python and TypeScript.', 'Mentor junior engineers.', 'Nice to have']
 
   it('finds the line containing the quote', () => {
     expect(findQuoteLine(lines, 'Mentor junior engineers')).toBe(2)
@@ -121,16 +121,17 @@ describe('findQuoteLine / quoteContext', () => {
     expect(findQuoteLine(lines, '   ')).toBe(-1)
   })
 
-  it('gives context before and after', () => {
+  it('gives context before and after, but never a heading of another section', () => {
     expect(quoteContext(lines, 'Mentor junior engineers')).toEqual({
-      before: 'Experience with Python and TypeScript',
-      line: 'Mentor junior engineers',
-      after: 'Nice to have',
+      before: 'Experience with Python and TypeScript.',
+      line: 'Mentor junior engineers.',
+      after: null,
     })
+    expect(quoteContext(lines, 'Experience with Python')?.before).toBeNull()
   })
 
   it('gives null context at the edges', () => {
-    expect(quoteContext(lines, 'Requirements')).toEqual({ before: null, line: 'Requirements', after: 'Experience with Python and TypeScript' })
+    expect(quoteContext(lines, 'Requirements')).toEqual({ before: null, line: 'Requirements', after: 'Experience with Python and TypeScript.' })
     expect(quoteContext(lines, 'Nice to have')?.after).toBeNull()
   })
 

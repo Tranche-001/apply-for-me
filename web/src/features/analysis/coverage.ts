@@ -55,13 +55,16 @@ export function jobReqLine(
   blockNameOf: (id: string) => string,
 ): string {
   const shows = (matches: readonly RequirementMatch[]) => matches.some((m) => m.requirementId === requirementId)
-  const ids =
-    phase === 'before'
-      ? [...analysis.reused, ...analysis.leftOut].filter((v) => shows(v.matches)).map((v) => v.versionId)
-      : [...analysis.reused.filter((v) => shows(v.matches)).map((v) => v.versionId), ...analysis.drafts.filter((d) => shows(d.matches)).map((d) => d.key)]
+  // v2 drafts exist before any answer (a version made from what you have, with a gap), so both phases count
+  // them; before the answers the blocks left out count too, since they are still candidates.
+  const ids = [
+    ...analysis.reused.filter((v) => shows(v.matches)).map((v) => v.versionId),
+    ...analysis.drafts.filter((d) => shows(d.matches)).map((d) => d.key),
+    ...(phase === 'before' ? analysis.leftOut.filter((v) => shows(v.matches)).map((v) => v.versionId) : []),
+  ]
   const names = [...new Set(ids.map(blockNameOf))].join(', ')
   if (status === 'covered') return names
-  if (phase === 'after') return 'You don’t have it · add an experience'
+  if (phase === 'after') return status === 'partial' && names ? `${names} · partly` : 'You don’t have it · add an experience'
   const index = analysis.asks.findIndex((a) => a.requirementId === requirementId)
   return [names || 'Nothing in your blocks yet', index >= 0 ? `Q${index + 1} asks about it` : ''].filter(Boolean).join(' · ')
 }

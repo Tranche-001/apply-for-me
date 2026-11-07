@@ -107,18 +107,22 @@ describe('jobReqLine', () => {
     expect(jobReqLine('covered', 'pyts', analysisFull, 'after', nameOf)).toBe('Visio AI, BI Dashboard')
   })
 
-  it('before drafting uses the existing versions, including left out', () => {
-    expect(jobReqLine('covered', 'pyts', analysisFull, 'before', nameOf)).toBe('Visio AI, Termo')
+  it('before the answers counts the versions used as they are, the early drafts and the ones left out', () => {
+    expect(jobReqLine('covered', 'pyts', analysisFull, 'before', nameOf)).toBe('Visio AI, BI Dashboard, Termo')
   })
 
   it('names the question that asks about a gap', () => {
-    expect(jobReqLine('partial', 'rag', analysisFull, 'before', nameOf)).toBe('Nothing in your blocks yet · Q1 asks about it')
+    expect(jobReqLine('partial', 'rag', analysisFull, 'before', nameOf)).toBe('BI Dashboard · Q1 asks about it')
     expect(jobReqLine('missing', 'kafka', analysisFull, 'before', nameOf)).toBe('Nothing in your blocks yet · Q2 asks about it')
   })
 
   it('shows the blocks and the question for a partial requirement', () => {
     const a = { ...analysisFull, reused: [{ ...reused, matches: [m('rag', [], true)] }] } as JobAnalysis
-    expect(jobReqLine('partial', 'rag', a, 'before', nameOf)).toBe('Visio AI · Q1 asks about it')
+    expect(jobReqLine('partial', 'rag', a, 'before', nameOf)).toBe('Visio AI, BI Dashboard · Q1 asks about it')
+  })
+
+  it('after the answers a partial requirement names its blocks and says partly', () => {
+    expect(jobReqLine('partial', 'rag', analysisFull, 'after', nameOf)).toBe('BI Dashboard · partly')
   })
 
   it('omits the question when none asks', () => {
