@@ -25,6 +25,8 @@ export type JobData = {
   label: string
   links: JobLinkData[]
   cv: SavedCv | null
+  /** When the Job analysis of this job was last saved (ISO); null = never analyzed. */
+  analyzedAt: string | null
 }
 
 /** A behavioral question with what you answered, for the read-only panel on Jobs. */

@@ -37,6 +37,7 @@ export function toJobData(j: JobRow): JobData {
     label: jobLabel(j.company, j.role),
     links: j.links.map((l) => ({ kind: l.kind, url: l.url })),
     cv: j.cv ? toSavedCv(j.cv) : null,
+    analyzedAt: j.analyzedAt ? j.analyzedAt.toISOString() : null,
   }
 }
 

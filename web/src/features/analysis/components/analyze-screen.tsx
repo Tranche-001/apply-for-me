@@ -53,7 +53,7 @@ const WORKING: Record<Exclude<Phase, 'idle'>, string> = {
 /** The edit popover in the prototype's words: Done keeps the edit with this job's CV, saved at the end. */
 const EDIT_COPY: EditorCopy = { saveLabel: 'Done', savedNote: 'saved with the CV at the end' }
 
-const jobAsData = (j: { id: string; company: string; role: string; label: string }): JobData => ({ ...j, links: [], cv: null })
+const jobAsData = (j: { id: string; company: string; role: string; label: string }): JobData => ({ ...j, links: [], cv: null, analyzedAt: null })
 const asBullets = (b: readonly DraftBullet[]): BulletData[] => b.map((x) => ({ kind: x.kind, text: x.text, want: x.want ?? null }))
 
 export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, notReadyText }: Props) {
@@ -264,7 +264,23 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
           <StartCard busy={busy} aiReady={aiReady} notReadyText={notReadyText} error={null} onAnalyzeUrl={(url) => void a.start({ url })} onUsePasted={(text) => void a.start({ text })} />
         </div>
       )}
-      {(a.job || a.phase !== 'idle') && (reviewing ? review() : panels())}
+      {/* Opened from Jobs ("Analyze") for a job never analyzed: compare its saved posting, or ask for one. */}
+      {a.job && !s && a.phase === 'idle' && !a.problem ? (
+        a.postingText ? (
+          <div className={c('a-start')}>
+            <h3>No analysis saved for this job yet</h3>
+            <p className={c('a-hint')}>The posting is saved with the job. The AI compares it with your blocks, then asks you about the gaps.</p>
+            <button className={c('a-btn p')} type="button" disabled={!aiReady} onClick={() => void a.analyzeAgain()}>
+              Analyze {a.job.label}
+            </button>
+            {!aiReady && <p className={c('a-hint')}>{notReadyText}</p>}
+          </div>
+        ) : (
+          <StartCard busy={busy} aiReady={aiReady} notReadyText={notReadyText} error={null} onAnalyzeUrl={(url) => void a.start({ url })} onUsePasted={(text) => void a.start({ text })} />
+        )
+      ) : (
+        (a.job || a.phase !== 'idle') && (reviewing ? review() : panels())
+      )}
       {views && <AnalysisPopovers a={a} views={views} lines={lines} listItems={listItems} onEdit={openEdit} />}
       {editing && a.job && (
         <ComposeEditor
