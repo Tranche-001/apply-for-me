@@ -30,6 +30,11 @@ describe('mapCvItems', () => {
     expect(mapCvItems([item('EXPERIENCE', 0, 'draft:u')], { 'draft:u': 'v-from' })).toEqual([item('EXPERIENCE', 0, 'v-from')])
   })
 
+  test('ids like "constructor" and "__proto__" are not looked up on the object prototype', () => {
+    const out = mapCvItems([item('EXPERIENCE', 0, 'constructor'), item('PROJECT', 1, '__proto__'), item('PROJECT', 2, 'toString')], {})
+    expect(out.map((i) => i.versionId)).toEqual(['constructor', '__proto__', 'toString'])
+  })
+
   test('does not change its input', () => {
     const items = [item('EXPERIENCE', 3, 'draft:d1')]
     mapCvItems(items, { 'draft:d1': 'x' })

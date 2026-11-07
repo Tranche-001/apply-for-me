@@ -2,6 +2,7 @@
 // ids that don't exist are dropped (and reported), a block appears once, positions are renumbered,
 // and quotes, keys and phrases are kept only when they really occur in the posting or the bullets (P1).
 import type { Section } from '@prisma/client'
+import { fitAnalysis } from '../analysis/session'
 import type { ExperienceContext, LibraryBlock, LibraryVersion } from './context-types'
 import { SECTIONS } from './context-types'
 import type { AnalysisOutput, BlockDraftOutput, CvPlanOutput } from './schemas'
@@ -138,19 +139,38 @@ function normalizeWithMap(text: string): { norm: string; map: number[] } {
   return { norm, map }
 }
 
-/** `needle` as it is written in `haystack` (same words, whitespace collapsed), or null when it does not occur there. */
-export function findWording(haystack: string, needle: string): string | null {
+/** A text prepared for matching, so it is normalized once however many needles are looked up in it. */
+export type PreparedText = { raw: string; norm: string; map: number[] }
+
+export const prepareText = (raw: string): PreparedText => ({ raw, ...normalizeWithMap(raw) })
+
+const MIN_QUOTE_CHARS = 12
+const MIN_WORDING_CHARS = 3
+const WORD_CHAR = /[\p{L}\p{N}]/u
+
+type WordingOptions = { minChars?: number; wholeWords?: boolean }
+
+/**
+ * `needle` as it is written in `haystack` (same words, whitespace collapsed), or null when it does not occur there.
+ * `minChars`: shorter needles never match. `wholeWords`: the characters around a match are not letters or digits,
+ * so "Java" is not found inside "JavaScript" (a later occurrence that is a whole word still counts).
+ */
+export function findWording(haystack: string | PreparedText, needle: string, { minChars = 1, wholeWords = false }: WordingOptions = {}): string | null {
   const wanted = normalizeWithMap(needle).norm.trim()
-  if (!wanted) return null
-  const { norm, map } = normalizeWithMap(haystack)
-  const at = norm.indexOf(wanted)
-  if (at < 0) return null
-  return haystack.slice(map[at], map[at + wanted.length - 1] + 1).replace(/\s+/g, ' ')
+  if (wanted.length < Math.max(1, minChars)) return null
+  const { raw, norm, map } = typeof haystack === 'string' ? prepareText(haystack) : haystack
+  for (let at = norm.indexOf(wanted); at >= 0; at = norm.indexOf(wanted, at + 1)) {
+    const end = at + wanted.length
+    if (wholeWords && (WORD_CHAR.test(norm[at - 1] ?? '') || WORD_CHAR.test(norm[end] ?? ''))) continue
+    return raw.slice(map[at], map[end - 1] + 1).replace(/\s+/g, ' ')
+  }
+  return null
 }
 
-function firstWording(texts: readonly string[], needle: string): string | null {
+/** A phrase or key: 3+ characters, whole words only. */
+const firstWording = (texts: readonly string[], needle: string): string | null => {
   for (const text of texts) {
-    const found = findWording(text, needle)
+    const found = findWording(text, needle, { minChars: MIN_WORDING_CHARS, wholeWords: true })
     if (found) return found
   }
   return null
@@ -159,13 +179,13 @@ function firstWording(texts: readonly string[], needle: string): string | null {
 const unique = (items: string[]): string[] => items.filter((s, i) => items.indexOf(s) === i)
 
 /** Up to 3 sentences that really are in the posting, in the posting's own wording. */
-function cleanQuotes(quotes: string[], posting: string): string[] {
-  return unique(quotes.map((q) => findWording(posting, q)).filter((q): q is string => q !== null)).slice(0, MAX_QUOTES)
+function cleanQuotes(quotes: string[], posting: PreparedText): string[] {
+  return unique(quotes.map((q) => findWording(posting, q, { minChars: MIN_QUOTE_CHARS })).filter((q): q is string => q !== null)).slice(0, MAX_QUOTES)
 }
 
 type RawRequirement = AnalysisOutput['requirements'][number]
 
-function cleanRequirements(raw: RawRequirement[], posting: string, names: IdNames): JobRequirement[] {
+function cleanRequirements(raw: RawRequirement[], posting: PreparedText, names: IdNames): JobRequirement[] {
   const used = new Set<string>()
   return raw
     .map((r) => ({ r, text: nameIds(r.text, names) }))
@@ -270,7 +290,7 @@ export function finalizeAnalysis(
   const index = indexVersions(library)
   const blocks = new Map(library.map((b) => [b.id, b]))
   const names = idNames(library, experiences)
-  const requirements = cleanRequirements(raw.requirements, postingText, names)
+  const requirements = cleanRequirements(raw.requirements, prepareText(postingText), names)
   const requirementIds = new Set(requirements.map((r) => r.id))
   const asks = uniqueAskIds(raw.asks, new Set(experiences.map((e) => e.id)), requirementIds, names)
   const askIds = new Set(asks.map((a) => a.id))
@@ -279,6 +299,11 @@ export function finalizeAnalysis(
   const drafts: AnalysisDraft[] = []
   raw.drafts.forEach((d, i) => {
     const block = d.blockId ? blocks.get(d.blockId) : undefined
+    // A blockId that names no block of the library is a mistake, even when the draft also carries a newBlock.
+    if (d.blockId && !block) {
+      unknownBlocks += 1
+      return
+    }
     const newBlock = block ? null : d.newBlock && d.newBlock.name.trim() ? { ...d.newBlock, name: d.newBlock.name.trim() } : null
     if (!block && !newBlock) {
       unknownBlocks += 1
@@ -311,7 +336,8 @@ export function finalizeAnalysis(
   const leftOut = collectVersions(raw.leftOut, index, requirementIds, names, taken)
   const unknownVersions = reused.unknown + leftOut.unknown
 
-  return {
+  // Last: whatever the model sent, what the client receives also passes the session schema (it is saved as is).
+  return fitAnalysis({
     requirements,
     asks,
     drafts,
@@ -322,7 +348,7 @@ export function finalizeAnalysis(
       ...skippedNote(unknownBlocks, unknownBlocks === 1 ? 'block' : 'blocks'),
       ...skippedNote(unknownVersions, unknownVersions === 1 ? 'version' : 'versions'),
     ],
-  }
+  })
 }
 
 export function finalizeBlockDraft(raw: BlockDraftOutput, library: LibraryBlock[], experience: ExperienceContext): DraftVersion {
@@ -347,9 +373,9 @@ export function finalizeBlockDraft(raw: BlockDraftOutput, library: LibraryBlock[
     newBlock: {
       name: nb?.name.trim() || experience.title.trim() || 'Untitled block',
       section: nb?.section ?? 'EXPERIENCE',
-      org: nb?.org.trim() ?? experience.where.trim(),
+      org: nb?.org.trim() || experience.where.trim(),
       location: nb?.location.trim() ?? '',
-      dates: nb?.dates.trim() ?? experience.when.trim(),
+      dates: nb?.dates.trim() || experience.when.trim(),
       stack: nb?.stack.trim() ?? '',
     },
     name: 'Base',

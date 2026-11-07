@@ -15,6 +15,7 @@ function fakeTx(rows: Row[]) {
     experience: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => data.find((r) => r.id === where.id) ?? null),
       findFirst: vi.fn(async ({ where }: { where: { title: string } }) => data.find((r) => r.title === where.title) ?? null),
+      findMany: vi.fn(async () => data.map((r) => ({ ...r }))),
       aggregate: vi.fn(async () => ({ _max: { position: data.length ? Math.max(...data.map((r) => r.position)) : null } })),
       create: vi.fn(async ({ data: d }: { data: Omit<Row, 'id'> }) => {
         const row = { id: `e${data.length + 1}`, ...d }
@@ -39,6 +40,23 @@ describe('appendAnswerToExperience', () => {
     const { tx, data } = fakeTx([{ id: 'visio', title: 'Visio AI', notes: OLD, position: 0 }])
     await expect(appendAnswerToExperience(tx, 'visio', ENTRY)).resolves.toEqual({ experienceId: 'visio', title: 'Visio AI', added: true, entry: ENTRY, isNew: false })
     expect(data[0].notes.startsWith(OLD)).toBe(true)
+    expect(data[0].notes).toBe(`${OLD}\n\n${ENTRY}`)
+  })
+
+  test('two answers naming the same new experience (any case, spaces around) make one experience', async () => {
+    const { tx, data } = fakeTx([{ id: 'visio', title: 'Visio AI', notes: OLD, position: 0 }])
+    const first = await appendAnswerToExperience(tx, null, ENTRY, { newExperienceTitle: 'Acme' })
+    const second = await appendAnswerToExperience(tx, null, 'For X\nThe AI asked: Q2\nMy answer: A2', { newExperienceTitle: '  acme ' })
+    expect(first).toMatchObject({ title: 'Acme', isNew: true })
+    expect(second).toMatchObject({ experienceId: first.experienceId, title: 'Acme', isNew: false, added: true })
+    expect(data).toHaveLength(2)
+    expect(data[1].notes).toBe(`${ENTRY}\n\nFor X\nThe AI asked: Q2\nMy answer: A2`)
+  })
+
+  test('a new experience title that matches an existing experience goes into it', async () => {
+    const { tx, data } = fakeTx([{ id: 'acme', title: 'ACME Corp', notes: OLD, position: 0 }])
+    await expect(appendAnswerToExperience(tx, null, ENTRY, { newExperienceTitle: 'acme corp' })).resolves.toMatchObject({ experienceId: 'acme', isNew: false })
+    expect(data).toHaveLength(1)
     expect(data[0].notes).toBe(`${OLD}\n\n${ENTRY}`)
   })
 

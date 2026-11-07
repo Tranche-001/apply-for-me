@@ -174,6 +174,12 @@ describe('savedItemsFor', () => {
     expect(savedItemsFor(c, {})).toEqual([{ section: 'EXPERIENCE', versionId: 'bi-base', position: 0 }])
   })
 
+  it('a version id like "constructor" is not looked up on the object prototype', () => {
+    const lib = [block('odd', 'EXPERIENCE', 0, [version('constructor', 'odd'), version('__proto__', 'odd', { position: 1 })])]
+    const c = compositionForReview({ library: lib, drafts: [], reused: [reused('constructor', 'odd')], asIsOut: [], pages: 2 })
+    expect(savedItemsFor(c, {})).toEqual([{ section: 'EXPERIENCE', versionId: 'constructor', position: 0 }])
+  })
+
   it('matches toSavedItems when there are no drafts', () => {
     const c = compositionForReview({ library, drafts: [], reused: [reused('bi-base', 'bi')], asIsOut: [], pages: 2 })
     expect(savedItemsFor(c, {})).toEqual(toSavedItems(c))

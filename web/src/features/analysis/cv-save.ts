@@ -33,7 +33,7 @@ export function mapCvItems<S extends string>(items: readonly CvItem<S>[], idMap:
   return items
     .map((item, index) => ({ item, index }))
     .sort((a, b) => a.item.position - b.item.position || a.index - b.index)
-    .map(({ item }) => ({ ...item, versionId: idMap[item.versionId] ?? item.versionId }))
+    .map(({ item }) => ({ ...item, versionId: Object.hasOwn(idMap, item.versionId) ? idMap[item.versionId] : item.versionId }))
     .filter((item) => !isDraftVersionId(item.versionId) && !seen.has(item.versionId) && seen.add(item.versionId))
     .map((item, position) => ({ ...item, position }))
 }

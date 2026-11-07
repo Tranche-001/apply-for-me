@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { AnalysisDraft, JobAnalysis, LeftOutVersion } from '../ai/types'
-import { analysisSessionSchema, parseSession } from './session'
+import { analysisSessionSchema, fitAnalysis, parseSession, SESSION_LIMITS } from './session'
 import { SESSION_VERSION, type AnalysisSession, type SessionDraft } from './types'
 
 const draft: AnalysisDraft = {
@@ -138,5 +138,63 @@ describe('parseSession', () => {
 describe('analysisSessionSchema', () => {
   test('is a zod schema that safeParses', () => {
     expect(analysisSessionSchema.safeParse(session()).success).toBe(true)
+  })
+})
+
+describe('fitAnalysis', () => {
+  const oversized = (): JobAnalysis => ({
+    requirements: Array.from({ length: 25 }, (_, i) => ({
+      id: `r${i}`,
+      text: 'T'.repeat(400),
+      status: 'missing' as const,
+      evidence: 'e'.repeat(3000),
+      quotes: ['q'.repeat(1500), 'short quote', 'b', 'c'],
+      keys: ['k'.repeat(400), ...Array.from({ length: 14 }, (_, j) => `key${j}`)],
+    })),
+    asks: Array.from({ length: 10 }, (_, i) => ({ id: `q${i}`, text: 'a'.repeat(2500), requirementId: i === 0 ? 'r24' : 'r1' })),
+    drafts: Array.from({ length: 22 }, (_, i) => ({
+      ...draft,
+      key: `d${i}`,
+      title: 'x'.repeat(400),
+      improvedBy: i === 0 ? 'q9' : 'q1',
+      bullets: Array.from({ length: 10 }, () => ({ kind: 'PROJECT' as const, text: 'y'.repeat(1200), want: null })),
+      matches: [
+        { requirementId: 'r1', phrases: ['p'.repeat(1200), 'ok phrase'], partly: false },
+        { requirementId: 'r24', phrases: ['gone'], partly: false },
+      ],
+    })),
+    reused: Array.from({ length: 22 }, (_, i) => ({ ...left, versionId: `u${i}`, why: 'w'.repeat(2500) })),
+    leftOut: [],
+    report: Array.from({ length: 70 }, () => ({ tag: 'NOTE' as const, text: 'n'.repeat(100) })),
+  })
+
+  test('an oversized analysis passes the session schema once fitted', () => {
+    const big = oversized()
+    expect(parseSession(session({ analysis: big, drafts: [] }))).toBeNull()
+    const fitted = fitAnalysis(big)
+    expect(analysisSessionSchema.safeParse(session({ analysis: fitted, drafts: [] })).success).toBe(true)
+    expect(parseSession(session({ analysis: fitted, drafts: [] }))).not.toBeNull()
+    expect(fitted.requirements).toHaveLength(SESSION_LIMITS.requirements)
+    expect(fitted.requirements[0].text).toHaveLength(300)
+    expect(fitted.requirements[0].text.endsWith('…')).toBe(true)
+  })
+
+  test('drops quotes, keys and phrases over their length instead of cutting them', () => {
+    const fitted = fitAnalysis(oversized())
+    expect(fitted.requirements[0].quotes).toEqual(['short quote', 'b', 'c'])
+    expect(fitted.requirements[0].keys).toHaveLength(SESSION_LIMITS.keys)
+    expect(fitted.requirements[0].keys).not.toContain('k'.repeat(400))
+    expect(fitted.drafts[1].matches[0].phrases).toEqual(['ok phrase'])
+  })
+
+  test('leaves no reference to a requirement or question that was cut', () => {
+    const fitted = fitAnalysis(oversized())
+    expect(fitted.asks[0].requirementId).toBeNull()
+    expect(fitted.drafts[0].improvedBy).toBeNull()
+    expect(fitted.drafts[1].matches.map((m) => m.requirementId)).toEqual(['r1'])
+  })
+
+  test('an analysis that already fits comes back equal', () => {
+    expect(fitAnalysis(analysis)).toEqual(analysis)
   })
 })

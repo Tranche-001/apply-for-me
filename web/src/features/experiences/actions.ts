@@ -23,15 +23,27 @@ const fieldsInput = z.object({
 })
 
 async function attempt<T>(what: string, work: () => Promise<T>): Promise<ActionResult<T>> {
+  let data: T
   try {
-    const data = await work()
-    refresh()
-    return ok(data)
+    data = await work()
   } catch (err) {
     console.error(`[experiences] ${what} failed`, dbLogContext(err))
     return fail(plainDbError(err))
   }
+  // Outside the try: a write that is committed is never reported as failed because the refresh threw.
+  try {
+    refresh()
+  } catch (err) {
+    console.error(`[experiences] ${what}: refresh failed`, dbLogContext(err))
+  }
+  return ok(data)
 }
+
+/** Interactive transactions that do several writes: room to finish, and to wait for a connection. */
+const TX_OPTIONS = { timeout: 30_000, maxWait: 5_000 } as const
+
+/** What answerEntry writes: "For <job>", the question, then the answer. A resend only replaces text of this shape. */
+const ANSWER_ENTRY_SHAPE = /^For .+\nThe AI asked: [\s\S]+\nMy answer: /
 
 /** New experience at the top of the list, empty. */
 export async function createExperience(): Promise<ActionResult<ExperienceItem>> {
@@ -102,7 +114,7 @@ const answersInput = z.object({
 const resendInput = z.object({
   jobId: id,
   experienceId: id,
-  oldEntry: z.string().min(1, 'is missing').max(6000, 'is too long'),
+  oldEntry: z.string().min(1, 'is missing').max(6000, 'is too long').regex(ANSWER_ENTRY_SHAPE, 'is not an answer written from Job analysis'),
   question: z.string().trim().min(1, 'is missing').max(2000, 'is too long'),
   answer: z.string().trim().min(1, 'Write your answer first.').max(4000, 'Your answer is too long (4000 characters at most).').nullable(),
 })
@@ -126,7 +138,7 @@ export async function addAnswersToExperiences(input: z.input<typeof answersInput
         placed.push(await appendAnswerToExperience(tx, item.experienceId, entry, { newExperienceTitle: item.newExperienceTitle }))
       }
       return placed
-    }),
+    }, TX_OPTIONS),
   )
 }
 
@@ -145,6 +157,6 @@ export async function resendAnswer(input: z.input<typeof resendInput>): Promise<
       if (!job) throw Object.assign(new Error('gone'), { code: 'P2025' })
       const newEntry = answer === null ? null : answerEntry({ jobLabel: jobLabel(job), question, answer })
       return resendAnswerInExperience(tx, { experienceId, oldEntry, newEntry })
-    }),
+    }, TX_OPTIONS),
   )
 }

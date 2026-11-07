@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'vitest'
+import { parseSession } from '../analysis/session'
+import { SESSION_VERSION } from '../analysis/types'
 import { EXPERIENCE, LIBRARY } from './test-fixtures'
 import { cleanBullets, idNames, nameIds, finalizeAnalysis, finalizeBlockDraft, finalizeCvPlan, normalizeSectionOrder, toPostingSummary } from './postprocess'
 import type { AnalysisOutput, BlockDraftOutput, CvPlanOutput } from './schemas'
@@ -144,6 +146,26 @@ describe('finalizeAnalysis: requirements and quotes (P1)', () => {
     expect(a.requirements[0].keys).toEqual(['Python in production', 'RAG'])
   })
 
+  test('a quote shorter than 12 characters is dropped even when it occurs in the posting', () => {
+    const a = run(analysisOutput({ requirements: [req({ quotes: ['Python', 'We want Python in production and RAG experience.'] })] }))
+    expect(a.requirements[0].quotes).toEqual(['We want Python in production and RAG experience.'])
+  })
+
+  test('a key must be 3+ characters and match whole words: "Java" is not found inside "JavaScript"', () => {
+    const posting = 'We use JavaScript and Go daily, plus Kotlin for the backend, and C++ too.'
+    const quote = 'We use JavaScript and Go daily, plus Kotlin for the backend, and C++ too.'
+    const a = run(analysisOutput({ requirements: [req({ quotes: [quote], keys: ['Java', 'JavaScript', 'Go', 'ava', 'C++', 'Script'] })] }), posting)
+    expect(a.requirements[0].keys).toEqual(['JavaScript', 'C++'])
+    const only = run(analysisOutput({ requirements: [req({ quotes: ['We use JavaScript for the web, nothing else.'], keys: ['Java'] })] }), 'We use JavaScript for the web, nothing else.')
+    expect(only.requirements[0].keys).toEqual([])
+  })
+
+  test('a later whole-word occurrence is found when the first one is inside another word', () => {
+    const posting = 'JavaScript first, then Java second, for sure.'
+    const a = run(analysisOutput({ requirements: [req({ quotes: [posting], keys: ['Java'] })] }), posting)
+    expect(a.requirements[0].keys).toEqual(['Java'])
+  })
+
   test('with no posting text every quote and key is dropped, never invented', () => {
     const a = run(analysisOutput({ requirements: [req({ quotes: ['We want Python.'], keys: ['Python'] })] }), '')
     expect(a.requirements[0]).toMatchObject({ quotes: [], keys: [] })
@@ -221,6 +243,30 @@ describe('finalizeAnalysis: drafts', () => {
     expect(bullets[1]).toEqual({ kind: 'MISSING', text: 'RAG: your answer to q1 can fill this', want: 'IMPACT' })
     expect(bullets[2].text).toHaveLength(200)
     expect(a.drafts[0].improvedBy).toBe('q1')
+  })
+
+  test('a phrase of a match must be 3+ characters and a whole word in the bullets', () => {
+    const a = run(
+      analysisOutput({
+        requirements: [req()],
+        drafts: [draft({ bullets: [{ kind: 'PROJECT', text: 'Built a JavaScript app with Java.', want: null }], matches: [{ requirementId: 'r1', phrases: ['Java', 'Ja', 'JavaScript'], partly: false }] })],
+      }),
+    )
+    expect(a.drafts[0].matches).toEqual([{ requirementId: 'r1', phrases: ['Java', 'JavaScript'], partly: false }])
+    const none = run(
+      analysisOutput({
+        requirements: [req()],
+        drafts: [draft({ bullets: [{ kind: 'PROJECT', text: 'Built a JavaScript app.', want: null }], matches: [{ requirementId: 'r1', phrases: ['Java'], partly: false }] })],
+      }),
+    )
+    expect(none.drafts[0].matches).toEqual([])
+  })
+
+  test('a draft with an unknown blockId is skipped and counted, even when it also has a newBlock', () => {
+    const newBlock = { name: 'RAG project', section: 'PROJECT' as const, org: '', location: '', dates: '', stack: '' }
+    const a = run(analysisOutput({ drafts: [draft({ blockId: 'nope', newBlock })] }))
+    expect(a.drafts).toEqual([])
+    expect(a.report.map((r) => r.text)).toEqual(['Skipped 1 block the AI named that is not in your library.'])
   })
 
   test('improvedBy must be an ask id, else null', () => {
@@ -316,6 +362,15 @@ describe('finalizeAnalysis: reused and left out', () => {
 })
 
 describe('finalizeAnalysis: other', () => {
+  test('what it returns always fits a session: too many or too long things are cut', () => {
+    const requirements = Array.from({ length: 25 }, (_, i) => req({ id: `r${i + 1}`, text: 'T'.repeat(400) }))
+    const a = run(analysisOutput({ requirements }))
+    expect(a.requirements).toHaveLength(20)
+    expect(a.requirements[0].text).toHaveLength(300)
+    const session = { v: SESSION_VERSION, analysis: a, answers: {}, dont: {}, sent: {}, drafts: [], asIsOut: [], pages: 1, step: 'input', analyzedAt: '2026-11-07T10:00:00.000Z', savedAt: null }
+    expect(parseSession(session)).not.toBeNull()
+  })
+
   test('toPostingSummary maps statuses to the fixed covered boolean', () => {
     const a = run(analysisOutput({ requirements: [req({ id: 'r1', text: 'A' }), req({ id: 'r2', text: 'B', status: 'partial' })] }))
     expect(toPostingSummary(a).requirements).toEqual([
@@ -338,6 +393,12 @@ describe('finalizeBlockDraft', () => {
   test('a version of a linked block never takes the Base name', () => {
     const d = finalizeBlockDraft(blockOutput({ blockId: 'b-visio', name: 'base' }), LIBRARY, EXPERIENCE)
     expect(d).toMatchObject({ blockId: 'b-visio', newBlock: null, name: 'From your notes', title: 'Intern' })
+  })
+
+  test('an empty org or dates from the model falls back to the experience fields', () => {
+    const newBlock = { name: 'Notes block', section: 'EXPERIENCE' as const, org: ' ', location: '', dates: '', stack: '' }
+    const d = finalizeBlockDraft(blockOutput({ newBlock }), LIBRARY, EXPERIENCE)
+    expect(d.newBlock).toMatchObject({ org: 'Visio AI · São Carlos, SP', dates: 'June 2026 – Present' })
   })
 
   test('a block id that is not linked to the experience becomes a new block from the experience fields', () => {

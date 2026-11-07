@@ -12,6 +12,15 @@ export type ResentAnswer = { experienceId: string; title: string; entry: string 
 
 const PLACE = { id: true, title: true, notes: true } as const
 
+type Place = { id: string; title: string; notes: string }
+
+/** The oldest experience whose title is `title` ignoring case and surrounding spaces. */
+async function findByTitle(tx: Prisma.TransactionClient, title: string): Promise<Place | null> {
+  const wanted = title.trim().toLowerCase()
+  const all = await tx.experience.findMany({ orderBy: { createdAt: 'asc' }, select: PLACE })
+  return all.find((e) => e.title.trim().toLowerCase() === wanted) ?? null
+}
+
 async function createAtEnd(tx: Prisma.TransactionClient, title: string, notes: string) {
   const last = await tx.experience.aggregate({ _max: { position: true } })
   return tx.experience.create({ data: { title, notes, position: (last._max.position ?? -1) + 1 }, select: { id: true, title: true } })
@@ -25,11 +34,16 @@ export async function appendAnswerToExperience(
 ): Promise<PlacedAnswer> {
   const chosen = experienceId ? await tx.experience.findUnique({ where: { id: experienceId }, select: PLACE }) : null
   const wantedTitle = options.newExperienceTitle?.trim()
+  let named: Place | null = null
   if (!chosen && !experienceId && wantedTitle) {
-    const created = await createAtEnd(tx, wantedTitle, entry)
-    return { experienceId: created.id, title: created.title, added: true, entry, isNew: true }
+    // Two answers naming the same new experience (or one that already exists) share it, never a duplicate.
+    named = await findByTitle(tx, wantedTitle)
+    if (!named) {
+      const created = await createAtEnd(tx, wantedTitle, entry)
+      return { experienceId: created.id, title: created.title, added: true, entry, isNew: true }
+    }
   }
-  const place = chosen ?? (await tx.experience.findFirst({ where: { title: ANSWERS_TITLE }, orderBy: { createdAt: 'asc' }, select: PLACE }))
+  const place = chosen ?? named ?? (await tx.experience.findFirst({ where: { title: ANSWERS_TITLE }, orderBy: { createdAt: 'asc' }, select: PLACE }))
   if (!place) {
     const created = await createAtEnd(tx, ANSWERS_TITLE, entry)
     return { experienceId: created.id, title: created.title, added: true, entry, isNew: true }

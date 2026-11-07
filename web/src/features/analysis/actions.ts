@@ -3,7 +3,7 @@
 // Job analysis writes: start from a posting (link or pasted text), autosave the session, save the CV with the
 // drafts you kept, add an experience for a requirement that is not met, rename a job. Every input is validated;
 // every success refreshes the route, except the autosave.
-import type { Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { refresh } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
@@ -38,16 +38,30 @@ const names = z.object({
 })
 
 async function attempt<T>(what: string, work: () => Promise<ActionResult<T>>, duplicate?: string, refreshOnSuccess = true): Promise<ActionResult<T>> {
+  let result: ActionResult<T>
   try {
-    const result = await work()
-    if (result.ok && refreshOnSuccess) refresh()
-    return result
+    result = await work()
   } catch (err) {
     if (err instanceof UserError) return fail(err.message)
     console.error(`[analysis] ${what} failed`, dbLogContext(err))
     return fail(plainDbError(err, duplicate))
   }
+  // Outside the try: a write that is committed is never reported as failed because the refresh threw.
+  if (result.ok && refreshOnSuccess) {
+    try {
+      refresh()
+    } catch (err) {
+      console.error(`[analysis] ${what}: refresh failed`, dbLogContext(err))
+    }
+  }
+  return result
 }
+
+/** Prisma's "unique constraint failed" (two requests created the same row). */
+const isUniqueViolation = (err: unknown): boolean => typeof err === 'object' && err !== null && 'code' in err && err.code === 'P2002'
+
+/** Interactive transactions that do several writes: room to finish, and to wait for a connection. */
+const TX_OPTIONS = { timeout: 30_000, maxWait: 5_000 } as const
 
 /** @deprecated Job analysis v2 starts from a posting (startFromPosting). Remove with the old screen. "+ New job". A job that already exists (same company and role) is opened instead of duplicated. */
 export async function createJob(input: { company: string; role: string }): Promise<ActionResult<{ job: JobSummary; existed: boolean }>> {
@@ -196,27 +210,29 @@ const pastedInput = z
 
 export type StartedJob = { job: JobSummary; existed: boolean; postingText: string }
 
+const startInput = z.union([z.object({ url: z.string() }), z.object({ text: z.string() })])
+
 /**
  * The v2 start: read the posting (from a link, or the pasted text), let the AI name the company and role,
  * then find the job with that exact pair (`existed: true`) or create it. The posting text is saved on the job
  * and the link is added to it when it is new.
  */
 export async function startFromPosting(input: { url: string } | { text: string }): Promise<ActionResult<StartedJob>> {
+  const parsedInput = startInput.safeParse(input)
+  if (!parsedInput.success) return fail('Paste a link to the job posting, or the job text.')
   let postingText: string
   let url: string | null = null
   let title: string | null = null
-  if (input && 'url' in input && typeof input.url === 'string') {
-    const parsedUrl = urlInput.safeParse(input.url)
+  if ('url' in parsedInput.data) {
+    const parsedUrl = urlInput.safeParse(parsedInput.data.url)
     if (!parsedUrl.success) return fail(invalidInput(parsedUrl.error))
     const read = await readPostingUrl(parsedUrl.data)
     if (!read.ok) return fail(read.error)
     ;({ text: postingText, url, title } = read)
-  } else if (input && 'text' in input && typeof input.text === 'string') {
-    const parsedText = pastedInput.safeParse(input.text)
+  } else {
+    const parsedText = pastedInput.safeParse(parsedInput.data.text)
     if (!parsedText.success) return fail(invalidInput(parsedText.error))
     postingText = parsedText.data
-  } else {
-    return fail('Paste a link to the job posting, or the job text.')
   }
 
   const info = await readJobInfo({ postingText })
@@ -224,19 +240,32 @@ export async function startFromPosting(input: { url: string } | { text: string }
   const names = jobNamesFrom(info.data, title)
   if (!names) return fail('Couldn’t tell which job this is. Check that it is the whole posting, or paste the job text.')
 
-  return attempt('startFromPosting', async () => {
+  return attempt<StartedJob>('startFromPosting', async () => {
     const include = { links: { orderBy: { position: 'asc' as const } } }
+    const reuse = (existing: { id: string; postingText: string; links: { url: string; position: number }[] }) => {
+      const nextPosition = existing.links.reduce((max, l) => Math.max(max, l.position), -1) + 1
+      const link = url ? { url, kind: guessLinkKind(url), position: nextPosition } : null
+      // A different posting text: the saved session quotes the old one, so it goes (old quotes never point at text that is gone).
+      const staleSession = existing.postingText !== postingText ? { analysis: Prisma.DbNull, analyzedAt: null } : {}
+      return db.job.update({
+        where: { id: existing.id },
+        data: { postingText, ...staleSession, ...(link && !existing.links.some((l) => l.url === url) ? { links: { create: link } } : {}) },
+        include,
+      })
+    }
     const existing = await db.job.findUnique({ where: { company_role: names }, include })
-    const nextPosition = (existing?.links ?? []).reduce((max, l) => Math.max(max, l.position), -1) + 1
-    const link = url ? { url, kind: guessLinkKind(url), position: nextPosition } : null
-    const job = existing
-      ? await db.job.update({
-          where: { id: existing.id },
-          data: { postingText, ...(link && !existing.links.some((l) => l.url === url) ? { links: { create: link } } : {}) },
-          include,
-        })
-      : await db.job.create({ data: { ...names, postingText, ...(link ? { links: { create: [link] } } : {}) }, include })
-    return ok({ job: toJobSummary(job), existed: Boolean(existing), postingText })
+    if (existing) return ok({ job: toJobSummary(await reuse(existing)), existed: true, postingText })
+    const link = url ? { url, kind: guessLinkKind(url), position: 0 } : null
+    try {
+      const created = await db.job.create({ data: { ...names, postingText, ...(link ? { links: { create: [link] } } : {}) }, include })
+      return ok({ job: toJobSummary(created), existed: false, postingText })
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err
+      // Another request created the same job between the read and the create: use that one.
+      const raced = await db.job.findUnique({ where: { company_role: names }, include })
+      if (!raced) throw err
+      return ok({ job: toJobSummary(await reuse(raced)), existed: true, postingText })
+    }
   })
 }
 
@@ -276,10 +305,17 @@ const cvInput = z.object({
   showSkills: z.boolean(),
   showAchievements: z.boolean(),
   items: z
-    .array(z.object({ section: sectionSchema, position: z.number().int().min(0).max(MAX_CV_ITEMS), versionId: z.string().trim().min(1).max(80) }))
+    .array(z.object({ section: sectionSchema, position: z.number().int().min(0).max(MAX_CV_ITEMS), versionId: z.string().trim().min(1).max(100) }))
     .max(MAX_CV_ITEMS),
 })
-const saveCvInput = z.object({ jobId: id, drafts: z.array(keptDraftInput).max(20, 'Keep at most 20 drafts.'), cv: cvInput })
+const saveCvInput = z.object({
+  jobId: id,
+  drafts: z
+    .array(keptDraftInput)
+    .max(20, 'Keep at most 20 drafts.')
+    .refine((drafts) => new Set(drafts.map((d) => d.key)).size === drafts.length, { message: 'Two drafts have the same key. Reload the page and try again.' }),
+  cv: cvInput,
+})
 
 export type SavedAnalysisCv = { saved: SavedDraft[]; savedLabel: string; idMap: Record<string, string> }
 
@@ -306,7 +342,7 @@ export async function saveAnalysisCv(input: { jobId: string; drafts: unknown[]; 
       const { savedLabel } = await writeCv(tx, { jobId, ...cv, items: mapCvItems(cv.items, idMap) })
       await tx.job.update({ where: { id: jobId }, data: { updatedAt: new Date() }, select: { id: true } })
       return ok({ saved, savedLabel, idMap })
-    }),
+    }, TX_OPTIONS),
   )
 }
 

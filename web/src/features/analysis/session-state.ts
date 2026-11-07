@@ -1,6 +1,7 @@
 // The Job analysis session's transitions (pure and immutable): every change returns a new session.
 // The screen keeps one AnalysisSession in state and saves it with the job, so a reload resumes (H1, P2).
-import type { AnalysisDraft, DraftBullet, JobAnalysis, ReusedVersion } from '../ai/types'
+import type { AiAsk, AnalysisDraft, DraftBullet, JobAnalysis, ReusedVersion } from '../ai/types'
+import { SESSION_LIMITS } from './session'
 import { SESSION_VERSION, type AnalysisSession, type SentAnswer, type SessionDraft } from './types'
 
 /** What a discarded draft needs to come back where it was (one undo, like the rest of the app). */
@@ -35,32 +36,120 @@ export function newSession(analysis: JobAnalysis, now: string): AnalysisSession 
   }
 }
 
+const normText = (t: string): string => t.trim().replace(/\s+/g, ' ').toLowerCase()
+
+/** Made by you rather than the AI: "+ Add experience" (add-) or a block used as it is that you edited (asis-). */
+const isUserMade = (d: SessionDraft): boolean => d.key.startsWith('add-') || d.key.startsWith('asis-')
+
+/** A draft a redraft must not throw away. */
+const isCarried = (d: SessionDraft): boolean => d.editedByHand || isUserMade(d)
+
+const ownValue = <T>(record: Readonly<Record<string, T>>, key: string): T | undefined => (Object.hasOwn(record, key) ? record[key] : undefined)
+
+/** The new requirement id for an old one, matched by normalized text (null when the new analysis has no such requirement). */
+function requirementRemap(from: JobAnalysis, to: JobAnalysis): (oldId: string) => string | null {
+  const byText = new Map<string, string>()
+  for (const r of to.requirements) if (!byText.has(normText(r.text))) byText.set(normText(r.text), r.id)
+  const oldText = new Map(from.requirements.map((r) => [r.id, normText(r.text)]))
+  return (oldId) => {
+    const text = oldText.get(oldId)
+    return text === undefined ? null : (byText.get(text) ?? null)
+  }
+}
+
+type MergedAsks = { asks: AiAsk[]; keptIds: ReadonlySet<string>; finalId: (newId: string) => string | null }
+
 /**
- * A new analysis after your answers (or "Ask for changes"). Drafts you edited by hand stay as you left
- * them (P2); a block you unticked stays unticked; answers and what was sent stay. An edited draft whose
- * block the AI no longer drafts goes to the end.
+ * Questions after a redraft: every old question that has an answer, "I don't have this" or a sent entry stays
+ * (same id, same order), then the new questions. A new question that is an old one re-asked (same text) is skipped;
+ * one whose id an old question already uses gets a free id. `finalId` says where a new question's id ended up.
+ */
+function mergeAsks(s: AnalysisSession, next: JobAnalysis, remapRequirement: (oldId: string) => string | null): MergedAsks {
+  const isAnswered = (a: AiAsk) => Boolean((ownValue(s.answers, a.id) ?? '').trim()) || ownValue(s.dont, a.id) === true || Object.hasOwn(s.sent, a.id)
+  const kept = s.analysis.asks.filter(isAnswered).map((a): AiAsk => ({ ...a, requirementId: a.requirementId ? remapRequirement(a.requirementId) : a.requirementId }))
+  const keptIds = new Set(kept.map((a) => a.id))
+  const keptByText = new Map(kept.map((a) => [normText(a.text), a.id]))
+  const used = new Set([...keptIds, ...next.asks.map((a) => a.id)])
+  const idMap = new Map<string, string>()
+  const added: AiAsk[] = []
+  for (const a of next.asks) {
+    const same = keptByText.get(normText(a.text))
+    if (same !== undefined) {
+      idMap.set(a.id, same)
+      continue
+    }
+    let id = a.id
+    if (keptIds.has(id)) {
+      let n = 1
+      while (used.has(`q${n}`)) n += 1
+      id = `q${n}`
+      used.add(id)
+    }
+    idMap.set(a.id, id)
+    added.push({ ...a, id })
+  }
+  const asks = [...kept, ...added].slice(0, SESSION_LIMITS.asks)
+  const finalIds = new Set(asks.map((a) => a.id))
+  return { asks, keptIds, finalId: (newId) => (idMap.has(newId) && finalIds.has(idMap.get(newId)!) ? idMap.get(newId)! : null) }
+}
+
+/** Keeps only the entries of `record` whose key is in `keys`. */
+function onlyKeys<T>(record: Readonly<Record<string, T>>, keys: ReadonlySet<string>): Record<string, T> {
+  return Object.fromEntries(Object.entries(record).filter(([k]) => keys.has(k)))
+}
+
+/**
+ * A new analysis after your answers (or "Ask for changes"). Nothing you answered is lost: answered questions
+ * stay with their ids and the new ones are added around them (mergeAsks). Drafts you edited by hand, or made
+ * yourself (+ Add experience, a block you edited from "used as it is"), stay as you left them (P2); an edited
+ * draft takes the place of the AI's new draft of the same block (one for one), the rest go to the end. A block
+ * you unticked stays unticked. What was sent stays.
  */
 export function applyRedraft(s: AnalysisSession, analysis: JobAnalysis, now: string): AnalysisSession {
-  const edited = new Map(s.drafts.filter((d) => d.editedByHand).map((d) => [blockKey(d), d]))
+  const remapRequirement = requirementRemap(s.analysis, analysis)
+  const merged = mergeAsks(s, analysis, remapRequirement)
+  const carriedDraft = (d: SessionDraft): SessionDraft => ({
+    ...d,
+    improvedBy: d.improvedBy !== null && merged.keptIds.has(d.improvedBy) ? d.improvedBy : null,
+    matches: d.matches.flatMap((m) => {
+      const requirementId = remapRequirement(m.requirementId)
+      return requirementId === null ? [] : [{ ...m, requirementId }]
+    }),
+  })
+
+  const carried = s.drafts.filter(isCarried).map(carriedDraft)
+  const waiting = new Map<string, SessionDraft[]>()
+  for (const d of carried.filter((c) => !isUserMade(c))) waiting.set(blockKey(d), [...(waiting.get(blockKey(d)) ?? []), d])
   const unticked = new Set(s.drafts.filter((d) => !d.keep).map(blockKey))
+
+  const placed = new Set<SessionDraft>()
+  const slots = analysis.drafts.map((d): SessionDraft => {
+    const mine = waiting.get(blockKey(d))?.shift()
+    if (mine) {
+      placed.add(mine)
+      return mine
+    }
+    return toSessionDraft({ ...d, improvedBy: d.improvedBy === null ? null : merged.finalId(d.improvedBy) }, !unticked.has(blockKey(d)))
+  })
+  const ordered = [...slots, ...carried.filter((d) => !placed.has(d))]
+
+  const fresh = (d: SessionDraft) => !carried.includes(d)
+  while (ordered.length > SESSION_LIMITS.drafts && ordered.some(fresh)) ordered.splice(ordered.findLastIndex(fresh), 1)
+
   const taken = new Set<string>()
-  const take = (d: SessionDraft): SessionDraft => {
+  const drafts = ordered.slice(0, SESSION_LIMITS.drafts).map((d) => {
     const key = freeKey(d.key, taken)
     taken.add(key)
     return key === d.key ? d : { ...d, key }
-  }
-  const placed = new Set<string>()
-  const fromAi = analysis.drafts.map((d) => {
-    const k = blockKey(d)
-    placed.add(k)
-    return take(edited.get(k) ?? toSessionDraft(d, !unticked.has(k)))
   })
-  const leftOver = [...edited.entries()].filter(([k]) => !placed.has(k)).map(([, d]) => take(d))
   const reusedIds = new Set(analysis.reused.map((r) => r.versionId))
   return {
     ...s,
-    analysis,
-    drafts: [...fromAi, ...leftOver],
+    analysis: { ...analysis, asks: merged.asks },
+    answers: onlyKeys(s.answers, merged.keptIds),
+    dont: onlyKeys(s.dont, merged.keptIds),
+    sent: onlyKeys(s.sent, merged.keptIds),
+    drafts,
     asIsOut: s.asIsOut.filter((id) => reusedIds.has(id)),
     step: s.step === 'input' ? 'drafts' : s.step,
     analyzedAt: now,

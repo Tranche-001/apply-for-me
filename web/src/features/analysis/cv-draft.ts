@@ -84,7 +84,7 @@ export function compositionForReview(input: {
  */
 export function savedItemsFor(composition: Composition, idMap: Readonly<Record<string, string>>): SavedCvItem[] {
   return toSavedItems(composition)
-    .map((item) => ({ ...item, versionId: idMap[item.versionId] ?? item.versionId }))
+    .map((item) => ({ ...item, versionId: Object.hasOwn(idMap, item.versionId) ? idMap[item.versionId] : item.versionId }))
     .filter((item) => !isDraftVersionId(item.versionId))
     .map((item, position) => ({ ...item, position }))
 }

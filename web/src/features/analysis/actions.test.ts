@@ -1,5 +1,6 @@
 // Job analysis v2 Server Functions with the database, the AI and the web fetch mocked.
 // Never touches a real database.
+import { Prisma } from '@prisma/client'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import type { FetchResult } from './fetch-posting'
 import { SESSION_VERSION, type AnalysisSession } from './types'
@@ -13,6 +14,7 @@ const m = vi.hoisted(() => ({
   saveDraftToLibrary: vi.fn(),
   updateVersionFromDraft: vi.fn(),
   writeCv: vi.fn(),
+  txOptions: vi.fn(),
   job: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   block: { findUnique: vi.fn() },
 }))
@@ -26,7 +28,15 @@ vi.mock('../ai/library-writes', () => ({ saveDraftToLibrary: m.saveDraftToLibrar
 vi.mock('../cv/write-cv', () => ({ saveCvSchema: {}, writeCv: m.writeCv }))
 vi.mock('@/lib/db', () => {
   const tx = { job: m.job, block: m.block }
-  return { db: { ...tx, $transaction: async (fn: (t: typeof tx) => unknown) => fn(tx) } }
+  return {
+    db: {
+      ...tx,
+      $transaction: async (fn: (t: typeof tx) => unknown, options?: unknown) => {
+        m.txOptions(options)
+        return fn(tx)
+      },
+    },
+  }
 })
 
 const { startFromPosting, saveAnalysisSession, saveAnalysisCv, addExperienceForRequirement } = await import('./actions')
@@ -149,6 +159,47 @@ describe('startFromPosting', () => {
 
     const r = await startFromPosting({ text: POSTING })
     expect(r).toEqual({ ok: false, error: expect.stringMatching(/which job/i) })
+  })
+
+  test.each([null, undefined, 'text', 42, []])('input %j is refused without throwing', async (input) => {
+    await expect(startFromPosting(input as unknown as { url: string })).resolves.toMatchObject({ ok: false })
+    expect(m.readJobInfo).not.toHaveBeenCalled()
+  })
+
+  test('a new posting text on an existing job clears its saved session, so old quotes never point at text that is gone', async () => {
+    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.job.findUnique.mockResolvedValue(jobRow({ postingText: 'the old posting' }))
+    m.job.update.mockResolvedValue(jobRow())
+    await startFromPosting({ text: POSTING })
+    const data = m.job.update.mock.calls[0][0].data
+    expect(data).toMatchObject({ postingText: POSTING.trim(), analysis: Prisma.DbNull, analyzedAt: null })
+  })
+
+  test('the same posting text keeps the saved session', async () => {
+    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.job.findUnique.mockResolvedValue(jobRow({ postingText: POSTING.trim() }))
+    m.job.update.mockResolvedValue(jobRow())
+    await startFromPosting({ text: POSTING })
+    const data = m.job.update.mock.calls[0][0].data
+    expect('analysis' in data).toBe(false)
+    expect('analyzedAt' in data).toBe(false)
+  })
+
+  test('losing a create race (P2002) reads the job the other request made and uses it', async () => {
+    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.job.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(jobRow({ postingText: 'other' }))
+    m.job.create.mockRejectedValue(Object.assign(new Error('unique'), { code: 'P2002' }))
+    m.job.update.mockResolvedValue(jobRow())
+    const r = await startFromPosting({ text: POSTING })
+    expect(r.ok && r.data.existed).toBe(true)
+    expect(m.job.update).toHaveBeenCalledOnce()
+  })
+
+  test('a P2002 with no job to be found is still a plain error', async () => {
+    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.job.findUnique.mockResolvedValue(null)
+    m.job.create.mockRejectedValue(Object.assign(new Error('unique'), { code: 'P2002' }))
+    expect((await startFromPosting({ text: POSTING })).ok).toBe(false)
   })
 
   test('a database failure is a plain message', async () => {
@@ -333,6 +384,45 @@ describe('saveAnalysisCv', () => {
     const r = await saveAnalysisCv({ jobId: 'j1', drafts: [], cv: cv([]) })
     expect(r).toEqual({ ok: false, error: 'A version in this CV was removed from your library.' })
     expect(m.refresh).not.toHaveBeenCalled()
+  })
+
+  test('two drafts with the same key are refused before the transaction', async () => {
+    const r = await saveAnalysisCv({ jobId: 'j1', drafts: [kept(), kept({ blockId: 'b2' })], cv: cv([]) })
+    expect(r.ok).toBe(false)
+    expect(m.job.findUnique).not.toHaveBeenCalled()
+  })
+
+  test('the transaction gets room to finish: 30 s, 5 s to start', async () => {
+    await saveAnalysisCv({ jobId: 'j1', drafts: [], cv: cv([]) })
+    expect(m.txOptions).toHaveBeenCalledWith({ timeout: 30_000, maxWait: 5_000 })
+  })
+
+  test('a version id like "constructor" or "__proto__" stays itself and does not resolve to an inherited property', async () => {
+    const r = await saveAnalysisCv({
+      jobId: 'j1',
+      drafts: [],
+      cv: cv([
+        { section: 'EXPERIENCE', position: 0, versionId: 'constructor' },
+        { section: 'PROJECT', position: 1, versionId: '__proto__' },
+      ]),
+    })
+    expect(r.ok).toBe(true)
+    expect(m.writeCv.mock.calls[0][1].items.map((i: { versionId: string }) => i.versionId)).toEqual(['constructor', '__proto__'])
+  })
+
+  test('an item id may be a draft id of a 80-character key', async () => {
+    const key = 'k'.repeat(80)
+    m.saveDraftToLibrary.mockResolvedValue({ blockId: 'b1', blockName: 'Visio', versionId: 'v-new', versionName: 'x', isNewBlock: false })
+    const r = await saveAnalysisCv({ jobId: 'j1', drafts: [kept({ key })], cv: cv([{ section: 'EXPERIENCE', position: 0, versionId: `draft:${key}` }]) })
+    expect(r.ok).toBe(true)
+  })
+
+  test('a refresh that fails after the commit does not turn the save into a failure', async () => {
+    m.refresh.mockImplementation(() => {
+      throw new Error('refresh failed')
+    })
+    const r = await saveAnalysisCv({ jobId: 'j1', drafts: [], cv: cv([]) })
+    expect(r.ok).toBe(true)
   })
 
   test('a version that disappeared while updating is a plain message', async () => {

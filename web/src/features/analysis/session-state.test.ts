@@ -198,6 +198,112 @@ describe('applyRedraft', () => {
   })
 })
 
+describe('applyRedraft: questions', () => {
+  const ask = (id: string, text: string) => ({ id, text, requirementId: null })
+  const answered = (asks: { id: string; text: string; requirementId: null }[], drafts = [draft({})]) => {
+    let s = newSession(analysis({ asks, drafts }), NOW)
+    s = setAnswer(s, 'q1', 'Yes, at Visio AI.')
+    return markSent(s, 'q1', sent())
+  }
+
+  test('an answered question the AI no longer asks is kept with its answer and its sent entry', () => {
+    const s = answered([ask('q1', 'RAG?'), ask('q2', 'Evals?')])
+    const r = applyRedraft(s, analysis({ asks: [ask('q3', 'Kafka?')], drafts: [] }), NOW)
+    expect(r.analysis.asks.map((a) => a.id)).toEqual(['q1', 'q3'])
+    expect(r.answers).toEqual({ q1: 'Yes, at Visio AI.' })
+    expect(r.sent.q1.answer).toBe('Yes, at Visio AI.')
+  })
+
+  test('a new question reusing an answered id gets a free id and its draft.improvedBy follows it', () => {
+    const s = answered([ask('q1', 'RAG?')])
+    const next = analysis({ asks: [ask('q1', 'Kafka?')], drafts: [draft({ improvedBy: 'q1' })] })
+    const r = applyRedraft(s, next, NOW)
+    expect(r.analysis.asks).toEqual([ask('q1', 'RAG?'), expect.objectContaining({ id: 'q2', text: 'Kafka?' })])
+    expect(r.drafts[0].improvedBy).toBe('q2')
+    expect(r.answers.q2).toBeUndefined()
+  })
+
+  test('the same question re-asked with a new id merges into the old one', () => {
+    const s = answered([ask('q1', 'RAG?')])
+    const next = analysis({ asks: [ask('q7', '  rag?  ')], drafts: [draft({ improvedBy: 'q7' })] })
+    const r = applyRedraft(s, next, NOW)
+    expect(r.analysis.asks.map((a) => a.id)).toEqual(['q1'])
+    expect(r.drafts[0].improvedBy).toBe('q1')
+  })
+
+  test('unanswered old questions the AI dropped leave no empty answer state behind', () => {
+    let s = newSession(analysis({ asks: [ask('q1', 'RAG?'), ask('q2', 'Evals?')] }), NOW)
+    s = setAnswer(s, 'q2', '   ')
+    s = setDont(s, 'q2', false)
+    const r = applyRedraft(s, analysis({ asks: [ask('q5', 'Kafka?')], drafts: [] }), NOW)
+    expect(r.analysis.asks.map((a) => a.id)).toEqual(['q5'])
+    expect(r.answers).toEqual({})
+    expect(r.dont).toEqual({})
+  })
+
+  test('"I don’t have this" also keeps the question', () => {
+    const s = setDont(newSession(analysis({ asks: [ask('q1', 'RAG?')] }), NOW), 'q1', true)
+    const r = applyRedraft(s, analysis({ asks: [], drafts: [] }), NOW)
+    expect(r.analysis.asks.map((a) => a.id)).toEqual(['q1'])
+    expect(r.dont).toEqual({ q1: true })
+  })
+
+  test('never holds more questions than a session may save', () => {
+    const many = Array.from({ length: 8 }, (_, i) => ask(`n${i}`, `New ${i}?`))
+    const r = applyRedraft(answered([ask('q1', 'RAG?')]), analysis({ asks: many, drafts: [draft({ improvedBy: 'n7' })] }), NOW)
+    expect(r.analysis.asks).toHaveLength(8)
+    expect(r.drafts[0].improvedBy).toBeNull()
+  })
+})
+
+describe('applyRedraft: drafts you made or edited', () => {
+  const req = (id: string, text: string) => ({ id, text, status: 'missing' as const, evidence: '', quotes: [], keys: [] })
+
+  test('two edited drafts of one block both survive; each takes one slot', () => {
+    let s = newSession(analysis({ drafts: [draft({ key: 'd1' })] }), NOW)
+    s = addDraft(s, draft({ key: 'd2', title: 'Second' }), true)
+    s = updateDraft(updateDraft(s, 'd1', { title: 'Mine 1' }), 'd2', { title: 'Mine 2' })
+    const r = applyRedraft(s, analysis({ drafts: [draft({ key: 'd1', title: 'AI new' })] }), NOW)
+    expect(r.drafts.map((d) => d.title)).toEqual(['Mine 1', 'Mine 2'])
+    expect(new Set(r.drafts.map((d) => d.key)).size).toBe(2)
+  })
+
+  test('a draft added with + Add experience survives even when not edited', () => {
+    const added = draft({ key: 'add-r4', blockId: 'b-new', blockName: 'Kafka', title: 'Kafka work' })
+    const s = addDraft(newSession(analysis(), NOW), added, true)
+    const r = applyRedraft(s, analysis({ drafts: [draft({ title: 'AI again' })] }), NOW)
+    expect(r.drafts.map((d) => d.key)).toEqual(['d1', 'add-r4'])
+    expect(r.drafts[0].title).toBe('AI again')
+  })
+
+  test('an unticked block stays unticked for the new AI draft of the same block', () => {
+    const s = setKeep(newSession(analysis(), NOW), 'd1', false)
+    const r = applyRedraft(s, analysis({ drafts: [draft({ key: 'x' })] }), NOW)
+    expect(r.drafts[0].keep).toBe(false)
+  })
+
+  test('carried-over matches follow the requirement text; ones with no counterpart are dropped', () => {
+    const matches = [
+      { requirementId: 'r1', phrases: ['a'], partly: false },
+      { requirementId: 'r2', phrases: ['b'], partly: true },
+    ]
+    const old = analysis({ requirements: [req('r1', 'Python  in production'), req('r2', 'Kafka')], drafts: [draft({ matches })] })
+    const s = updateDraft(newSession(old, NOW), 'd1', { title: 'Mine' })
+    const next = analysis({ requirements: [req('r9', 'python in production')], drafts: [] })
+    const r = applyRedraft(s, next, NOW)
+    expect(r.drafts[0].matches).toEqual([{ requirementId: 'r9', phrases: ['a'], partly: false }])
+  })
+
+  test('a carried draft whose question was dropped no longer points at a question', () => {
+    const old = analysis({ asks: [ask0('q1', 'RAG?')], drafts: [draft({ improvedBy: 'q1' })] })
+    const s = updateDraft(newSession(old, NOW), 'd1', { title: 'Mine' })
+    const r = applyRedraft(s, analysis({ asks: [ask0('q1', 'Kafka?')], drafts: [] }), NOW)
+    expect(r.drafts[0].improvedBy).toBeNull()
+  })
+})
+
+const ask0 = (id: string, text: string) => ({ id, text, requirementId: null })
+
 describe('pipelineStep', () => {
   test('maps the session to the step pills: answering 2, drafts 3, review 4, saved 5', () => {
     const s = newSession(analysis(), NOW)
