@@ -26,6 +26,51 @@ export type ExperienceOption = { id: string; title: string }
 /** Where an answer was added in Experiences, and the exact text added. */
 export type FiledAnswer = { answer: string; experienceId: string; title: string }
 
+// ---- Job analysis v2: the session saved with the job (Job.analysis), so a reload or "Analyze again" resumes ----
+
+/** Where the pipeline stands: answering, checking the drafts, reviewing the CV, saved. */
+export type SessionStep = 'input' | 'drafts' | 'review' | 'saved'
+
+/**
+ * An answer sent to Experiences. `entry` is the exact text written to the experience's notes, so a resend
+ * replaces only that text. `answer: null` = "I don't have this" (nothing written, `entry` null).
+ */
+export type SentAnswer = {
+  question: string
+  answer: string | null
+  entry: string | null
+  experienceId: string | null
+  experienceTitle: string
+  isNewExperience: boolean
+  resent: boolean
+}
+
+/**
+ * A draft in "Blocks for this CV". `editedByHand` keeps a redraft from overwriting your edits; `saveAs`
+ * is the edit popover's choice: a new version for this job (default) or update the version it came from.
+ */
+export type SessionDraft = AnalysisDraft & { keep: boolean; editedByHand: boolean; saveAs: 'new' | 'update' }
+
+export const SESSION_VERSION = 2
+
+/** Everything the pipeline needs to resume where you stopped. Validated on save and on load. */
+export type AnalysisSession = {
+  v: typeof SESSION_VERSION
+  analysis: JobAnalysis
+  /** Typed answers and "I don't have this", by question id. */
+  answers: Record<string, string>
+  dont: Record<string, boolean>
+  /** Answers already sent to Experiences, by question id. */
+  sent: Record<string, SentAnswer>
+  drafts: SessionDraft[]
+  /** Versions used AS IS that you left out of this CV (×). */
+  asIsOut: string[]
+  pages: 1 | 2
+  step: SessionStep
+  analyzedAt: string
+  savedAt: string | null
+}
+
 /**
  * Where a question's answer goes: your pick, else the experience the AI named, else `fallback`: the id of
  * "Answers to the AI's questions" when it exists, or "" (the server creates it).

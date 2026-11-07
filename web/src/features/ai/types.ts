@@ -9,7 +9,13 @@ export type AiReportLine = { tag: 'NEW' | 'REUSED' | 'ORDER' | 'ADDED' | 'LEFT O
  * A question the AI asks you instead of inventing a fact. On Job analysis, `experienceId` is the
  * experience it is about: your answer is added to the end of that experience's notes.
  */
-export type AiAsk = { id: string; text: string; experienceId?: string | null }
+export type AiAsk = {
+  id: string
+  text: string
+  experienceId?: string | null
+  /** Job analysis: the requirement this question is about (its posting sentence shows as "The job says"). */
+  requirementId?: string | null
+}
 
 /** What "Generate / Regenerate" proposes for a job's CV. Nothing is saved until you press Save CV. */
 export type CvPlan = {
@@ -39,21 +45,66 @@ export type DraftVersion = {
 
 export type RequirementStatus = 'covered' | 'partial' | 'missing'
 
-/** One requirement of the posting and how well the library shows it. */
-export type JobRequirement = { text: string; status: RequirementStatus; evidence: string }
+/**
+ * One requirement of the posting and how well the library shows it. `quotes` are the posting's own
+ * sentences, word for word (each one is checked against the saved posting text, P1); `keys` are the words
+ * to mark inside them. Both can be empty when the AI could not quote the posting.
+ */
+export type JobRequirement = {
+  id: string
+  text: string
+  status: RequirementStatus
+  evidence: string
+  quotes: string[]
+  keys: string[]
+}
 
-/** A drafted version or block on Job analysis, with the line saying what it changed (P2). */
-export type AnalysisDraft = DraftVersion & { key: string; blockName: string; note: string }
+/** The words of a block (each one found in its bullets) that show a requirement; `partly` = only partly. */
+export type RequirementMatch = { requirementId: string; phrases: string[]; partly: boolean }
 
-/** A version the AI would use as it is (P3). */
-export type ReusedVersion = { versionId: string; blockName: string; versionName: string; why: string }
+/** A library version written out in full, with its block's meta (blocks used AS IS, blocks left out). */
+export type VersionView = {
+  versionId: string
+  blockId: string
+  blockName: string
+  versionName: string
+  section: Section
+  title: string
+  org: string
+  location: string
+  dates: string
+  stack: string
+  bullets: DraftBullet[]
+}
 
-/** Everything Job analysis shows after Analyze / Update drafts. Nothing is saved until you press Save. */
+/**
+ * A drafted version or block on Job analysis, with the line saying what it changed (P2). The AI drafts it
+ * before any answer: `improvedBy` is the question whose answer can fill its gap bullet (a MISSING bullet,
+ * never printed). `fromVersionId` is the version it started from ("Update '<name>'" in Save as).
+ */
+export type AnalysisDraft = DraftVersion & {
+  key: string
+  blockName: string
+  note: string
+  fromVersionId: string | null
+  fromVersionName: string | null
+  improvedBy: string | null
+  matches: RequirementMatch[]
+}
+
+/** A version the AI would use as it is (P3), written out in full. */
+export type ReusedVersion = VersionView & { why: string; matches: RequirementMatch[] }
+
+/** A version the AI left out of this CV, what it would match and why it is out. */
+export type LeftOutVersion = VersionView & { why: string; matches: RequirementMatch[] }
+
+/** Everything Job analysis shows after Analyze / Update drafts. Saved with the job as part of the session. */
 export type JobAnalysis = {
   requirements: JobRequirement[]
   asks: AiAsk[]
   drafts: AnalysisDraft[]
   reused: ReusedVersion[]
+  leftOut: LeftOutVersion[]
   report: AiReportLine[]
 }
 
