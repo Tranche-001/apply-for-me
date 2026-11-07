@@ -1,0 +1,1730 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Job Analysis Pipeline</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+  /* Layout: a proposal walked step by step. Each step = what changed + a live mockup of the app screen
+     (the app itself is light-only, so the mockups keep their own light palette in both page themes). */
+  :root {
+    --bg: #f3f4f6; --surface: #ffffff; --ink: #14161b; --ink-2: #353b47; --muted: #596071; --line: #e2e4e9;
+    --indigo: #4338ca; --indigo-soft: #eef0fe; --indigo-line: #c7cbfa; --ok-ink: #14632f;
+    --shadow: 0 1px 2px rgb(20 22 27 / 0.06), 0 10px 28px rgb(20 22 27 / 0.08);
+    --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --serif: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
+    /* The app's own tokens (web/src/app/globals.css), used only inside the mockups. */
+    --app-page: #f3f4f6; --app-surface: #ffffff; --app-text: #14161b; --app-text-2: #353b47; --app-muted: #535a68;
+    --app-faint: #8a90a0; --app-border: #e2e4e9; --app-border-strong: #d5d8de; --app-indigo: #4338ca; --app-indigo-hover: #3730a3;
+    --app-indigo-soft: #eef0fe; --app-indigo-line: #c7cbfa; --app-amber: #8a4300; --app-amber-ink: #5c2e00; --app-amber-soft: #fff5e6;
+    --app-amber-line: #f2cf94; --app-ok: #15803d; --app-ok-ink: #14632f; --app-ok-soft: #e9f7ee; --app-scrim: rgb(20 22 27 / 0.38);
+    --app-tip-muted: #b7bcc8; --app-tip-ok: #a5b4fc; --app-tip-part: #f2cf94;
+    --app-mark: #fde68a; --app-mark-line: #f5d061; --app-danger: #b42318;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1115; --surface: #171a21; --ink: #eceef3; --ink-2: #c9cdd6; --muted: #9aa1ae; --line: #2a2f3a;
+      --indigo: #9aa2ff; --indigo-soft: #1f2347; --indigo-line: #3a3f7a; --ok-ink: #7dd99c;
+      --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 28px rgb(0 0 0 / 0.4); color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1115; --surface: #171a21; --ink: #eceef3; --ink-2: #c9cdd6; --muted: #9aa1ae; --line: #2a2f3a;
+    --indigo: #9aa2ff; --indigo-soft: #1f2347; --indigo-line: #3a3f7a; --ok-ink: #7dd99c;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 28px rgb(0 0 0 / 0.4); color-scheme: dark;
+  }
+
+  body { background: var(--bg); color: var(--ink); font: 400 15px/1.6 var(--sans); }
+  .wrap { max-width: 1280px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 64px; }
+  p { margin: 0; }
+  a { color: var(--indigo); text-underline-offset: 2px; }
+  button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+  .eyebrow { font: 500 11.5px/1 var(--mono); letter-spacing: 0.08em; color: var(--indigo); text-transform: uppercase; }
+  h1, h2 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(30px, 4vw, 44px); line-height: 1.1; }
+  h2 { font-size: clamp(21px, 2.4vw, 26px); line-height: 1.2; }
+  .ui { font: 500 0.84em/1 var(--mono); background: var(--indigo-soft); border: 1px solid var(--indigo-line); color: var(--ink); border-radius: 5px; padding: 1px 5px; white-space: nowrap; }
+
+  header.hero { display: grid; gap: 14px; max-width: 780px; }
+  .lede { font-size: 17px; color: var(--ink-2); max-width: 68ch; }
+
+  .changes { margin-top: 30px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .change { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+  .change h3 { margin: 0; font: 600 14.5px/1.3 var(--sans); }
+  .change dl { margin: 0; display: grid; gap: 6px; font-size: 13px; line-height: 1.45; }
+  .change dt { font: 500 10.5px/1 var(--mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+  .change dd { margin: 0; color: var(--ink-2); }
+  .change dd.now { color: var(--ink); }
+  .change a { font-size: 12.5px; }
+
+  .flow { margin-top: 26px; }
+  .flow ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 22px; }
+  .station { position: relative; border-top: 2px solid var(--indigo); padding-top: 10px; display: grid; gap: 4px; min-width: 0; font-size: 13px; color: var(--ink-2); }
+  .station:not(:last-child)::after { content: "→"; position: absolute; right: -18px; top: 6px; color: var(--muted); font: 500 14px/1 var(--mono); }
+  .pill { display: inline-flex; align-items: center; gap: 7px; font: 500 12.5px/1 var(--sans); color: var(--ink); }
+  .pill b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--indigo); color: var(--surface); font: 500 11px/1 var(--mono); }
+  .station .saves { color: var(--ok-ink); }
+
+  .steps { margin-top: 56px; display: grid; gap: 64px; }
+  section.step { display: grid; gap: 14px; min-width: 0; scroll-margin-top: 20px; }
+  .step-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
+  .note { max-width: 78ch; color: var(--ink-2); }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font: 500 11.5px/1.3 var(--mono); padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); }
+  .tag.new { border-color: var(--indigo-line); background: var(--indigo-soft); color: var(--indigo); }
+  .tag.gone { text-decoration: line-through; color: var(--muted); }
+  .try { font-size: 13.5px; color: var(--indigo); font-weight: 500; }
+
+  .frame { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow); min-width: 0; }
+  .frame .bar { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+  .frame .bar i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+  .frame .bar span { margin-left: 8px; font: 400 11.5px/1 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .frame .scroll { overflow-x: auto; }
+  .opts { display: grid; gap: 40px; margin-top: 6px; }
+  .opt { display: grid; gap: 12px; min-width: 0; }
+  .opt-h { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 12px; align-items: baseline; max-width: 88ch; }
+  .opt-h h3 { margin: 0; font: 600 17px/1.3 var(--sans); }
+  .opt-h p { grid-column: 2; color: var(--ink-2); font-size: 14px; }
+  .opt-l { grid-row: span 2; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font: 600 14px/1 var(--mono); background: var(--surface); border: 1px solid var(--line); color: var(--ink); align-self: start; }
+  .opt.rec .opt-l { background: var(--indigo); border-color: var(--indigo); color: var(--surface); }
+  .rec-tag { font: 500 11.5px/1 var(--mono); color: var(--indigo); margin-left: 8px; letter-spacing: 0.03em; }
+  footer { margin-top: 72px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); max-width: 82ch; }
+
+  /* ───────────── The app mockup (light, like the real app) ───────────── */
+  .app { display: grid; grid-template-columns: 188px minmax(0, 1fr); min-width: 1180px; min-height: 640px; background: var(--app-page); color: var(--app-text); font: 400 13px/1.45 var(--sans); position: relative; }
+  .app button { font: inherit; color: inherit; }
+  .a-nav { background: var(--app-surface); border-right: 1px solid var(--app-border); padding: 14px 10px; display: flex; flex-direction: column; gap: 1px; }
+  .a-brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13.5px; padding: 2px 6px 14px; }
+  .a-logo { width: 24px; height: 24px; border-radius: 6px; background: var(--app-text); color: var(--app-surface); font: 500 10px/24px var(--mono); text-align: center; }
+  .a-link { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 8px; color: var(--app-text-2); font-size: 12.5px; }
+  .a-link svg { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .a-link.on { background: var(--app-indigo-soft); color: var(--app-indigo); font-weight: 600; }
+  .a-group { font: 500 9.5px/1 var(--mono); letter-spacing: 0.08em; color: var(--app-muted); padding: 14px 8px 6px; }
+  .a-foot { margin-top: auto; border: 1px solid var(--app-border); border-radius: 10px; padding: 9px 10px; font-size: 11.5px; display: flex; align-items: center; gap: 7px; }
+  .a-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--app-ok); }
+  .a-main { padding: 16px 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .a-head { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+  .a-eyebrow { font: 500 10px/1 var(--mono); letter-spacing: 0.08em; color: var(--app-indigo); margin-bottom: 5px; }
+  .a-title { font: 600 18px/1.2 var(--sans); }
+  .a-jobline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--app-muted); min-height: 26px; }
+  .a-jobline b { color: var(--app-text); font-size: 13.5px; }
+  .a-chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border: 1px solid var(--app-border); border-radius: 999px; background: var(--app-surface); color: var(--app-text-2); font-size: 11.5px; }
+  .a-chip svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; }
+  .a-skel { display: inline-block; height: 12px; border-radius: 4px; background: linear-gradient(90deg, #e9ebef, #f4f5f7, #e9ebef); }
+  .a-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+  .a-step { display: inline-flex; align-items: center; gap: 6px; height: 25px; padding: 0 10px 0 4px; border: 1px solid var(--app-border); border-radius: 999px; background: var(--app-surface); font-size: 11.5px; color: var(--app-text-2); }
+  .a-step i { width: 17px; height: 17px; border-radius: 50%; background: #eef0f3; display: grid; place-items: center; font: 500 9.5px/1 var(--mono); font-style: normal; color: var(--app-muted); }
+  .a-step.done i { background: var(--app-indigo); color: var(--app-surface); }
+  .a-step.cur { border-color: var(--app-indigo); color: var(--app-text); }
+  .a-step.cur i { background: var(--app-surface); border: 1px solid var(--app-indigo); color: var(--app-indigo); }
+  .a-status { color: var(--app-indigo-hover); font-size: 12px; }
+  .a-ok-banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--app-ok-soft); border: 1px solid #b9e3c7; color: var(--app-ok-ink); border-radius: 10px; padding: 9px 12px; font-size: 12.5px; }
+  .a-ok-banner .sp { flex: 1; }
+
+  .a-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--app-border-strong); background: var(--app-surface); font-size: 12.5px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+  .a-btn svg { width: 13px; height: 13px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+  .a-btn.p { background: var(--app-indigo); border-color: var(--app-indigo); color: var(--app-surface); }
+  .a-btn.dis { opacity: 0.45; cursor: default; }
+  .a-btn.sm { height: 28px; padding: 0 9px; font-size: 11.5px; }
+  .a-link-btn { border: 0; background: none; padding: 0; color: var(--app-text); text-decoration: underline; text-underline-offset: 2px; font-size: 12.5px; cursor: pointer; }
+
+  .a-start { margin: 70px auto 0; width: min(640px, 100%); background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 14px; padding: 22px 22px 18px; display: grid; gap: 12px; box-shadow: 0 1px 2px rgb(20 22 27 / 0.05); }
+  .a-start h3 { margin: 0; font: 600 16px/1.3 var(--sans); }
+  .a-url { display: flex; gap: 8px; }
+  .a-url div { flex: 1; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 11px; border: 1.5px solid var(--app-indigo); border-radius: 9px; background: var(--app-surface); color: var(--app-text); font-size: 13px; min-width: 0; overflow: hidden; white-space: nowrap; }
+  .a-url svg { width: 14px; height: 14px; flex: none; fill: none; stroke: var(--app-muted); stroke-width: 2; }
+  .a-start .a-btn { height: 38px; }
+  .a-hint { font-size: 12px; color: var(--app-muted); }
+
+  .a-cols { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 10px; align-items: start; }
+  .a-panel { background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 10px; padding: 12px 13px; display: grid; gap: 9px; align-content: start; min-width: 0; }
+  .a-panel h3 { margin: 0; font: 600 13.5px/1.3 var(--sans); }
+  .a-panel h3 small { font: 400 11.5px var(--sans); color: var(--app-muted); margin-left: 6px; }
+  .a-sub { font-size: 11.5px; color: var(--app-muted); }
+  .a-sep { border-top: 1px solid #eef0f3; }
+  .a-counts { display: flex; gap: 5px; flex-wrap: wrap; }
+  .a-count { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--app-indigo-soft); color: var(--app-indigo); }
+  .a-count.part { background: var(--app-amber-soft); color: var(--app-amber); }
+  .a-count.miss { background: #eef0f3; color: var(--app-text-2); }
+  .a-req { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; padding-top: 8px; border-top: 1px solid #eef0f3; }
+  .a-req .ic { width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center; font-size: 10px; margin-top: 2px; }
+  .a-req .ic.cov { background: var(--app-indigo-soft); color: var(--app-indigo); }
+  .a-req .ic.part { background: var(--app-amber-soft); color: var(--app-amber); }
+  .a-req .ic.miss { background: #f1f2f4; color: var(--app-muted); }
+  .a-req b { font-weight: 500; font-size: 12.5px; }
+  .a-req .st { font: 500 9.5px/1 var(--mono); margin-left: 5px; }
+  .a-req .st.cov { color: var(--app-indigo); } .a-req .st.part { color: var(--app-amber); } .a-req .st.miss { color: var(--app-muted); }
+  .a-req p { font-size: 11px; color: var(--app-muted); line-height: 1.4; }
+
+  .a-q { display: grid; gap: 6px; padding-top: 9px; border-top: 1px solid #eef0f3; }
+  .a-q p { font-size: 12px; line-height: 1.45; }
+  .a-q .n { font: 500 10px var(--mono); color: var(--app-amber); margin-right: 4px; }
+  .a-q .row { display: flex; gap: 6px; align-items: flex-start; }
+  .a-answer { flex: 1; min-height: 30px; border: 1px solid var(--app-border-strong); border-radius: 6px; padding: 5px 8px; font-size: 12px; line-height: 1.4; color: var(--app-text); background: var(--app-surface); }
+  .a-answer.empty { color: var(--app-faint); }
+  .a-answer.off { background: #f6f7f9; color: var(--app-faint); }
+  .a-dont { height: 30px; flex: none; border: 1px solid var(--app-border-strong); background: var(--app-surface); border-radius: 6px; padding: 0 8px; font-size: 11.5px; font-weight: 500; color: var(--app-text-2); }
+  .a-dont.on { border-color: var(--app-amber-line); background: var(--app-amber-soft); color: var(--app-amber-ink); }
+  .a-added { font-size: 11.5px; color: var(--app-ok-ink); display: flex; align-items: center; gap: 4px; }
+  .a-added u { font-weight: 500; text-underline-offset: 2px; }
+
+  .a-draft { border: 1px solid var(--app-border); border-radius: 9px; padding: 10px 11px; display: grid; gap: 6px; }
+  .a-draft.wait { border: 1px dashed var(--app-amber-line); background: #fffaf2; }
+  .a-draft .top { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--app-muted); }
+  .a-draft .top .sp { flex: 1; }
+  .a-new { font: 500 9.5px/1 var(--mono); letter-spacing: 0.04em; background: var(--app-indigo-soft); color: var(--app-indigo); border-radius: 4px; padding: 3px 5px; }
+  .a-keep { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--app-text); }
+  .a-keep i { width: 13px; height: 13px; border-radius: 3px; background: var(--app-indigo); display: grid; place-items: center; color: var(--app-surface); font: 700 9px/1 var(--sans); font-style: normal; }
+  .a-icon { width: 26px; height: 26px; border-radius: 6px; border: 0; background: none; display: grid; place-items: center; cursor: pointer; color: var(--app-text-2); }
+  .a-icon:hover { background: #f1f2f4; }
+  .a-icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .a-icon.pen { box-shadow: inset 0 0 0 1px var(--app-indigo-line); color: var(--app-indigo); }
+  .a-draft h4 { margin: 0; font: 600 14px/1.3 var(--serif); }
+  .a-draft ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+  .a-draft li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 6px; font-size: 11.5px; line-height: 1.4; color: var(--app-text-2); }
+  .a-kind { font: 500 9px/1 var(--mono); border-radius: 4px; padding: 3px 0; text-align: center; height: fit-content; margin-top: 1px; }
+  .k-P { background: var(--app-indigo-soft); color: var(--app-indigo); }
+  .k-S { background: #eef0f3; color: var(--app-text-2); }
+  .k-I { background: var(--app-ok-soft); color: var(--app-ok-ink); }
+  .k-M { background: var(--app-amber-soft); color: var(--app-amber); }
+  .a-gap { color: var(--app-amber); font-style: italic; }
+  .a-asis { font: 500 9.5px/1 var(--mono); letter-spacing: 0.04em; background: #eef0f3; color: var(--app-text-2); border-radius: 4px; padding: 3px 5px; }
+  .a-draft.asis { background: var(--app-surface); }
+  .a-draft .bottom { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .a-match { position: relative; display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; background: var(--app-indigo-soft); color: var(--app-indigo); font: 500 11px/1 var(--sans); cursor: help; white-space: nowrap; }
+  .a-match.none { background: #f1f2f4; color: var(--app-muted); }
+  .a-match .pt { color: var(--app-amber); }
+  .a-tip {
+    position: absolute; bottom: calc(100% + 8px); left: 0; width: 280px; z-index: 6; pointer-events: none; text-align: left; white-space: normal;
+    background: var(--app-text); color: var(--app-surface); border-radius: 9px; padding: 9px 11px; font: 400 11.5px/1.4 var(--sans);
+    box-shadow: 0 8px 24px rgb(20 22 27 / 0.25); opacity: 0; visibility: hidden; transform: translateY(4px);
+  }
+  .a-match:hover .a-tip, .a-match:focus .a-tip { opacity: 1; visibility: visible; transform: none; }
+  .a-tip b { display: block; font-weight: 600; margin-bottom: 5px; }
+  .a-tip ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; }
+  .a-draft .a-tip li { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 5px; color: var(--app-surface); font-size: 11.5px; }
+  .a-asis, .a-new { white-space: nowrap; flex: none; }
+  .a-tip li small { display: block; color: var(--app-tip-muted); }
+  .a-tip .st { color: var(--app-tip-ok); } .a-tip .st.part { color: var(--app-tip-part); }
+  @media (prefers-reduced-motion: no-preference) { .a-tip { transition: opacity 0.12s, transform 0.12s; } }
+  .a-improve { font: 500 10px/1 var(--mono); color: var(--app-amber); background: var(--app-amber-soft); border: 1px solid var(--app-amber-line); border-radius: 999px; padding: 3px 7px; white-space: nowrap; }
+  .a-q .hint { font-size: 11px; color: var(--app-amber); }
+  .a-draft .why { font-size: 11px; color: var(--app-muted); }
+  .a-draft.wait .why, .a-draft.wait .top { color: var(--app-amber); }
+  .a-label { font: 500 11px/1.3 var(--sans); color: var(--app-text); }
+  .a-reused p { font-size: 11.5px; color: var(--app-text-2); }
+  .a-reused b { font-weight: 600; }
+  .a-ask { display: flex; gap: 6px; }
+  .a-ask div { flex: 1; height: 30px; border: 1px solid var(--app-border-strong); border-radius: 7px; padding: 0 9px; display: flex; align-items: center; color: var(--app-faint); font-size: 12px; }
+
+  /* Modal (inside a frame, or the real one) */
+  .a-scrim { position: absolute; inset: 0; background: var(--app-scrim); display: grid; place-items: center; padding: 24px; z-index: 2; }
+  .a-pop { width: 560px; max-width: 100%; background: var(--app-surface); border-radius: 14px; box-shadow: 0 20px 60px rgb(20 22 27 / 0.3); padding: 18px 20px; display: grid; gap: 12px; color: var(--app-text); }
+  .a-pop h3 { margin: 0; font: 600 16px/1.3 var(--sans); }
+  .a-placed { display: grid; gap: 3px; font-size: 12px; color: var(--app-ok-ink); }
+  .a-pl-label { font: 500 10px/1 var(--mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--app-muted); margin-bottom: 6px; }
+  .a-pl-label.need { color: var(--app-amber); }
+  .a-pl-list { display: grid; gap: 6px; }
+  .a-pl { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; border: 1px solid var(--app-border); border-radius: 9px; padding: 6px 8px 6px 10px; }
+  .a-pl .qn { font: 500 10.5px/1 var(--mono); color: var(--app-ok-ink); }
+  .a-pl .tx { font-size: 12px; color: var(--app-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .a-pl select {
+    appearance: none; -webkit-appearance: none; height: 28px; max-width: 220px; border: 1px solid var(--app-indigo-line); border-radius: 999px; cursor: pointer;
+    background: var(--app-indigo-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%234338ca' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
+    color: var(--app-indigo); font: 500 12px/1 var(--sans); padding: 0 28px 0 11px; text-overflow: ellipsis;
+  }
+  .a-pl select:hover { border-color: var(--app-indigo); }
+  .a-need { display: grid; gap: 8px; border-top: 1px solid #eef0f3; padding-top: 12px; }
+  .a-filed { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid #eef0f3; }
+  .a-filed-h { display: flex; align-items: center; gap: 7px; font: 600 12px/1.3 var(--sans); color: var(--app-ok-ink); }
+  .a-filed-h i { width: 18px; height: 18px; border-radius: 50%; background: var(--app-ok-soft); display: grid; place-items: center; font: 700 10px/1 var(--sans); font-style: normal; }
+  .a-filed-row { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 9px; align-items: center; padding: 7px 9px; border: 1px solid var(--app-border); border-radius: 9px; }
+  .a-filed-row:hover { border-color: var(--app-indigo-line); background: #fbfbff; }
+  .a-filed-row .ex { width: 26px; height: 26px; border-radius: 7px; background: var(--app-indigo-soft); color: var(--app-indigo); display: grid; place-items: center; }
+  .a-filed-row .ex svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .a-filed-row b { display: block; font: 600 12.5px/1.3 var(--sans); color: var(--app-text); }
+  .a-filed-row small { display: block; font-size: 11px; color: var(--app-muted); line-height: 1.35; }
+  .a-filed-row.skip { grid-template-columns: 26px minmax(0, 1fr) auto; width: 100%; text-align: left; background: var(--app-surface); cursor: pointer; font: inherit; color: inherit; }
+  .a-filed-row.skip { background: var(--app-amber-soft); border-color: var(--app-amber-line); }
+  .a-filed-row.skip .ex { background: var(--app-surface); color: var(--app-amber); border: 1px solid var(--app-amber-line); box-sizing: border-box; font: 700 12px/1 var(--sans); }
+  .a-filed-row.skip b { color: var(--app-amber-ink); }
+  .a-filed-row.skip small { color: var(--app-amber); }
+  .a-filed-row.skip:hover, .a-filed-row.skip:focus-visible { border-color: var(--app-amber); background: #ffefd6; }
+  .a-filed-row .go { display: inline-flex; align-items: center; height: 28px; padding: 0 11px; border-radius: 7px; background: var(--app-indigo); color: var(--app-surface); font: 500 11.5px/1 var(--sans); white-space: nowrap; }
+  .a-filed-row.skip:hover .go { background: var(--app-indigo-hover); }
+  .a-filed-h.not { color: var(--app-amber-ink); margin-top: 4px; }
+  .a-filed-h.not i { background: var(--app-amber-soft); color: var(--app-amber); }
+
+  /* Questions as cards; answering happens in a roomy popover with Q1–Q4 tabs and next/previous arrows */
+  .q-progress { font-size: 11.5px; color: var(--app-text-2); }
+  .q-card { width: 100%; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; text-align: left; border: 1px solid var(--app-border); background: var(--app-surface); border-radius: 9px; padding: 10px 11px; cursor: pointer; font: inherit; color: var(--app-text); }
+  .q-card:hover, .q-card:focus-visible { border-color: var(--app-indigo-line); background: #fbfbff; }
+  .q-n { font: 500 10.5px/1.7 var(--mono); color: var(--app-amber); }
+  .q-body { display: grid; gap: 6px; min-width: 0; justify-items: start; }
+  .q-text { font-size: 12px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .q-ans { font: 400 11.5px/1.4 var(--serif); color: var(--app-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .q-hint { font-size: 11px; color: var(--app-amber); }
+  .q-st { font: 500 11px/1 var(--sans); padding: 5px 9px; border-radius: 999px; }
+  .q-st.empty { background: var(--app-indigo); color: var(--app-surface); }
+  .q-st.done { background: var(--app-ok-soft); color: var(--app-ok-ink); }
+  .q-st.dont { background: #f1f2f4; color: var(--app-muted); }
+  .ans-pop { width: 700px; }
+  .ans-tabs { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .ans-tab { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--app-border); background: var(--app-surface); font: 500 12px var(--sans); cursor: pointer; color: var(--app-text-2); }
+  .ans-tab:hover { border-color: var(--app-indigo-line); }
+  .ans-tab .dot { width: 8px; height: 8px; border-radius: 50%; background: transparent; box-shadow: inset 0 0 0 1.5px var(--app-border-strong); }
+  .ans-tab.done .dot { background: var(--app-ok); box-shadow: none; }
+  .ans-tab.dont .dot { background: var(--app-faint); box-shadow: none; }
+  .ans-tab.on { border-color: var(--app-indigo); background: var(--app-indigo-soft); color: var(--app-indigo); }
+  .ans-tabs .sp { flex: 1; }
+  .ans-count { font: 400 11.5px var(--mono); color: var(--app-muted); }
+  .ans-q { font: 600 15.5px/1.45 var(--sans); color: var(--app-text); text-wrap: pretty; }
+  .ans-why { display: grid; gap: 3px; font-size: 12px; color: var(--app-text-2); background: #f8f8ff; border-left: 3px solid var(--app-indigo-line); padding: 7px 11px; border-radius: 0 7px 7px 0; }
+  .ans-why q { font: 400 12.5px/1.45 var(--serif); color: var(--app-text); }
+  .ans-why-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+  /* Blocks of the final CV, clickable: which requirements each one matches */
+  .a-reqs .ic svg { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .blk-list { display: grid; gap: 6px; }
+  .src-col > .a-btn { justify-self: start; }
+  .blk-req { width: 100%; display: grid; grid-template-columns: 16px minmax(0, 1fr) 10px; gap: 8px; align-items: start; text-align: left; border: 1px solid var(--app-border); background: var(--app-surface); border-radius: 9px; padding: 9px 10px; cursor: pointer; font: 400 12.5px/1.4 var(--sans); color: var(--app-text); }
+  .blk-req:hover, .blk-req:focus-visible { border-color: var(--app-indigo-line); background: #fbfbff; }
+  .blk-req .ic { width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center; font-size: 9px; margin-top: 1px; }
+  .blk-req .ic.met { background: var(--app-indigo-soft); color: var(--app-indigo); }
+  .blk-req .ic.part { background: var(--app-amber-soft); color: var(--app-amber); }
+  .blk-req b { font-weight: 600; }
+  .blk-req .pt { font: 500 10.5px var(--sans); color: var(--app-amber); margin-left: 5px; }
+  .blk-req small { display: block; margin-top: 5px; font-size: 11.5px; line-height: 1.45; color: var(--app-text-2); }
+  .blk-req small q { font-family: var(--serif); }
+  .blk-req .lbl { font: 500 9.5px/1 var(--mono); letter-spacing: 0.05em; color: var(--app-muted); margin-right: 5px; }
+  .blk-req .chev { color: var(--app-faint); font-size: 13px; line-height: 1; margin-top: 1px; }
+  .a-ta.ans-ta { min-height: 180px; font-size: 13.5px; line-height: 1.55; }
+  .a-ta:disabled { background: #f6f7f9; color: var(--app-faint); }
+  .ans-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: space-between; }
+  .ans-dont { display: inline-flex; align-items: center; gap: 8px; height: 32px; box-sizing: border-box; font: 500 12.5px var(--sans); color: var(--app-text-2); cursor: pointer; border: 1px solid var(--app-border-strong); border-radius: 8px; padding: 0 11px; background: var(--app-surface); }
+  .ans-dont:has(input:checked) { background: var(--app-amber-soft); border-color: var(--app-amber-line); color: var(--app-amber-ink); }
+  .ans-dont input { accent-color: var(--app-amber); margin: 0; }
+  .ans-kbd { font-size: 11px; color: var(--app-muted); }
+  .ans-kbd kbd { font: 500 10.5px var(--mono); border: 1px solid var(--app-border-strong); border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; background: var(--app-surface); color: var(--app-text-2); }
+  .a-btn[disabled] { opacity: 0.4; cursor: default; }
+  .a-badge { font: 500 9px/1 var(--mono); background: var(--app-indigo-soft); color: var(--app-indigo); border-radius: 4px; padding: 2px 4px; margin-left: 6px; vertical-align: 1px; }
+  .a-filed-skip { font-size: 11px; color: var(--app-muted); padding: 0 2px; }
+  .a-quote { border-left: 3px solid var(--app-indigo-line); padding: 4px 0 4px 10px; font-size: 12.5px; color: var(--app-text-2); }
+  .a-quote span { display: block; font-size: 11px; color: var(--app-muted); margin-bottom: 2px; }
+  .a-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .a-choice { display: flex; align-items: center; gap: 8px; border: 1px solid var(--app-border); border-radius: 8px; padding: 7px 9px; font-size: 12.5px; cursor: pointer; }
+  .a-choice:has(input:checked) { border-color: var(--app-indigo); background: var(--app-indigo-soft); }
+  .a-choice input { accent-color: var(--app-indigo); margin: 0; }
+  .a-choice.newexp { grid-column: 1 / -1; flex-wrap: wrap; }
+  .a-choice.newexp .field { flex: 1 1 220px; height: 30px; border: 1px solid var(--app-border-strong); border-radius: 6px; padding: 0 8px; background: var(--app-surface); display: flex; align-items: center; font-size: 12.5px; }
+  .a-choice.newexp small { flex-basis: 100%; color: var(--app-muted); font-size: 11px; padding-left: 22px; }
+  .a-pop .foot { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .a-pop .foot .sp { flex: 1; }
+
+  /* Edit dialog: same as Compose CV's "Edit <block>" */
+  .a-dlg { font: 400 13px/1.45 var(--sans); text-align: left; width: 820px; max-width: 100%; background: var(--app-surface); border-radius: 14px; box-shadow: 0 20px 60px rgb(20 22 27 / 0.3); color: var(--app-text); display: grid; overflow: hidden; }
+  .a-dlg .hd { display: flex; align-items: baseline; gap: 10px; padding: 16px 20px 6px; }
+  .a-dlg .hd b { font: 600 15px var(--sans); }
+  .a-dlg .hd span { color: var(--app-muted); font-size: 12.5px; }
+  .a-dlg .hd .legend { margin-left: auto; font-size: 11.5px; color: var(--app-muted); }
+  .a-dlg .legend b { font: 600 11.5px var(--sans); } .legend .lp { color: var(--app-indigo); } .legend .li { color: var(--app-ok); }
+  .a-dlg .x { border: 0; background: none; font-size: 18px; line-height: 1; cursor: pointer; color: var(--app-text-2); padding: 0 2px; }
+  .a-dlg .bd { padding: 6px 20px 14px; display: grid; gap: 6px; }
+  .a-dlg .ttl { width: 100%; box-sizing: border-box; border: 2px solid var(--app-indigo); border-radius: 8px; padding: 6px 10px; font: 600 17px/1.3 var(--serif); color: var(--app-text); background: var(--app-surface); }
+  .a-dlg .meta { font: italic 400 12.5px/1.4 var(--serif); color: var(--app-text-2); padding-left: 2px; }
+  .a-dlg .rows { display: grid; gap: 4px; margin-top: 6px; }
+  .a-row { display: grid; grid-template-columns: 62px 12px minmax(0, 1fr) 78px; gap: 6px; align-items: start; }
+  .a-row select { height: 26px; border-radius: 6px; border: 0; font: 500 10.5px var(--mono); padding: 0 4px; cursor: pointer; }
+  .a-row .bul { font: 400 13px/1.45 var(--serif); padding-top: 3px; text-align: center; }
+  .a-row textarea { width: 100%; box-sizing: border-box; resize: none; border: 1px solid transparent; border-radius: 6px; padding: 3px 6px; font: 400 13px/1.45 var(--serif); color: var(--app-text); background: transparent; field-sizing: content; min-height: 24px; }
+  .a-row textarea:hover { border-color: var(--app-border); }
+  .a-row textarea:focus { outline: none; border-color: var(--app-indigo); background: var(--app-surface); }
+  .a-row textarea.gap::placeholder { color: var(--app-amber); font-style: italic; }
+  .a-row .tools { display: flex; gap: 2px; justify-content: flex-end; }
+  .a-row .tools button { width: 24px; height: 24px; border: 0; background: none; border-radius: 5px; cursor: pointer; color: var(--app-muted); font-size: 12px; }
+  .a-row .tools button:hover { background: #f1f2f4; color: var(--app-text); }
+  .a-addb { justify-self: start; border: 0; background: none; color: var(--app-indigo); font: 500 12.5px var(--sans); cursor: pointer; padding: 4px 0 0 74px; }
+  .a-saveas { display: grid; gap: 6px; margin-top: 8px; }
+  .a-saveas > span { font: 500 12px var(--sans); color: var(--app-text-2); }
+  .a-saveas .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .a-opt { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--app-border); border-radius: 10px; padding: 11px 12px; cursor: pointer; }
+  .a-opt:has(input:checked) { border: 2px solid var(--app-indigo); background: var(--app-indigo-soft); padding: 10px 11px; }
+  .a-opt input { accent-color: var(--app-indigo); margin-top: 3px; }
+  .a-opt b { display: block; font: 600 13px var(--sans); }
+  .a-opt small { font-size: 11.5px; color: var(--app-muted); }
+  .a-dlg .ft { display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--app-border); }
+  .a-dlg .ft .sp { flex: 1; font-size: 12px; color: var(--app-muted); }
+
+  /* Review: the CV in the middle */
+  .a-review { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 12px; align-items: start; }
+  .a-sum { display: grid; gap: 8px; }
+  .a-sum h4 { margin: 0; font: 500 10px/1 var(--mono); letter-spacing: 0.07em; color: var(--app-muted); text-transform: uppercase; padding-top: 6px; }
+  .a-sum p { font-size: 11.5px; color: var(--app-text-2); line-height: 1.4; }
+  .a-sum p b { font-weight: 600; color: var(--app-text); }
+  .a-sum .nw { color: var(--app-indigo); font: 500 9.5px var(--mono); }
+  .a-sum h4 .ct { color: var(--app-text-2); }
+  .a-reqs { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .a-req-btn { width: calc(100% + 12px); margin: 0 -6px; display: grid; grid-template-columns: 15px minmax(0, 1fr) 10px; gap: 7px; align-items: start; text-align: left; border: 0; background: none; padding: 5px 6px; border-radius: 7px; cursor: pointer; font: 400 11.5px/1.35 var(--sans); color: var(--app-text); }
+  .a-req-btn:hover, .a-req-btn:focus-visible { background: var(--app-indigo-soft); }
+  .a-req-btn.not:hover, .a-req-btn.not:focus-visible { background: var(--app-amber-soft); }
+  .a-req-btn .chev { color: var(--app-faint); font-size: 13px; line-height: 1; margin-top: 1px; }
+  .a-req-btn:hover .chev { color: var(--app-indigo); }
+  .a-pop { font: 400 13px/1.45 var(--sans); text-align: left; }
+  .a-pop .req-h { display: flex; align-items: center; gap: 9px; }
+  .a-pop .x { margin-left: auto; border: 0; background: none; font-size: 18px; line-height: 1; cursor: pointer; color: var(--app-text-2); padding: 0 2px; }
+  .a-met, .a-notmet { font: 500 9.5px/1 var(--mono); letter-spacing: 0.04em; padding: 3px 6px; border-radius: 4px; flex: none; }
+  .a-met { background: var(--app-indigo-soft); color: var(--app-indigo); }
+  .a-notmet { background: #f1f2f4; color: var(--app-muted); }
+  .a-hl { border: 1px solid var(--app-border); border-radius: 10px; padding: 10px 12px 12px; display: grid; gap: 4px; font: 400 12.5px/1.45 var(--serif); color: var(--app-text); }
+  .a-hl .src { display: flex; align-items: center; gap: 8px; font: 500 11.5px var(--sans); color: var(--app-text-2); margin-bottom: 4px; }
+  .a-hl .src .sp { flex: 1; }
+  .a-hl .r { display: flex; justify-content: space-between; gap: 10px; }
+  .a-hl .r b { font-weight: 600; } .a-hl .r span { font-size: 11.5px; color: var(--app-muted); }
+  .a-hl ul { margin: 2px 0 0; padding-left: 16px; display: grid; gap: 2px; }
+  .a-hl li { color: var(--app-muted); }
+  .a-hl li.hit { color: var(--app-text); }
+  mark.a-mark { background: var(--app-mark); color: inherit; border-radius: 2px; padding: 0 1px; box-shadow: 0 0 0 1px var(--app-mark-line); }
+  .a-field { display: grid; gap: 5px; font: 500 12px var(--sans); color: var(--app-text); }
+  .a-field[hidden] { display: none; }
+  .a-sel, .a-in { height: 32px; border: 1px solid var(--app-border-strong); border-radius: 8px; padding: 0 9px; font: 400 12.5px var(--sans); background: var(--app-surface); color: var(--app-text); }
+  .a-ta { width: 100%; box-sizing: border-box; min-height: 88px; border: 1px solid var(--app-border-strong); border-radius: 8px; padding: 8px 10px; font: 400 12.5px/1.45 var(--sans); resize: vertical; color: var(--app-text); background: var(--app-surface); }
+  .a-sel:focus, .a-in:focus, .a-ta:focus { outline: none; border-color: var(--app-indigo); box-shadow: 0 0 0 3px var(--app-indigo-soft); }
+  .a-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .a-chip-btn { border: 1px solid var(--app-border-strong); background: var(--app-surface); border-radius: 999px; padding: 4px 10px; font: 400 11.5px var(--sans); color: var(--app-text-2); cursor: pointer; }
+  .a-chip-btn:hover { border-color: var(--app-indigo); color: var(--app-indigo); }
+  .a-err { font-size: 12px; color: var(--app-danger); }
+  .a-done-msg { display: grid; gap: 6px; background: var(--app-ok-soft); border: 1px solid #b9e3c7; color: var(--app-ok-ink); border-radius: 10px; padding: 11px 13px; font-size: 12.5px; }
+
+  /* "Check where your answers go": options A, B, C */
+  .a-pop.pv { gap: 10px; }
+  .pv-a { width: 620px; } .pv-b { width: 860px; } .pv-c { width: 600px; }
+  .pv .req-h h3 { margin: 0; }
+  .pv-list { display: grid; gap: 6px; }
+  .pv-item { border: 1px solid var(--app-border); border-radius: 10px; overflow: hidden; }
+  .pv-item.on { border-color: var(--app-indigo-line); box-shadow: 0 0 0 3px var(--app-indigo-soft); }
+  .pv-row { width: 100%; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto 12px; gap: 9px; align-items: center; border: 0; background: var(--app-surface); padding: 9px 11px; cursor: pointer; text-align: left; font: 400 12.5px/1.35 var(--sans); color: var(--app-text); }
+  .pv-row:hover { background: #fafaff; }
+  .pv-ic { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 700 10px/1 var(--sans); flex: none; }
+  .pv-ic.ai { background: var(--app-ok-soft); color: var(--app-ok-ink); }
+  .pv-ic.you { background: var(--app-indigo-soft); color: var(--app-indigo); }
+  .pv-ic.need { background: var(--app-amber-soft); color: var(--app-amber); }
+  .pv-ic.skip { background: #f1f2f4; color: var(--app-muted); }
+  .pv-q { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pv-q b, .pv-skip b, .pv-side-row b { font: 500 11px var(--mono); color: var(--app-muted); margin-right: 5px; }
+  .pv-dest { font: 500 11.5px/1 var(--sans); padding: 5px 10px; border-radius: 999px; background: var(--app-indigo-soft); color: var(--app-indigo); white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+  .pv-dest.ai { background: var(--app-ok-soft); color: var(--app-ok-ink); }
+  .pv-dest.need { background: var(--app-amber-soft); color: var(--app-amber); }
+  .pv-chev { color: var(--app-faint); font-size: 10px; }
+  .pv-detail { display: grid; gap: 11px; padding: 2px 12px 12px; }
+  .pv-b .pv-detail, .pv-c .pv-detail { padding: 0; }
+  .pv-field { display: grid; gap: 5px; }
+  .pv-k { font: 500 10px/1 var(--mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--app-muted); }
+  .pv-field p { font-size: 12.5px; color: var(--app-text); }
+  .pv-field p.pv-ans { border-left: 3px solid var(--app-indigo-line); padding: 2px 0 2px 10px; color: var(--app-text-2); }
+  .pv-field p.pv-why { font-size: 11.5px; color: var(--app-muted); }
+  .a-aipick { margin-left: auto; font: 500 9px/1 var(--mono); color: var(--app-ok-ink); background: var(--app-ok-soft); border-radius: 4px; padding: 2px 4px; }
+  .pv-skip { display: grid; grid-template-columns: 20px auto minmax(0, 1fr); gap: 9px; align-items: center; padding: 4px 11px; font-size: 12px; color: var(--app-muted); }
+  .pv-hint { font-size: 11.5px; color: var(--app-amber); }
+  .pv-split { display: grid; grid-template-columns: 236px minmax(0, 1fr); border: 1px solid var(--app-border); border-radius: 10px; overflow: hidden; min-height: 400px; }
+  .pv-side { background: #f8f9fb; border-right: 1px solid var(--app-border); padding: 6px; display: grid; gap: 2px; align-content: start; }
+  .pv-side .pv-skip { padding: 8px; grid-template-columns: 20px minmax(0, 1fr); align-items: start; }
+  .pv-skip small { display: block; font-size: 11px; color: var(--app-muted); margin-top: 2px; }
+  .pv-side-row { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px; align-items: start; text-align: left; border: 0; background: none; padding: 8px; border-radius: 8px; cursor: pointer; font: 400 12.5px/1.35 var(--sans); color: var(--app-text); }
+  .pv-side-row:hover { background: var(--app-surface); }
+  .pv-side-row.on { background: var(--app-surface); box-shadow: inset 3px 0 0 var(--app-indigo), 0 1px 2px rgb(20 22 27 / 0.06); }
+  .pv-side-row small { display: block; font-size: 11px; color: var(--app-indigo); margin-top: 2px; }
+  .pv-side-row small.ai { color: var(--app-ok-ink); } .pv-side-row small.need { color: var(--app-amber); }
+  .pv-main { padding: 13px 15px; display: grid; gap: 11px; align-content: start; }
+  .pv-main-h, .pv-card-h { display: flex; align-items: center; gap: 8px; font: 600 13.5px var(--sans); }
+  .pv-card-h .sp { flex: 1; }
+  .pv-count { font: 400 11px var(--mono); color: var(--app-muted); }
+  .pv-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pv-dot { border: 1px solid var(--app-border); background: var(--app-surface); border-radius: 999px; padding: 5px 10px; font: 500 11px/1 var(--sans); color: var(--app-text-2); cursor: pointer; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pv-dot.need { border-color: var(--app-amber-line); color: var(--app-amber); }
+  .pv-dot.on { border-color: var(--app-indigo); color: var(--app-indigo); background: var(--app-indigo-soft); }
+  .pv-card { border: 1px solid var(--app-border); border-radius: 12px; padding: 13px 15px; display: grid; gap: 11px; }
+  /* Experience picker: fixed height whatever the number of experiences */
+  .pv-cur { margin-left: 8px; font: 500 11px/1 var(--sans); letter-spacing: 0; text-transform: none; padding: 3px 8px; border-radius: 999px; background: var(--app-indigo-soft); color: var(--app-indigo); }
+  .pv-cur.ai { background: var(--app-ok-soft); color: var(--app-ok-ink); } .pv-cur.need { background: var(--app-amber-soft); color: var(--app-amber); }
+  .pk { border: 1px solid var(--app-border); border-radius: 10px; overflow: hidden; display: grid; background: var(--app-surface); }
+  .pk-search { display: flex; align-items: center; gap: 8px; padding: 0 10px; height: 36px; border-bottom: 1px solid var(--app-border); }
+  .pk-search svg { width: 14px; height: 14px; flex: none; fill: none; stroke: var(--app-muted); stroke-width: 2; stroke-linecap: round; }
+  .pk-search input { flex: 1; min-width: 0; border: 0; outline: none; font: 400 12.5px var(--sans); background: transparent; color: var(--app-text); height: 100%; }
+  .pk-search:focus-within { box-shadow: inset 0 -2px 0 var(--app-indigo); }
+  .pk-list { max-height: 214px; overflow-y: auto; padding: 4px; display: grid; gap: 1px; align-content: start; overscroll-behavior: contain; }
+  .pk-group { font: 500 9.5px/1 var(--mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--app-muted); padding: 9px 8px 5px; }
+  .pk-opt { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 7px; cursor: pointer; font-size: 12.5px; color: var(--app-text); }
+  .pk-opt:hover { background: #f6f7fb; }
+  .pk-opt:has(input:checked) { background: var(--app-indigo-soft); color: var(--app-indigo); font-weight: 500; }
+  .pk-opt input, .pk-new input[type="radio"] { accent-color: var(--app-indigo); margin: 0; flex: none; }
+  .pk-opt[hidden], .pk-group[hidden], .pk-empty[hidden], .pk-none[hidden] { display: none; }
+  .pk-also { margin-left: auto; font: 400 10.5px var(--sans); color: var(--app-muted); }
+  .pk-empty, .pk-none { font-size: 12px; color: var(--app-muted); padding: 6px 8px 8px; }
+  .pk-new { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-top: 1px solid var(--app-border); background: #fafbfc; cursor: pointer; font-size: 12.5px; color: var(--app-text); }
+  .pk-new:has(input:checked) { background: var(--app-indigo-soft); color: var(--app-indigo); font-weight: 500; }
+  .pk-new-name { flex: 1; min-width: 0; height: 28px; border: 1px solid var(--app-border-strong); border-radius: 6px; padding: 0 8px; font: 400 12.5px var(--sans); background: var(--app-surface); color: var(--app-text); }
+  .pk-new-name:focus { outline: none; border-color: var(--app-indigo); }
+  .pk-note { font-size: 11px; color: var(--app-muted); }
+  /* "Goes to" starts closed: one line with the destination; clicking it opens the list below */
+  .pv-field .pk-trigger { width: 100%; box-sizing: border-box; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 11px; border: 1px solid var(--app-border-strong); border-radius: 9px; background: var(--app-surface); cursor: pointer; font: 500 12.5px var(--sans); color: var(--app-text); text-align: left; }
+  .pv-field .pk-trigger:hover { border-color: var(--app-indigo-line); }
+  .pv-field .pk-trigger[aria-expanded="true"] { border-color: var(--app-indigo); box-shadow: 0 0 0 3px var(--app-indigo-soft); }
+  .pv-field .pk-trigger.need { border-color: var(--app-amber-line); background: var(--app-amber-soft); color: var(--app-amber-ink); }
+  .pk-val { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pk-trigger .a-aipick, .pk-trigger .a-badge { margin-left: 0; flex: none; }
+  .pk-chev { flex: none; color: var(--app-muted); font-size: 10px; }
+  .pv-field .pk-sugg { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11.5px; color: var(--app-text-2); }
+  .pv-field .pk-use { border: 1px solid var(--app-indigo-line); background: var(--app-indigo-soft); color: var(--app-indigo); border-radius: 999px; padding: 3px 10px; font: 500 11.5px var(--sans); cursor: pointer; }
+  .pv-field .pk-use:hover { border-color: var(--app-indigo); }
+  /* Sent answers stay clickable: reopen one, change it, resend only that question */
+  .a-filed-row.edit { grid-template-columns: 26px minmax(0, 1fr) auto; width: 100%; text-align: left; background: var(--app-surface); cursor: pointer; font: inherit; color: inherit; }
+  .a-filed-row .ed { font: 500 11.5px var(--sans); color: var(--app-muted); white-space: nowrap; }
+  .a-filed-row.edit:hover .ed, .a-filed-row.edit:focus-visible .ed { color: var(--app-indigo); }
+  .ans-sent { font-size: 12px; font-weight: 500; color: var(--app-ok-ink); }
+  .ans-sent.not { color: var(--app-muted); }
+  .ans-hint { font-size: 11.5px; color: var(--app-muted); text-align: right; max-width: 330px; line-height: 1.35; }
+  /* "What the job asks for": clickable like "This CV" */
+  .a-reqs .ic.part { background: var(--app-amber-soft); color: var(--app-amber); }
+  .a-part { font: 500 9.5px/1 var(--mono); letter-spacing: 0.04em; padding: 3px 6px; border-radius: 4px; flex: none; background: var(--app-amber-soft); color: var(--app-amber); }
+  .a-ask-q { border: 1px dashed var(--app-amber-line); background: #fffaf2; border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; justify-items: start; }
+  .a-ask-q p { font-size: 12.5px; line-height: 1.45; color: var(--app-text); }
+
+  /* Where a requirement came from: the posting, word for word (options A, B, C + the full posting) */
+  .pop-stage { background: linear-gradient(var(--app-scrim), var(--app-scrim)), var(--app-page); padding: 28px 24px; display: grid; justify-items: center; min-width: 1010px; font: 400 13px/1.45 var(--sans); color: var(--app-text); }
+  .src-a, .src-c { width: 640px; } .src-b { width: 960px; }
+  .a-src-h { display: flex; align-items: center; gap: 10px; }
+  .a-src-h .sp { flex: 1; }
+  .a-link2 { border: 0; background: none; padding: 0; color: var(--app-indigo); font: 500 12px var(--sans); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; justify-self: start; }
+  .a-srcq { border-left: 3px solid var(--app-indigo); background: #f8f8ff; border-radius: 0 8px 8px 0; padding: 8px 12px; display: grid; gap: 4px; }
+  .a-srcq .where { font: 500 10px/1 var(--mono); letter-spacing: 0.05em; color: var(--app-muted); }
+  .a-srcq q { font: 400 13.5px/1.5 var(--serif); color: var(--app-text); }
+  .a-ctx { font: 400 12px/1.5 var(--serif); color: var(--app-faint); }
+  mark.a-key { background: var(--app-indigo-soft); color: var(--app-indigo); border-bottom: 2px solid var(--app-indigo); border-radius: 2px; padding: 0 1px; font-weight: 600; }
+  .src-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; align-items: start; }
+  .src-col { display: grid; gap: 8px; align-content: start; }
+  .src-chip { box-sizing: border-box; display: flex; align-items: center; gap: 9px; width: 100%; border: 1px solid var(--app-indigo-line); background: #f8f8ff; border-radius: 8px; padding: 8px 10px; cursor: pointer; text-align: left; color: var(--app-text-2); }
+  .src-chip:hover { border-color: var(--app-indigo); }
+  .src-chip .k { font: 500 9.5px/1 var(--mono); letter-spacing: 0.05em; color: var(--app-indigo); flex: none; }
+  .src-chip .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: 400 12.5px/1.4 var(--serif); color: var(--app-text); }
+  .src-chip .go { color: var(--app-indigo); font: 500 11.5px var(--sans); flex: none; }
+  .pop-wide { width: 720px; }
+  .posting { max-height: 56vh; overflow-y: auto; border: 1px solid var(--app-border); border-radius: 10px; padding: 14px 18px; display: grid; gap: 12px; font: 400 13px/1.55 var(--serif); color: var(--app-text); }
+  .posting .ttl2 { font: 600 17px/1.3 var(--serif); } .posting .meta2 { font: 400 12px var(--sans); color: var(--app-muted); margin-top: -8px; }
+  .posting h4 { margin: 0 0 4px; font: 600 11px/1.2 var(--sans); text-transform: uppercase; letter-spacing: 0.06em; color: var(--app-muted); }
+  .posting ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+  .posting .hit { background: var(--app-indigo-soft); box-shadow: 0 0 0 4px var(--app-indigo-soft); border-radius: 3px; }
+  .a-reqs .ic { width: 15px; height: 15px; border-radius: 4px; display: grid; place-items: center; font-size: 9px; margin-top: 1px; }
+  .a-reqs .ic.met { background: var(--app-indigo-soft); color: var(--app-indigo); }
+  .a-reqs .ic.not { background: #f1f2f4; color: var(--app-muted); }
+  .a-reqs small { display: block; color: var(--app-muted); font-size: 10.5px; }
+  .a-reqs-sub { font: 500 10.5px/1 var(--sans); color: var(--app-muted); margin: 2px 0 -1px; }
+  .a-stage { background: #e9ebef; border-radius: 10px; padding: 14px; display: grid; gap: 10px; justify-items: center; }
+  .a-stage-bar { width: 100%; display: flex; align-items: center; gap: 8px; }
+  .a-stage-bar .sp { flex: 1; font-size: 11.5px; color: var(--app-muted); }
+  .a-seg { display: inline-flex; border: 1px solid var(--app-border-strong); border-radius: 8px; overflow: hidden; background: var(--app-surface); }
+  .a-seg span { padding: 6px 10px; font-size: 11.5px; color: var(--app-muted); }
+  .a-seg span.on { background: var(--app-surface); color: var(--app-text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--app-indigo); }
+  .cv { width: 640px; background: var(--app-surface); box-shadow: 0 2px 10px rgb(20 22 27 / 0.12); padding: 34px 46px 38px; font: 400 10.5px/1.36 var(--serif); color: #14161b; box-sizing: border-box; }
+  .cv .nm { text-align: center; font: 600 19px/1.2 var(--serif); font-variant: small-caps; letter-spacing: 0.02em; }
+  .cv .ct { text-align: center; font-size: 10px; margin-top: 2px; }
+  .cv .ct u { text-underline-offset: 2px; }
+  .cv h5 { margin: 12px 0 5px; font: 600 12px/1.2 var(--serif); font-variant: small-caps; letter-spacing: 0.02em; border-bottom: 1px solid #14161b; padding-bottom: 2px; }
+  .cv-block { position: relative; padding: 3px 6px; margin: 0 -6px 3px; border-radius: 4px; cursor: pointer; outline: 1px solid transparent; }
+  .cv-block:hover, .cv-block:focus-visible { outline: 1px dashed var(--app-indigo); background: #fafaff; }
+  .cv-block.new::before { content: "NEW"; position: absolute; left: -38px; top: 4px; font: 500 8px/1 var(--mono); color: var(--app-indigo); background: var(--app-indigo-soft); padding: 2px 3px; border-radius: 3px; }
+  .cv .r { display: flex; justify-content: space-between; gap: 10px; }
+  .cv .r b { font-weight: 600; }
+  .cv .r i { font-style: italic; }
+  .cv ul { margin: 2px 0 0; padding-left: 15px; list-style: disc; }
+  .cv li { margin-top: 1px; }
+  .cv .sk { display: grid; grid-template-columns: auto 1fr; gap: 1px 6px; }
+  .cv .sk b { font-weight: 600; }
+
+  /* Jobs screen mockup: today's list and saved CV, plus "Analyze again" and renaming a job */
+  .j-head { display: flex; align-items: baseline; gap: 2px 12px; flex-wrap: wrap; }
+  .j-row { display: flex; align-items: flex-start; gap: 12px; }
+  .j-list { flex: 0 0 340px; box-sizing: border-box; background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 10px; padding: 12px; display: grid; gap: 8px; align-content: start; }
+  .j-list h3 { margin: 0; font: 600 14px/1.3 var(--sans); }
+  .j-search { display: flex; align-items: center; gap: 8px; height: 32px; border: 1px solid var(--app-border-strong); border-radius: 8px; padding: 0 10px; color: var(--app-faint); font-size: 12.5px; }
+  .j-search svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+  .j-ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .j-item { border-radius: 8px; padding: 8px 10px; display: grid; gap: 2px; }
+  .j-item.on { background: var(--app-indigo-soft); gap: 9px; padding-bottom: 10px; }
+  .j-top { display: flex; align-items: center; gap: 8px; min-height: 26px; }
+  .j-top b { flex: 1; min-width: 0; font: 600 13px/1.3 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .j-top small { font-size: 11px; color: var(--app-muted); }
+  .j-sub { font-size: 11.5px; color: var(--app-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .j-item.on .j-sub { font-size: 12px; }
+  .j-links { display: grid; gap: 3px; font-size: 12.5px; }
+  .j-links span { display: flex; gap: 6px; }
+  .j-links i { flex: 0 0 92px; color: var(--app-muted); font-style: normal; }
+  .j-links u { font-weight: 500; text-decoration: none; color: var(--app-indigo); }
+  .j-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .j-edit { display: grid; gap: 6px; }
+  .j-edit-row { display: flex; align-items: center; gap: 6px; }
+  .j-edit-row input { flex: 1; min-width: 0; height: 30px; box-sizing: border-box; border: 1px solid var(--app-border-strong); border-radius: 7px; padding: 0 8px; font: 500 12.5px var(--sans); background: var(--app-surface); color: var(--app-text); }
+  .j-edit-row input:focus { outline: none; border-color: var(--app-indigo); box-shadow: 0 0 0 3px #dfe3fd; }
+  .j-edit-row .dot { color: var(--app-muted); }
+  .j-hint { font-size: 11px; line-height: 1.4; color: var(--app-muted); }
+  .j-cv { flex: 1 1 400px; min-width: 0; background: #e9ebef; border-radius: 10px; padding: 12px 12px 16px; display: grid; justify-items: center; }
+  .j-cv .cv { zoom: 0.86; }
+  .j-cv .cv-block.new::before { display: none; }
+  .a-last { color: var(--app-muted); }
+
+  dialog.live { border: 0; padding: 0; background: transparent; max-width: 96vw; overflow: visible; }
+  dialog.live::backdrop { background: var(--app-scrim); }
+
+  @media (max-width: 1000px) {
+    .changes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .flow ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .station:not(:last-child)::after { display: none; }
+  }
+  @media (max-width: 640px) {
+    .changes, .flow ol { grid-template-columns: minmax(0, 1fr); }
+    .wrap { padding-block: 24px 48px; }
+  }
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">apply-for-me · Job analysis · proposta 2</p>
+    <h1>Da vaga ao currículo</h1>
+    <p class="lede">O pipeline da Job analysis com as quatro mudanças que você pediu. A IA cria a vaga a partir do link, decide sozinha para onde vai cada resposta, a edição abre o mesmo popover do Compose CV e o pipeline termina com o currículo completo no meio da tela. As telas abaixo são mockups interativos desta proposta: o lápis de um rascunho e o duplo clique num bloco do CV abrem o popover de edição.</p>
+  </header>
+
+  <div class="changes" aria-label="O que mudou">
+    <article class="change">
+      <h3>A IA decide a experiência</h3>
+      <dl><div><dt>Antes</dt><dd>Um “Adds to” em cada pergunta, para você escolher.</dd></div>
+      <div><dt>Agora</dt><dd class="now">Ao enviar, a IA lê cada resposta e escolhe a experiência. O que ela não souber encaixar abre um popover: associar a uma experiência ou criar uma nova. No mesmo popover dá para trocar as que ela já encaixou.</dd></div></dl>
+      <a href="#t-place">Ver a tela</a>
+    </article>
+    <article class="change">
+      <h3>A vaga vem do link</h3>
+      <dl><div><dt>Antes</dt><dd>Seletor de vaga, “New job” e “Paste the job text” sempre na tela.</dd></div>
+      <div><dt>Agora</dt><dd class="now">No começo, só o link (ou colar o texto). A IA preenche a vaga, que aparece só para leitura e não pode mais ser trocada.</dd></div></dl>
+      <a href="#t-start">Ver a tela</a>
+    </article>
+    <article class="change">
+      <h3>Editar abre o popover</h3>
+      <dl><div><dt>Antes</dt><dd>O lápis abria campos dentro do cartão do rascunho.</dd></div>
+      <div><dt>Agora</dt><dd class="now">O mesmo popover de edição do Compose CV: título, bullets com tipo, reordenar, “+ Add bullet” e “Save as”.</dd></div></dl>
+      <a href="#t-edit">Ver a tela</a>
+    </article>
+    <article class="change">
+      <h3>Termina no currículo</h3>
+      <dl><div><dt>Antes</dt><dd>O pipeline acabava em “Saved 2 to your library”.</dd></div>
+      <div><dt>Agora</dt><dd class="now">O currículo completo no meio da tela, com as versões novas marcadas. Dois cliques num bloco abrem o popover de novo.</dd></div></dl>
+      <a href="#t-review">Ver a tela</a>
+    </article>
+  </div>
+
+  <div class="flow" aria-label="As cinco etapas">
+    <ol>
+      <li class="station"><span class="pill"><b>1</b>Read posting</span><p>Você cola o link. A IA lê a vaga e cria o job.</p><p class="saves">Salva: o job e o texto da vaga.</p></li>
+      <li class="station"><span class="pill"><b>2</b>Compare with blocks</span><p>A IA compara a vaga com os seus blocos, Experiences e regras.</p><p class="saves">Salva: nada.</p></li>
+      <li class="station"><span class="pill"><b>3</b>Your input</span><p>Você responde as perguntas sobre as lacunas.</p><p class="saves">Salva: nada ainda.</p></li>
+      <li class="station"><span class="pill"><b>4</b>Drafts</span><p>A IA encaixa cada resposta numa experiência e refaz os rascunhos.</p><p class="saves">Salva: as respostas nas Experiences.</p></li>
+      <li class="station"><span class="pill"><b>5</b>Review &amp; save</span><p>Você confere o CV completo; dois cliques editam um bloco.</p><p class="saves">Salva: as versões novas e o CV da vaga.</p></li>
+    </ol>
+  </div>
+
+  <div class="steps">
+    <section class="step" id="t-start">
+      <div class="step-head"><span class="pill"><b>1</b>Read posting</span><h2>Só o link</h2></div>
+      <p class="note">A tela começa com uma coisa só: o link da vaga. Não tem seletor de vaga nem “New job”, porque quem cria a vaga é a IA. “Paste the job text instead” existe só aqui, para sites como o LinkedIn que bloqueiam a leitura.</p>
+      <div class="tags"><span class="tag gone">Job ▾</span><span class="tag gone">+ New job</span><span class="tag new">só o link</span></div>
+      <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/analyze</span></div><div class="scroll"><div data-frame="start"></div></div></div>
+    </section>
+
+    <section class="step" id="t-reading">
+      <div class="step-head"><span class="pill"><b>1</b>Read posting</span><h2>A IA lê a vaga e cria o job</h2></div>
+      <p class="note">Enquanto lê o link, a IA preenche a empresa, o cargo e o link do job. O cabeçalho mostra o job sendo criado.</p>
+      <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/analyze</span></div><div class="scroll"><div data-frame="reading"></div></div></div>
+    </section>
+
+    <section class="step" id="t-compare">
+      <div class="step-head"><span class="pill"><b>2</b>Compare with blocks</span><h2>O job fica fixo</h2></div>
+      <p class="note">Com o pipeline andando, o job aparece só para leitura: “ExampleCo · Senior GenAI Engineer”, com o link. Não dá para trocar de job nem criar outro aqui, e “Paste the job text instead” sumiu.</p>
+      <div class="tags"><span class="tag gone">Paste the job text instead</span><span class="tag new">job só para leitura</span></div>
+      <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/analyze</span></div><div class="scroll"><div data-frame="compare"></div></div></div>
+    </section>
+
+    <section class="step" id="t-input">
+      <div class="step-head"><span class="pill"><b>3</b>Your input</span><h2>Você só responde</h2></div>
+      <p class="note">As perguntas não têm mais “Adds to” nem caixa de resposta apertada: cada pergunta é um cartão com o seu estado (“Answer ›”, “✓ Answered” com o começo da resposta, ou “Don’t have it”), e clicar abre um popover para responder com calma (veja a próxima tela). Enquanto isso, a IA já entrega uma versão nova de BI Dashboard feita só com o que você já tem, liderando com Gemini. O que depende da Q1 fica como uma lacuna marcada, que não é impressa; a Q1 avisa qual rascunho ela melhora. Dá para editar, manter ou ir direto para o CV sem responder nada.</p>
+      <p class="note">O painel da direita virou “Blocks for this CV”: todos os blocos que vão para o CV, por extenso. Os novos têm a etiqueta NEW VERSION ou NEW BLOCK; os que já serviam entram como AS IS, com a versão usada. Cada bloco tem a etiqueta “✓ N requirements”; passe o mouse para ver qual requisito da vaga ele ajuda a cumprir e por quê.</p>
+      <div class="tags"><span class="tag gone">Adds to ▾</span><span class="tag gone">waiting for your answer to Q1</span><span class="tag gone">Reused as they are</span><span class="tag new">versão antes das respostas</span><span class="tag new">blocos AS IS por extenso</span><span class="tag new">tooltip de requisitos</span></div>
+      <p class="note">“What the job asks for” segue o formato da lista “This CV”: os requisitos ficam agrupados em Covered, Partial e Missing, e cada um é clicável. Clicar mostra a frase da vaga ao lado de como os seus blocos cobrem o requisito, com as palavras grifadas, ou por que não cobrem. Os que faltam mostram a pergunta da IA sobre eles, com “Answer Q1”.</p>
+      <p class="try">Experimente: clique em “RAG pipelines in production” (Partial) ou em “Python and TypeScript proficiency”. Passe o mouse em “✓ 1 requirement” num bloco, ou clique no lápis da versão de BI Dashboard para ver a lacuna da Q1.</p>
+      <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/analyze</span></div><div class="scroll"><div data-frame="input"></div></div></div>
+    </section>
+
+    <section class="step" id="t-answer">
+      <div class="step-head"><span class="pill"><b>3</b>Your input</span><h2>Responder com calma</h2></div>
+      <p class="note">Clicar numa pergunta abre este popover. As abas Q1 a Q4 no topo pulam de pergunta em pergunta, e o ponto de cada aba mostra se ela já tem resposta. Abaixo da pergunta, “The job says” mostra a frase da vaga que gerou a pergunta. A caixa é grande e tem os atalhos “+ Something I did”, “+ A number or result” e “+ What was hard”. “I don’t have this” fica alinhado ao lado. Em vez de fechar, “Next: Q2 →” leva à próxima pergunta, e Ctrl+Enter faz o mesmo. Na última, “Done” fecha e os cartões mostram o que você respondeu.</p>
+      <div class="tags"><span class="tag gone">caixa de resposta no painel</span><span class="tag new">popover com abas Q1–Q4</span><span class="tag new">seta para a próxima pergunta</span></div>
+      <p class="try">Experimente: na tela de cima (Your input), clique em qualquer pergunta, escreva, use as abas ou Ctrl+Enter, e feche para ver os cartões atualizados.</p>
+      <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/analyze</span></div><div class="scroll"><div data-frame="answer"></div></div></div>
+    </section>
+
+    <section class="step" id="t-place">
+      <div class="step-head"><span class="pill"><b>4</b>Drafts</span><h2>Para onde vão as respostas</h2></div>
+      <p class="note">Ao clicar em “Update drafts with my answers”, a IA lê cada resposta e decide a experiência. Aqui ela pôs a Q1 em Visio AI, porque a resposta fala de Visio AI, e a Q2 em Automated BI Dashboard. A resposta sobre Kubernetes não combina com nenhuma experiência, então abre este popover. Clicar numa pergunta mostra a pergunta, a sua resposta, por que a IA escolheu aquele lugar e a experiência associada, que você pode trocar. A Q4 abre primeiro, porque precisa de um lugar; “Add and update drafts” só libera quando todas têm um. O mockup tem 12 experiências (as 7 de hoje e 5 das suas conquistas) para mostrar a lista crescendo.</p>
+      <p class="try">Experimente: clique no “Goes to” para abrir a lista, busque “math” ou “kubernetes” e troque o destino da Q1 ou da Q2. Escolher uma experiência fecha a lista.</p>
+      <div class="opts">
+        <div class="opt rec">
+          <div class="opt-h"><span class="opt-l">B</span><h3>Lista e detalhe<span class="rec-tag">ESCOLHIDA</span></h3><p>As perguntas ficam à esquerda, cada uma com o destino; a escolhida aparece inteira à direita. O “Goes to” começa fechado, numa linha só com o destino; clicar abre a lista, que tem altura fixa, não importa quantas experiências você tenha: busca no topo, as sugestões da IA primeiro, depois todas de A a Z numa lista que rola sozinha, e “New experience” fixo no rodapé. Se a busca não achar nada, o texto buscado vira o nome da experiência nova. Quando a IA não acha um lugar, a linha fechada mostra a sugestão dela com “Use it”.</p></div>
+          <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/analyze</span></div><div class="scroll"><div data-frame="placeB"></div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="step" id="t-drafts">
+      <div class="step-head"><span class="pill"><b>4</b>Drafts</span><h2>Rascunhos refeitos</h2></div>
+      <p class="note">O painel de perguntas diz para onde cada resposta foi. Com as respostas, RAG, vector databases, LLM evaluation e Kubernetes passaram para covered. A IA fez duas versões novas e um bloco novo. Como a resposta da Q1 diz que o RAG foi na Visio AI, a lacuna do rascunho de BI Dashboard fechou sem inventar RAG ali, e a Q2 acrescentou o regression set. O bloco novo tem um bullet de impacto em aberto, porque a resposta não diz o resultado.</p>
+      <p class="note">As respostas enviadas continuam clicáveis: clicar numa abre o mesmo popover com a resposta. Se você mudar o texto, “Resend Q1” reenvia só aquela pergunta. A IA troca apenas o trecho que essa pergunta adicionou na experiência (o resto das notas fica igual) e refaz os rascunhos que usam a resposta.</p>
+      <p class="try">Experimente: clique em Visio AI em “3 answers added”, mude a resposta e clique em “Resend Q1”. O lápis de um rascunho abre o popover de edição.</p>
+      <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/analyze</span></div><div class="scroll"><div data-frame="drafts"></div></div></div>
+    </section>
+
+    <section class="step" id="t-edit">
+      <div class="step-head"><span class="pill"><b>4</b>Drafts</span><h2>Editar abre o popover</h2></div>
+      <p class="note">O mesmo popover do Compose CV: título, bullets com o tipo (P, S, I), setas para reordenar, lixeira, “+ Add bullet” e “Save as”. Por padrão o rascunho vira uma versão nova com o nome da vaga; dá para atualizar a versão Base em vez disso.</p>
+      <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/analyze</span></div><div class="scroll"><div data-frame="edit"></div></div></div>
+    </section>
+
+    <section class="step" id="t-review">
+      <div class="step-head"><span class="pill"><b>5</b>Review &amp; save</span><h2>O currículo no meio da tela</h2></div>
+      <p class="note">O pipeline termina no CV completo desta vaga: as versões novas (marcadas NEW) junto com as que a IA reaproveitou, Education e Technical Skills. À esquerda, primeiro os requisitos da vaga: os 6 que o CV atende, cada um com o bloco que mostra isso, e o que ficou sem atender (Kafka), com o motivo. Depois, o que é novo, o que foi reaproveitado e o que ficou de fora. Dois cliques num bloco abrem o popover de edição de novo.</p>
+      <p class="note">Cada requisito da lista é clicável. Um requisito <b>Met</b> abre o bloco, ou os blocos, que o cumprem, com o trecho exato grifado, e cada bloco tem “Edit block”. Um requisito <b>Not met</b> abre um popover para você cadastrar uma experiência que cumpriria o requisito: onde foi e o que você fez. A IA guarda isso nas Experiences e rascunha um bloco para este CV.</p>
+      <div class="tags"><span class="tag new">Met → blocos com o trecho grifado</span><span class="tag new">Not met → cadastrar experiência</span></div>
+      <p class="note">Os blocos da lista também são clicáveis, cada um mostrando quais requisitos cumpre: os novos (New for this job), os que entram como estão (As is) e os que ficaram de fora (Left out). À esquerda fica o bloco com as palavras que dão match grifadas; à direita, cada requisito com a frase da vaga e as suas palavras. Clicar num requisito abre o popover dele, com “← Back” para voltar ao bloco. Os que ficaram de fora mostram o que cumpririam e por que saíram.</p>
+      <p class="try">Experimente: clique em “Python and TypeScript” (três blocos) ou em “Event streaming with Kafka”, e depois num bloco da lista, como Visio AI ou Termo (Left out). Dois cliques num bloco do CV também abrem a edição.</p>
+      <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/analyze</span></div><div class="scroll"><div data-frame="review"></div></div></div>
+    </section>
+
+    <section class="step" id="t-source">
+      <div class="step-head"><span class="pill"><b>5</b>Review &amp; save</span><h2>De onde veio cada requisito</h2></div>
+      <p class="note">Ao abrir um requisito, você vê palavra por palavra o que a vaga dizia e que fez a IA listar aquilo como requisito. Os requisitos da lista “This CV” já abrem assim. Em Met, a frase da vaga fica ao lado dos blocos do seu CV. Em Not met, ao lado do formulário para cadastrar a experiência; o Kafka mostra as duas frases da vaga que falam dele. Trechos da vaga ficam em azul; trechos do seu CV, em amarelo. “See it in the full posting” abre a vaga inteira rolada até a frase, com “← Back” para voltar.</p>
+      <p class="try">Experimente: na lista “This CV” acima, clique em qualquer requisito, inclusive “Event streaming with Kafka”, e depois em “See it in the full posting”.</p>
+      <div class="opts">
+        <div class="opt rec">
+          <div class="opt-h"><span class="opt-l">B</span><h3>Vaga e CV lado a lado<span class="rec-tag">ESCOLHIDA</span></h3><p>Duas colunas: à esquerda a frase da vaga, palavra por palavra, com a linha de antes e a de depois em cinza para dar contexto; à direita os blocos do CV com o trecho que cumpre o requisito grifado.</p></div>
+          <div class="frame"><div class="bar"><i></i><i></i><i></i><span>Review &amp; save · popover do requisito</span></div><div class="scroll"><div class="pop-stage" data-stage="srcB"></div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="step" id="t-saved">
+      <div class="step-head"><span class="pill"><b>5</b>Review &amp; save</span><h2>Salvo</h2></div>
+      <p class="note">Um clique salva as três versões na Library e o CV desta vaga. O CV continua na tela e ainda pode ser editado com dois cliques; “Open in Compose CV” leva para o Compose com esta vaga escolhida.</p>
+      <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/analyze</span></div><div class="scroll"><div data-frame="saved"></div></div></div>
+    </section>
+
+    <section class="step" id="t-jobs">
+      <div class="step-head"><span class="pill"><b>+</b>Jobs</span><h2>Analisar de novo e renomear</h2></div>
+      <p class="note">A tela Jobs continua sendo a lista das vagas com o CV salvo de cada uma, e ganha duas coisas. “Analyze again” abre a Job analysis desta vaga, na análise que ficou guardada. O lápis ao lado do nome renomeia a vaga ali mesmo: empresa e cargo, Enter salva e Esc cancela. As versões que têm o nome antigo da vaga passam a ter o nome novo, como acontece hoje no lápis da Job analysis, que sai de lá porque a vaga fica só para leitura.</p>
+      <div class="tags"><span class="tag new">Analyze again</span><span class="tag new">lápis para renomear</span><span class="tag gone">lápis na Job analysis</span></div>
+      <p class="try">Experimente: clique no lápis, mude o cargo e aperte Enter (ou Esc para cancelar). “Analyze again” leva à tela de baixo.</p>
+      <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/jobs</span></div><div class="scroll"><div data-frame="jobs"></div></div></div>
+    </section>
+
+    <section class="step" id="t-resumed">
+      <div class="step-head"><span class="pill"><b>+</b>Jobs → Job analysis</span><h2>A análise guardada volta</h2></div>
+      <p class="note">A análise fica guardada com a vaga. Abrir pelo “Analyze again” da tela Jobs, ou recarregar a página no meio do caminho, mostra a Job analysis onde você parou: requisitos, respostas enviadas e rascunhos. O “Analyze again” do cabeçalho refaz a comparação com o texto da vaga já guardado. As respostas que você enviou continuam nas Experiences e entram na nova análise, e os rascunhos que você editou à mão não são sobrescritos.</p>
+      <div class="tags"><span class="tag new">análise guardada com a vaga</span><span class="tag new">Analyze again no cabeçalho</span></div>
+      <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/analyze?job=…</span></div><div class="scroll"><div data-frame="resumed"></div></div></div>
+    </section>
+  </div>
+
+  <footer>
+    Proposta de 6 de novembro de 2026. As telas são mockups em HTML com o visual do app; os blocos, a Education e as Technical Skills são os seus dados iniciais, e a vaga é fictícia. Nada disto existe no app ainda: é para você aprovar antes de eu implementar.
+  </footer>
+</div>
+
+<dialog class="live" id="live-edit" aria-label="Editar bloco"></dialog>
+
+<script>
+(() => {
+  const JOB = 'ExampleCo · Senior GenAI Engineer'
+  const ICONS = {
+    compose: '<rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M10 3v18"></path><path d="M14 8h4"></path><path d="M14 12h4"></path>',
+    exp: '<path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"></path><path d="M2 6h4"></path><path d="M2 10h4"></path><path d="M2 14h4"></path><path d="M2 18h4"></path><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"></path>',
+    beh: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>',
+    jobs: '<path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path><path d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path>',
+    analysis: '<rect width="20" height="14" x="2" y="7" rx="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>',
+    learned: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"></path><path d="M19 3v4"></path><path d="M21 5h-4"></path>',
+    blocks: '<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"></path><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"></path><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"></path>',
+    edu: '<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"></path><path d="M22 10v6"></path><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"></path>',
+    skills: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>',
+    ach: '<path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"></path><circle cx="12" cy="8" r="6"></circle>',
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>',
+    pen: '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path>',
+    x: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>',
+    search: '<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>',
+    spark: '<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"></path>',
+  }
+  const svg = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+  // ── The data: your seeded blocks, the drafts this job produced, a fictional posting ──
+  const KINDS = { PROJECT: 'P', STACK: 'S', IMPACT: 'I', PROJECT_STACK: 'P·S', PROJECT_IMPACT: 'P·I', STACK_IMPACT: 'S·I', MISSING: '—' }
+  const kindClass = (k) => (k === 'MISSING' ? 'k-M' : 'k-' + KINDS[k][0])
+  const V = {
+    visioNew: { block: 'Visio AI', version: JOB, isNew: true, updateName: 'Base', title: 'Software Engineer Intern — Visio AI', org: 'Visio AI', loc: 'São Carlos, SP', dates: 'June 2026 – Present', why: 'Adds the RAG prototype with pgvector from your answer; keeps the reconciliation and stack bullets.', bullets: [
+      ['PROJECT_STACK', 'Built a RAG prototype over invoice data using pgvector in Supabase, enabling finance teams to query invoice details in plain language'],
+      ['PROJECT_IMPACT', 'Built a full credit card reconciliation platform end-to-end for 100+ merchant clients, reconciling $150K+ in monthly card transactions per store ($1.8M+ annually), from ERP data ingestion through acquirer certification with Fiserv, Getnet, and Linx'],
+      ['STACK', 'Engineered 19 Python scripts across 4 repos: a card reconciliation pipeline, production loaders from BigQuery and acquirers EDIs, and a headless web scraper'],
+      ['STACK', 'Worked across a modern cloud and AI stack including AWS, Supabase, BigQuery, Netlify, Next.js, and Claude to deliver features from data infrastructure through deployment'],
+    ] },
+    iaas: { block: 'IAAS!', version: 'Web Full-Stack', updateName: 'Web Full-Stack', title: 'Full-Stack Engineer Intern — IAAS!', org: 'IAAS!', loc: 'São Paulo, SP', dates: 'January 2026 – April 2026', bullets: [
+      ['PROJECT', 'Built end-to-end Angular + .NET features automating legislative document workflows for 130+ Asset Manager clients, replacing error-prone manual backoffice processes'],
+      ['STACK_IMPACT', 'Owned PostgreSQL database and REST API maintenance in production, sustaining a weekly release cadence across Agile/Scrum sprint cycles'],
+      ['IMPACT', 'Identified 1 critical JWT authentication vulnerability and 1 automation opportunity while auditing authentication flows end-to-end, flagging both to the team for remediation'],
+    ] },
+    rats: { block: 'Study Rats', version: 'Web Full-Stack', updateName: 'Web Full-Stack', title: 'Tech Lead, Full-Stack — Study Rats', org: 'Codelab USP — Development Group', loc: 'São Carlos, SP', dates: 'March 2026 – Present', bullets: [
+      ['PROJECT_STACK', 'Led a 7-engineer team delivering a React Native + .NET app using Clean Architecture, Domain-Driven Design (DDD), CQRS, and Repository Patterns, enabling all engineers to develop in parallel'],
+      ['IMPACT', 'Standardized API contracts across the codebase via Global Exception Handling, Swagger docs, and Result Patterns (FluentResults), eliminating undefined error states in production'],
+    ] },
+    semcomp: { block: 'Semcomp website', version: 'Web Full-Stack', updateName: 'Web Full-Stack', title: 'Web Developer — Computer Science Week Website (Semcomp)', org: 'University of São Paulo', loc: 'São Carlos, SP', dates: 'March 2025 – November 2025', bullets: [
+      ['IMPACT', 'Eliminated a critical backoffice performance bottleneck by refactoring client-side filters into server-side PostgreSQL queries, reducing page load from seconds to milliseconds for the internal team'],
+      ['STACK_IMPACT', 'Built email confirmation system in React, TypeScript, Express, and Nodemailer, handling registration for 500+ event attendees with responsive, accessible UI'],
+    ] },
+    biNew: { block: 'BI Dashboard', version: JOB, isNew: true, updateName: 'LLM pipeline', project: true, title: 'AI-Powered Business Intelligence Platform', stack: 'Lovable, n8n, Supabase, Python, Gemini, Telegram Bot', why: 'Your answer to Q1 put RAG at Visio AI, so the RAG gap here closed; your answer to Q2 added the regression set.', bullets: [
+      ['PROJECT_IMPACT', 'Built and deployed an LLM-backed insights pipeline and BI dashboard for a real client, using Gemini to process hundreds of CRM leads and cutting analysis time from 10 hours to minutes'],
+      ['STACK_IMPACT', 'Implemented a 50-question offline evaluation regression set, scored by hand and by an LLM judge before every prompt change, to keep output quality across releases'],
+      ['STACK_IMPACT', 'Automated the full data pipeline using n8n orchestration, Python processing, and Supabase (PostgreSQL) storage with a Telegram Bot trigger, enabling on-demand refresh with zero manual intervention'],
+    ] },
+    // Drafted before any answer, from what the library already says; Q1 may fill its gap.
+    biEarly: { block: 'BI Dashboard', version: JOB, isNew: true, updateName: 'LLM pipeline', project: true, improves: 'Q1 can improve it', title: 'AI-Powered Business Intelligence Platform', stack: 'Lovable, n8n, Supabase, Python, Gemini, Telegram Bot', why: 'Drafted from what you already have, leading with Gemini. The gap stays empty, and unprinted, until you answer Q1.', bullets: [
+      ['PROJECT_IMPACT', 'Built and deployed an LLM-backed insights pipeline and BI dashboard for a real client, using Gemini to process hundreds of CRM leads and cutting analysis time from 10 hours to minutes'],
+      ['STACK_IMPACT', 'Automated the full data pipeline using n8n orchestration, Python processing, and Supabase (PostgreSQL) storage with a Telegram Bot trigger, enabling on-demand refresh with zero manual intervention'],
+      ['MISSING', '', 'PROJECT_STACK', 'RAG or vector search: your answer to Q1 can fill this'],
+    ] },
+    k8sNew: { block: 'Kubernetes course project', version: 'Base', isNew: true, newBlock: true, project: true, title: 'Microservices on Kubernetes — Cloud Computing Course', stack: 'Node.js, Kubernetes, GKE, Helm', why: 'New block from your answer. Its impact bullet stays open: the AI does not invent a result.', bullets: [
+      ['PROJECT_STACK', 'Deployed a 3-service Node.js application to Google Kubernetes Engine with Helm charts in the Cloud Computing course at USP (2025)'],
+      ['MISSING', '', 'IMPACT'],
+    ] },
+  }
+  const CV = { experience: ['visioNew', 'iaas', 'rats', 'semcomp'], projects: ['biNew', 'k8sNew'] }
+
+  // Before the answers, Visio AI goes in as is (version Base); Q1 later gives it a new version.
+  V.visioBase = { block: 'Visio AI', version: 'Base', updateName: 'Base', title: 'Software Engineer Intern — Visio AI', org: 'Visio AI', loc: 'São Carlos, SP', dates: 'June 2026 – Present', bullets: [
+    ['PROJECT_IMPACT', 'Built a full credit card reconciliation platform end-to-end for 100+ merchant clients, reconciling $150K+ in monthly card transactions per store ($1.8M+ annually), from ERP data ingestion through acquirer certification with Fiserv, Getnet, and Linx'],
+    ['STACK', 'Engineered 19 Python scripts across 4 repos: a card reconciliation pipeline, production loaders from BigQuery and acquirers EDIs, and a headless web scraper'],
+    ['STACK', 'Worked across a modern cloud and AI stack including AWS, Supabase, BigQuery, Netlify, Next.js, and Claude to deliver features from data infrastructure through deployment'],
+  ] }
+
+  // Which requirement of the job each block helps match, and how ('part' = only partly). Shown in the tooltip.
+  const MATCHES = {
+    biEarly: [['Python and TypeScript proficiency', 'Python processing in the data pipeline'], ['RAG pipelines in production', 'Only partly: an LLM pipeline with Gemini, no RAG yet. Q1 can change that.', 'part']],
+    visioBase: [['Python and TypeScript proficiency', '19 Python scripts across 4 repos']],
+    visioNew: [['RAG pipelines in production', 'RAG prototype over invoice data'], ['Vector databases (pgvector or similar)', 'pgvector in Supabase'], ['Python and TypeScript proficiency', '19 Python scripts across 4 repos']],
+    biNew: [['LLM evaluation (offline evals, regression sets)', '50-question regression set with an LLM judge'], ['Python and TypeScript proficiency', 'Python processing in the data pipeline']],
+    k8sNew: [['Kubernetes deployments', '3-service Node.js app on GKE with Helm charts']],
+    iaas: [],
+    rats: [['Mentoring junior engineers and team leadership', 'Led a 7-engineer team']],
+    semcomp: [['Python and TypeScript proficiency', 'React, TypeScript and Express']],
+  }
+  const NO_MATCH = { iaas: 'No requirement of this job. It stays because it is recent full-stack experience and the page has room.' }
+
+  // The job's requirements on the final CV. Met: the blocks that show it and the exact words to highlight.
+  const REQS = [
+    { key: 'rag', name: 'RAG pipelines in production', hits: [['visioNew', ['Built a RAG prototype over invoice data using pgvector in Supabase']]] },
+    { key: 'vector', name: 'Vector databases (pgvector)', hits: [['visioNew', ['pgvector in Supabase']]] },
+    { key: 'evals', name: 'LLM evaluation (offline evals)', hits: [['biNew', ['50-question offline evaluation regression set, scored by hand and by an LLM judge']]] },
+    { key: 'k8s', name: 'Kubernetes deployments', hits: [['k8sNew', ['Deployed a 3-service Node.js application to Google Kubernetes Engine with Helm charts']]] },
+    { key: 'lead', name: 'Mentoring and team leadership', hits: [['rats', ['Led a 7-engineer team']]] },
+    { key: 'pyts', name: 'Python and TypeScript', hits: [['visioNew', ['19 Python scripts across 4 repos']], ['biNew', ['Python processing']], ['semcomp', ['React, TypeScript, Express']]] },
+  ]
+  const NOT_MET = [{ key: 'kafka', name: 'Event streaming with Kafka', topic: 'Kafka or event streaming', why: 'You answered “Don’t have it” to Q3, so the CV doesn’t claim it.' }]
+
+  // The two blocks left out of this CV (your seeded versions), what they would match, and why they are out.
+  V.attendance = { block: 'Attendance Control App', version: 'Base', updateName: 'Base', title: 'Back-End Developer — Attendance Control App', org: 'Codelab USP — Development Group', loc: 'São Carlos, SP', dates: 'September 2025 – January 2026', bullets: [
+    ['PROJECT_STACK', 'Designed and built the complete backend from scratch — JWT auth, MongoDB data modeling, and REST APIs via Express — serving 40+ users tracking attendance across the organization'],
+    ['STACK_IMPACT', 'Containerized the full application with Docker, eliminating environment inconsistencies across development, testing, and deployment'],
+    ['IMPACT', 'Defined development standards for a 4-engineer team, enabling independent parallel workstreams and consistent practices from day one'],
+  ] }
+  V.termo = { block: 'Termo', version: 'Web Full-Stack', updateName: 'Web Full-Stack', project: true, title: 'Termo — Portuguese Wordle Web Game', stack: 'React, TypeScript, Python, Django, Docker, MongoDB Atlas, CI/CD, Render', bullets: [
+    ['PROJECT_STACK', 'Shipped a production word game (live) across 104 commits, containerizing a React + TypeScript frontend and Django backend with Docker and deploying via CI/CD pipelines to MongoDB Atlas'],
+  ] }
+  const LEFT_OUT = {
+    attendance: { why: 'Left out: the page is full, and Study Rats already shows team leadership.', would: [['lead', ['Defined development standards for a 4-engineer team']], ['k8s', ['Containerized the full application with Docker'], 'part']] },
+    termo: { why: 'Left out: the page is full, and Semcomp website already shows TypeScript.', would: [['pyts', ['React + TypeScript frontend and Django backend']], ['k8s', ['with Docker and deploying via CI/CD pipelines'], 'part']] },
+  }
+  /** The requirements a block matches in this CV (or would match, if it was left out), with its matching words. */
+  const blockReqs = (id) => (LEFT_OUT[id]
+    ? LEFT_OUT[id].would.map(([key, phrases, part]) => ({ r: REQS.find((x) => x.key === key), phrases, part: Boolean(part) }))
+    : REQS.filter((r) => r.hits.some(([b]) => b === id)).map((r) => ({ r, phrases: r.hits.find(([b]) => b === id)[1], part: false })))
+  const SUM_NOTE = { visioNew: 'Leads with RAG and pgvector', biNew: 'Adds the LLM regression set', k8sNew: 'Impact bullet open, not printed' }
+  const blockBtn = (id) => {
+    const v = V[id]
+    const out = LEFT_OUT[id]
+    const reqs = blockReqs(id)
+    const full = reqs.filter((x) => !x.part).length
+    const part = reqs.length - full
+    const count = reqs.length ? `${out ? 'Would match ' : ''}${full} requirement${full === 1 ? '' : 's'}${part ? ` + ${part} partly` : ''}` : 'No requirement'
+    const tag = !out && v.isNew ? ` <span class="nw">${v.newBlock ? 'NEW BLOCK' : 'NEW VERSION'}</span>` : ''
+    const sub = [count, !out && v.isNew ? SUM_NOTE[id] : !out ? `version “${v.version}”` : ''].filter(Boolean).join(' · ')
+    return `<li><button class="a-req-btn" type="button" data-block="${id}" aria-label="${esc(v.block)}: see which requirements it matches"><span class="ic ${reqs.length && !out ? 'met' : 'not'}">${svg('blocks')}</span><span>${esc(v.block)}${tag}<small>${esc(sub)}</small></span><span class="chev">›</span></button></li>`
+  }
+  const blockList = () => `<h4>New for this job</h4><ul class="a-reqs">${['visioNew', 'biNew', 'k8sNew'].map(blockBtn).join('')}</ul>
+      <h4>As is</h4><ul class="a-reqs">${['iaas', 'rats', 'semcomp'].map(blockBtn).join('')}</ul>
+      <h4>Left out</h4><ul class="a-reqs">${['attendance', 'termo'].map(blockBtn).join('')}</ul>`
+
+  const Q = [
+    { n: 1, q: 'Have you built RAG (retrieval-augmented generation) pipelines or integrated vector databases like pgvector in BI Dashboard or Visio AI?', a: 'Yes: at Visio AI I built a RAG prototype over invoice data with pgvector in Supabase, so the finance team could ask questions in plain language.', to: 'Visio AI' },
+    { n: 2, q: 'Have you set up offline evaluation benchmarks or regression testing sets for LLM outputs in any of your GenAI projects?', a: 'Yes: a 50-question regression set I run before each prompt change on the BI Dashboard, scored by hand plus an LLM judge.', to: 'Automated BI Dashboard' },
+    { n: 3, q: 'Do you have experience with Kafka or event streaming architectures in production or side projects?', dont: true },
+    { n: 4, q: 'Have you deployed or orchestrated containerized applications using Kubernetes in any of your roles or projects?', a: 'Yes: in the Cloud Computing course at USP (2025) I deployed a 3-service Node.js app on Google Kubernetes Engine with Helm charts.', to: 'Cloud Computing course (USP)', newExp: true },
+  ]
+  const EXPERIENCES = ['Visio AI', 'IAAS!', 'Study Rats', 'Attendance Control App', 'Semcomp website', 'Automated BI Dashboard', 'Termo']
+
+  // ── Answering: the questions are cards; a popover with Q1–Q4 tabs and next/previous holds the writing ──
+  const LIVE = { answers: {}, dont: {} } // what you type in the live popover (step 3 frame)
+  const STATIC_ANSWERED = { answers: { 1: Q[0].a, 2: Q[1].a, 4: Q[3].a }, dont: { 3: true } }
+  // After "Update drafts": what was sent and where it went. Clicking an answer reopens it to change and resend.
+  const SENT = { answers: { ...STATIC_ANSWERED.answers }, dont: { ...STATIC_ANSWERED.dont }, sent: { ...STATIC_ANSWERED.answers }, sentDont: { ...STATIC_ANSWERED.dont }, to: { 1: 'Visio AI', 2: 'Automated BI Dashboard', 4: 'Cloud Computing course (USP)' }, resent: {} }
+  let ANS = LIVE // the answers the open popover edits: LIVE (step 3) or SENT (step 4)
+  /** Something new to send for this question: a changed answer, a first answer, or a new "I don't have this". */
+  const canSend = (n) => {
+    const text = (SENT.answers[n] || '').trim()
+    if (SENT.dont[n]) return !SENT.sentDont[n]
+    return Boolean(text) && (Boolean(SENT.sentDont[n]) || text !== (SENT.sent[n] || '').trim())
+  }
+  const sendHint = (n) => {
+    if (!canSend(n)) {
+      if (SENT.dont[n]) return ''
+      if (SENT.resent[n]) return 'Sent. The AI is redoing the drafts that use it.'
+      return SENT.sent[n] ? 'Change the answer to resend it.' : 'Write your answer to send it.'
+    }
+    if (SENT.dont[n]) return `Removes what Q${n} added${SENT.to[n] ? ` to ${SENT.to[n]}` : ''}.`
+    return SENT.to[n] && SENT.sent[n] ? `Replaces only what Q${n} added to ${SENT.to[n]}. The rest of its notes stay as they are.` : 'The AI adds it to the experience it is about and drafts a block.'
+  }
+  const sentStatus = (n) => {
+    if (SENT.sentDont[n]) return '<span class="ans-sent not">Not added: you don’t have it</span>'
+    if (!SENT.to[n]) return '<span class="ans-sent">✓ Sent: the AI is choosing where it goes</span>'
+    return `<span class="ans-sent">✓ ${SENT.resent[n] ? 'Resent to' : 'Added to'} ${esc(SENT.to[n])}</span>`
+  }
+  const ASK_SRC = { 1: 'rag', 2: 'evals', 3: 'kafka', 4: 'k8s' } // the posting sentence behind each question
+  const ansState = (n, state) => (state.dont[n] ? 'dont' : (state.answers[n] || '').trim() ? 'done' : 'empty')
+  const qCard = (q, state) => {
+    const st = ansState(q.n, state)
+    const label = st === 'done' ? '✓ Answered' : st === 'dont' ? 'Don’t have it' : 'Answer ›'
+    const line = st === 'done' ? `<span class="q-ans">“${esc(state.answers[q.n].trim())}”</span>` : ''
+    const hint = q.n === 1 && st === 'empty' ? '<span class="q-hint">Can fill the gap in the BI Dashboard draft.</span>' : ''
+    return `<button class="q-card" type="button" data-ans="${q.n}" aria-label="Q${q.n}: ${esc(label)}"><span class="q-n">Q${q.n}</span><span class="q-body"><span class="q-text">${esc(q.q)}</span>${line}${hint}<span class="q-st ${st}">${label}</span></span></button>`
+  }
+  const ansPopover = (n, state = LIVE) => {
+    const q = Q[n - 1]
+    const dont = Boolean(state.dont[n])
+    const src = SOURCE[ASK_SRC[n]]
+    const [s, i] = src.at[0]
+    return `<div class="a-pop ans-pop" data-ans-pop="${n}">
+      <div class="req-h"><h3>Questions about the gaps</h3><button class="x" type="button" data-close aria-label="Close">×</button></div>
+      <div class="ans-tabs" role="tablist" aria-label="Questions">${Q.map((x) => `<button class="ans-tab ${ansState(x.n, state)}${x.n === n ? ' on' : ''}" type="button" role="tab" aria-selected="${x.n === n}" data-ans-go="${x.n}"><span class="dot"></span>Q${x.n}</button>`).join('')}<span class="sp"></span><span class="ans-count">${n} of ${Q.length}</span></div>
+      <p class="ans-q">${esc(q.q)}</p>
+      <div class="ans-why"><div class="ans-why-h"><span class="pv-k">The job says</span><button class="a-link2" type="button" data-posting="${ASK_SRC[n]}" data-back-q="${n}">Open job posting</button></div><q>${keyMark(POSTING.sections[s][1][i], src.keys)}</q></div>
+      <textarea class="a-ta ans-ta" data-ans-text aria-label="Your answer to Q${n}"${dont ? ' disabled' : ''} placeholder="${dont ? 'You don’t have it: the AI won’t draft this.' : 'In your own words: what you did, where, with which tools, and what came out of it. Numbers help.'}">${esc(state.answers[n] || '')}</textarea>
+      <div class="ans-tools"><div class="a-chips"><button type="button" class="a-chip-btn" data-chip="Something I did">+ Something I did</button><button type="button" class="a-chip-btn" data-chip="A number or result">+ A number or result</button><button type="button" class="a-chip-btn" data-chip="What was hard">+ What was hard</button></div>
+        <label class="ans-dont"><input type="checkbox" data-ans-dont${dont ? ' checked' : ''}>I don’t have this</label></div>
+      ${state === SENT ? `<div class="foot">${sentStatus(n)}<span class="sp"></span><span class="ans-hint" data-send-hint>${esc(sendHint(n))}</span><button class="a-btn p" type="button" data-resend="${n}"${canSend(n) ? '' : ' disabled'}>${SENT.sent[n] ? 'Resend' : 'Send'} Q${n}</button></div>`
+        : `<div class="foot"><button class="a-btn" type="button" data-ans-go="${n - 1}"${n === 1 ? ' disabled' : ''}>← ${n > 1 ? 'Q' + (n - 1) : 'Previous'}</button><span class="sp"></span><span class="ans-kbd"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> next</span>
+        ${n < Q.length ? `<button class="a-btn p" type="button" data-ans-go="${n + 1}">Next: Q${n + 1} →</button>` : '<button class="a-btn p" type="button" data-close>Done</button>'}</div>`}
+    </div>`
+  }
+
+  // [status, requirement, the AI's explanation, key into SOURCE / REQS]
+  const REQ_BEFORE = [
+    ['part', 'RAG pipelines in production', 'BI Dashboard (LLM pipeline) shows LLM integration using Gemini to process CRM leads, but RAG architecture is not explicitly detailed.', 'rag'],
+    ['miss', 'Vector databases (pgvector or similar)', 'PostgreSQL and Supabase are used across Visio AI, IAAS! and BI Dashboard, but pgvector or vector databases are not mentioned.', 'vector'],
+    ['miss', 'LLM evaluation (offline evals, regression sets)', 'No block or experience notes mention offline LLM evaluation or regression test sets.', 'evals'],
+    ['miss', 'Event streaming with Kafka', 'No experience in the library mentions Kafka or event streaming tools.', 'kafka'],
+    ['part', 'Kubernetes deployments', 'Attendance Control App and Termo show Docker containerization and cloud deployments, but Kubernetes is not mentioned.', 'k8s'],
+    ['cov', 'Mentoring junior engineers and team leadership', 'Study Rats highlights leading a 7-engineer team; Attendance Control App shows setting standards for a 4-engineer team.', 'lead'],
+    ['cov', 'Python and TypeScript proficiency', 'Visio AI and BI Dashboard show Python; Semcomp website and Termo show TypeScript.', 'pyts'],
+  ]
+  const REQ_AFTER = [
+    ['cov', 'RAG pipelines in production', 'Covered in Visio AI with a RAG prototype over invoice data.', 'rag'],
+    ['cov', 'Vector databases (pgvector or similar)', 'Covered in Visio AI using pgvector in Supabase.', 'vector'],
+    ['cov', 'LLM evaluation (offline evals, regression sets)', 'Covered in BI Dashboard with a 50-question regression set.', 'evals'],
+    ['miss', 'Event streaming with Kafka', 'You don’t have it, so nothing was drafted for it.', 'kafka'],
+    ['cov', 'Kubernetes deployments', 'Covered by your Cloud Computing course project on GKE.', 'k8s'],
+    ['cov', 'Mentoring junior engineers and team leadership', 'Study Rats: leading a 7-engineer team.', 'lead'],
+    ['cov', 'Python and TypeScript proficiency', 'Visio AI and BI Dashboard (Python); Semcomp website (TypeScript).', 'pyts'],
+  ]
+  // Where each requirement shows up in your blocks, before and after your answers: [block, words to highlight].
+  const JOB_HITS = {
+    before: {
+      rag: [['biEarly', ['LLM-backed insights pipeline', 'using Gemini']]],
+      k8s: [['attendance', ['Containerized the full application with Docker']], ['termo', ['with Docker and deploying via CI/CD pipelines']]],
+      lead: [['rats', ['Led a 7-engineer team']], ['attendance', ['Defined development standards for a 4-engineer team']]],
+      pyts: [['visioBase', ['19 Python scripts across 4 repos']], ['biEarly', ['Python processing']], ['semcomp', ['React, TypeScript, Express']]],
+    },
+    after: Object.fromEntries(REQS.map((r) => [r.key, r.hits])),
+  }
+  const ASKED_IN = { rag: 1, vector: 1, evals: 2, kafka: 3, k8s: 4 } // the question the AI asks about each gap
+  /** The short line under a requirement: the blocks that show it, or what is missing and which question asks. */
+  const jobReqLine = (st, key, phase) => {
+    const names = (JOB_HITS[phase][key] ?? []).map(([id]) => V[id].block).join(', ')
+    if (st === 'cov') return names
+    if (phase === 'after') return 'You don’t have it · add an experience'
+    return [names || 'Nothing in your blocks yet', ASKED_IN[key] ? `Q${ASKED_IN[key]} asks about it` : ''].filter(Boolean).join(' · ')
+  }
+
+  // ── Pieces of the app ──
+  const NAV = [['compose', 'Compose CV'], ['exp', 'Experiences'], ['beh', 'Behavioral'], ['jobs', 'Jobs'], ['analysis', 'Job analysis'], ['learned', 'What the AI learned'], ['blocks', 'Blocks']]
+  const nav = (active = 'analysis') => `<aside class="a-nav" aria-hidden="true"><div class="a-brand"><span class="a-logo">af</span>apply-for-me</div>
+    ${NAV.map(([k, t]) => `<div class="a-link${k === active ? ' on' : ''}">${svg(k)}${t}</div>`).join('')}
+    <div class="a-group">PROFILE</div>
+    <div class="a-link">${svg('edu')}Education</div><div class="a-link">${svg('skills')}Technical Skills</div><div class="a-link">${svg('ach')}Leadership &amp; Achievements</div>
+    <div class="a-foot"><span class="a-dot"></span>Gemini API connected</div></aside>`
+
+  const STEP_NAMES = ['Read posting', 'Compare with blocks', 'Your input', 'Drafts', 'Review & save']
+  const steps = (cur) => `<div class="a-steps">${STEP_NAMES.map((s, i) => {
+    const state = i < cur ? 'done' : i === cur ? 'cur' : ''
+    return `<span class="a-step ${state}"><i>${i < cur ? '✓' : i + 1}</i>${esc(s)}</span>`
+  }).join('')}</div>`
+
+  const jobLine = (mode) => {
+    if (mode === 'none') return ''
+    if (mode === 'resumed') return `<div class="a-jobline">Job <b>${esc(JOB)}</b><span class="a-chip">${svg('link')}jobs.exampleco.com</span><span class="a-last">Last analysis: Nov 7, 10:42 · saved with the job</span><span class="a-btn sm">${svg('spark')}Analyze again</span></div>`
+    if (mode === 'creating') return `<div class="a-jobline">Job <span class="a-skel" style="width:210px"></span><span class="a-skel" style="width:120px"></span><span>The AI is filling in the job from the posting…</span></div>`
+    return `<div class="a-jobline">Job <b>${esc(JOB)}</b><span class="a-chip">${svg('link')}jobs.exampleco.com</span><span>Filled in by the AI from the posting</span></div>`
+  }
+  const head = (job) => `<div class="a-head"><div><div class="a-eyebrow">JOB ANALYSIS</div><div class="a-title">Turn a job posting into blocks</div></div></div>${jobLine(job)}`
+  const app = (main, overlay = '', active = 'analysis') => `<div class="app">${nav(active)}<main class="a-main">${main}</main>${overlay}</div>`
+
+  const reqPanel = (list) => {
+    if (!list) return `<section class="a-panel"><h3>What the job asks for</h3><p class="a-sub">The AI lists what the job asks for and which of your blocks show it.</p></section>`
+    // Same shape as "This CV": grouped, each requirement opens what the job says and how your blocks cover it.
+    const phase = list === REQ_AFTER ? 'after' : 'before'
+    const n = (k) => list.filter((r) => r[0] === k).length
+    const icon = { cov: ['met', '✓'], part: ['part', '–'], miss: ['not', '×'] }
+    const group = (k, label) => (n(k) ? `<p class="a-reqs-sub">${label}</p><ul class="a-reqs">${list.map((r, i) => [r, i]).filter(([r]) => r[0] === k)
+      .map(([[st, name, , key], i]) => `<li><button class="a-req-btn${st === 'cov' ? '' : ' not'}" type="button" data-jobreq="${phase}:${i}" aria-label="${esc(name)}: see how ${st === 'cov' ? 'it is' : 'it is not'} covered"><span class="ic ${icon[st][0]}">${icon[st][1]}</span><span>${esc(name)}<small>${esc(jobReqLine(st, key, phase))}</small></span><span class="chev">›</span></button></li>`).join('')}</ul>` : '')
+    return `<section class="a-panel a-sum"><h3>What the job asks for</h3>
+      <h4>Requirements <span class="ct">· ${n('cov')} of ${list.length} covered${n('part') ? ` · ${n('part')} partial` : ''}</span></h4>
+      ${group('cov', 'Covered')}${group('part', 'Partial')}${group('miss', 'Missing')}
+    </section>`
+  }
+
+  // Step 4: where each answer went. Clicking one reopens it in the popover, to change it and resend only that question.
+  const FILED_WHAT = { 1: 'RAG prototype with pgvector in Supabase', 2: '50-question LLM regression set', 4: '3-service app on GKE with Helm' }
+  const TOPIC = { 1: 'RAG', 2: 'LLM evaluation', 3: 'Kafka', 4: 'Kubernetes' }
+  const clip = (s, max = 52) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s)
+  const donePanel = () => {
+    const added = Q.filter((q) => !SENT.sentDont[q.n] && SENT.sent[q.n]).map((q) => q.n)
+    const notAdded = Q.filter((q) => SENT.sentDont[q.n]).map((q) => q.n)
+    const plural = (k) => `${k} answer${k === 1 ? '' : 's'}`
+    const row = (n) => {
+      const what = SENT.resent[n] || !FILED_WHAT[n] ? `“${clip(SENT.sent[n].trim())}”` : FILED_WHAT[n]
+      return `<button class="a-filed-row edit" type="button" data-resend-open="${n}" aria-label="Q${n}: see your answer, change it and resend it"><span class="ex">${svg('exp')}</span><span><b>${esc(SENT.to[n] ?? 'The AI is choosing a place')}${n === 4 && SENT.to[n] ? '<span class="a-badge">NEW</span>' : ''}</b><small>Q${n}${SENT.resent[n] ? ' · resent' : ''} · ${esc(what)}</small></span><span class="ed">Edit ›</span></button>`
+    }
+    const skip = (n) => `<button class="a-filed-row skip" type="button" ${n === 3 ? 'data-req="kafka"' : `data-resend-open="${n}"`} aria-label="${TOPIC[n]} was not added: add an experience that shows it"><span class="ex">!</span><span><b>${TOPIC[n]} · not added</b><small>Q${n} · You said you don’t have it. Have you done it since?</small></span><span class="go">+ Add experience</span></button>`
+    return `<section class="a-panel"><h3>Questions about the gaps</h3><p class="a-sub">Click an answer to see it, change it and resend it.</p><div class="a-sep"></div>
+      <div class="a-filed" style="border-top:0;padding-top:0">
+        ${added.length ? `<p class="a-filed-h"><i>✓</i>${plural(added.length)} added to your Experiences</p>${added.map(row).join('')}` : ''}
+        ${notAdded.length ? `<p class="a-filed-h not"><i>!</i>${plural(notAdded.length)} not added</p>${notAdded.map(skip).join('')}` : ''}
+      </div></section>`
+  }
+
+  const qPanel = (mode) => {
+    const sub = '<p class="a-sub">Answer what you can. Skip the rest. When you send, the AI adds each answer to the experience it is about.</p>'
+    if (mode === 'empty') return `<section class="a-panel"><h3>Questions about the gaps</h3>${sub}<div class="a-sep"></div><p class="a-sub">The AI asks here instead of guessing what you did.</p></section>`
+    if (mode === 'done') return donePanel()
+    const state = mode === 'blank' ? LIVE : STATIC_ANSWERED
+    const count = Q.filter((q) => ansState(q.n, state) !== 'empty').length
+    return `<section class="a-panel"><h3>Questions about the gaps</h3>${sub}
+      <p class="q-progress">${count} of ${Q.length} answered · click a question to answer it</p>
+      ${Q.map((q) => qCard(q, state)).join('')}
+      <span class="a-btn p${count ? '' : ' dis'}">${svg('spark')}Update drafts with my answers</span></section>`
+  }
+
+  const bulletList = (v) => `<ul>${v.bullets.map(([k, t, want, hint]) => k === 'MISSING'
+    ? `<li><span class="a-kind k-M">${KINDS[want || 'IMPACT']}</span><span class="a-gap">[${esc(hint || 'Impact: what came out of it?')}]</span></li>`
+    : `<li><span class="a-kind ${kindClass(k)}">${KINDS[k]}</span><span>${esc(t)}</span></li>`).join('')}</ul>`
+
+  /** "✓ 2 requirements": hover or focus shows which requirements of the job this block helps match, and how. */
+  const matchChip = (id) => {
+    const list = MATCHES[id] ?? []
+    if (!list.length) return `<span class="a-match none" tabindex="0">No requirement<span class="a-tip" role="tooltip">${esc(NO_MATCH[id] ?? 'No requirement of this job.')}</span></span>`
+    const full = list.filter((m) => m[2] !== 'part').length
+    const part = list.length - full
+    const label = `✓ ${full} requirement${full === 1 ? '' : 's'}${part ? ` <span class="pt">· ${part} partly</span>` : ''}`
+    return `<span class="a-match" tabindex="0">${label}<span class="a-tip" role="tooltip"><b>Helps match</b><ul>${list.map(([r, how, p]) => `<li><span class="st${p ? ' part' : ''}">${p ? '–' : '✓'}</span><span>${esc(r)}<small>${esc(how)}</small></span></li>`).join('')}</ul></span></span>`
+  }
+
+  /** A block for this CV, written out in full: a new version or block (Keep / Edit / Discard), or one used as is. */
+  const draftCard = (id, asIs = false) => {
+    const v = V[id]
+    const tag = asIs ? `<span class="a-asis">AS IS</span>${esc(v.block)} · version “${esc(v.version)}”` : `<span class="a-new">${v.newBlock ? 'NEW BLOCK' : 'NEW VERSION'}</span>${v.newBlock ? '' : 'of ' + esc(v.block)}`
+    const actions = `${asIs ? '' : '<span class="a-keep"><i>✓</i>Keep</span>'}<button class="a-icon pen" type="button" data-edit="${id}" aria-label="Edit ${esc(v.block)}">${svg('pen')}</button><span class="a-icon" aria-hidden="true" title="${asIs ? 'Leave out of this CV' : 'Discard'}">${svg('x')}</span>`
+    return `<div class="a-draft${asIs ? ' asis' : ''}"><div class="top">${tag}<span class="sp"></span>${actions}</div>
+      ${v.improves ? `<div><span class="a-improve">${esc(v.improves)}</span></div>` : ''}<h4>${esc(v.title)}</h4>${bulletList(v)}
+      ${asIs ? '' : `<p class="why">${esc(v.why)}</p>`}<div class="bottom">${matchChip(id)}</div></div>`
+  }
+
+  const madePanel = (mode) => {
+    const foot = (n) => `<div class="a-ask"><div>Ask for changes, e.g. shorter bullets, lead with Gemini</div><span class="a-icon" aria-hidden="true">${svg('spark')}</span></div>
+      <span class="a-btn ${n ? 'p' : 'dis'}">${n ? 'Review the CV' : 'Nothing to review yet'}</span>`
+    if (mode === 'empty') return `<section class="a-panel"><h3>Blocks for this CV <small>Nothing yet</small></h3><p class="a-sub">The blocks this CV will use appear here, written out: new versions the AI writes (Keep, Edit, Discard) and the ones that already fit, as they are.</p>${foot(0)}</section>`
+    if (mode === 'waiting') return `<section class="a-panel"><h3>Blocks for this CV <small>1 new version · 3 as is</small></h3>
+      ${draftCard('biEarly')}${draftCard('visioBase', true)}${draftCard('rats', true)}${draftCard('semcomp', true)}
+      ${foot(1)}</section>`
+    return `<section class="a-panel"><h3>Blocks for this CV <small>2 new versions · 1 new block · 3 as is</small></h3>
+      ${draftCard('visioNew')}${draftCard('biNew')}${draftCard('k8sNew')}${draftCard('iaas', true)}${draftCard('rats', true)}${draftCard('semcomp', true)}
+      ${foot(3)}</section>`
+  }
+
+  const placeSelect = (q, chosen) => `<select aria-label="Experience for Q${q}">${EXPERIENCES.map((e) => `<option${e === chosen ? ' selected' : ''}>${esc(e)}</option>`).join('')}<option>New experience…</option></select>`
+  const placePopover = () => `<div class="a-scrim"><div class="a-pop" role="dialog" aria-label="Check where your answers go">
+    <h3>Check where your answers go</h3>
+    <p class="a-sub">The AI read your answers and placed two of them. Change a place if you want. One answer still needs one.</p>
+    <div><p class="a-pl-label">Placed by the AI</p><div class="a-pl-list">
+      <div class="a-pl"><span class="qn">✓ Q1</span><span class="tx" title="${esc(Q[0].a)}">${esc(Q[0].a)}</span>${placeSelect(1, 'Visio AI')}</div>
+      <div class="a-pl"><span class="qn">✓ Q2</span><span class="tx" title="${esc(Q[1].a)}">${esc(Q[1].a)}</span>${placeSelect(2, 'Automated BI Dashboard')}</div>
+    </div></div>
+    <div class="a-need"><p class="a-pl-label need">Needs a place</p>
+    <div class="a-quote"><span>Q4 · Kubernetes · the AI couldn’t tell which experience this is about</span>${esc(Q[3].a)}</div>
+    <div class="a-choices">
+      ${EXPERIENCES.map((e, i) => `<label class="a-choice"><input type="radio" name="place-q4" value="${i}">${esc(e)}</label>`).join('')}
+      <label class="a-choice newexp"><input type="radio" name="place-q4" value="new" checked>New experience <span class="field">Cloud Computing course (USP)</span><small>The AI suggested this name from your answer. You can change it.</small></label>
+    </div></div>
+    <div class="foot"><button class="a-link-btn" type="button">Not now: keep it in “Answers to the AI’s questions”</button><span class="sp"></span><span class="a-btn p">Add and update drafts</span></div>
+  </div></div>`
+
+  const editDialog = (id, live) => {
+    const v = V[id]
+    const meta = v.project ? v.stack : [v.org, v.loc, v.dates].join(' · ')
+    const rows = v.bullets.map(([k, t, want, hint], i) => `<div class="a-row" data-i="${i}">
+      <select aria-label="Kind of bullet ${i + 1}" class="${kindClass(k === 'MISSING' ? 'MISSING' : k)}">${Object.entries(KINDS).filter(([key]) => key !== 'MISSING').map(([key, label]) => `<option value="${key}"${(k === 'MISSING' ? want || 'IMPACT' : k) === key ? ' selected' : ''}>${label}</option>`).join('')}</select>
+      <span class="bul">•</span>
+      <textarea rows="1" aria-label="Bullet ${i + 1}"${k === 'MISSING' ? ` class="gap" placeholder="[${esc(hint || 'Impact: what came out of it?')}] Not printed until you write it."` : ''}>${esc(t)}</textarea>
+      <span class="tools"><button type="button" data-move="-1" aria-label="Move up">▲</button><button type="button" data-move="1" aria-label="Move down">▼</button><button type="button" data-del aria-label="Delete bullet">🗑</button></span></div>`).join('')
+    const forJob = v.isNew ? (v.newBlock ? 'A new block' : 'A new version for this job') : 'A new version for this job'
+    return `<div class="a-dlg" data-id="${id}">
+      <div class="hd"><b>Edit ${esc(v.block)}</b><span>version “${esc(v.version)}”${v.isNew ? ' · new' : ''}</span><span class="legend"><b class="lp">P</b> project · <b>S</b> stack · <b class="li">I</b> impact</span><button class="x" type="button" data-close aria-label="Close">×</button></div>
+      <div class="bd">
+        <input class="ttl" value="${esc(v.title)}" aria-label="Title">
+        <p class="meta">${esc(meta)}</p>
+        <div class="rows">${rows}</div>
+        <button class="a-addb" type="button" data-add>+ Add bullet</button>
+        <div class="a-saveas"><span>Save as</span><div class="opts">
+          <label class="a-opt"><input type="radio" name="saveas-${live ? 'live' : 'still'}" checked><span><b>${forJob}</b><small>Named “${esc(v.newBlock ? 'Base' : JOB)}” · saved with the CV at the end</small></span></label>
+          ${v.newBlock ? '' : `<label class="a-opt"><input type="radio" name="saveas-${live ? 'live' : 'still'}"><span><b>Update “${esc(v.updateName)}”</b><small>Changes it in every CV that uses it</small></span></label>`}
+        </div></div>
+      </div>
+      <div class="ft"><span class="sp">No changes yet.</span><button class="a-btn" type="button" data-close>Cancel</button><button class="a-btn p" type="button" data-done>Done</button></div>
+    </div>`
+  }
+
+  const cvBlock = (id) => {
+    const v = V[id]
+    const bullets = v.bullets.filter(([k, t]) => k !== 'MISSING' && t.trim())
+    const headRows = v.project
+      ? `<div class="r"><span><b>${esc(v.title.split(' — ')[0])}</b>${v.title.includes(' — ') ? ' — ' + esc(v.title.split(' — ').slice(1).join(' — ')) : ''} | <i>${esc(v.stack)}</i></span></div>`
+      : `<div class="r"><b>${esc(v.title)}</b><span>${esc(v.dates)}</span></div><div class="r"><i>${esc(v.org)}</i><i>${esc(v.loc)}</i></div>`
+    return `<div class="cv-block${v.isNew ? ' new' : ''}" tabindex="0" data-edit-dbl="${id}" title="Double-click to edit">${headRows}<ul>${bullets.map(([, t]) => `<li>${esc(t)}</li>`).join('')}</ul></div>`
+  }
+
+  const cvPage = () => `<article class="cv" aria-label="CV for ${esc(JOB)}">
+    <div class="nm">Guilherme Motta Tranche</div><div class="ct">e-mail · <u>LinkedIn</u> · <u>GitHub</u></div>
+    <h5>Education</h5><div class="r"><b>Bachelor of Information Systems</b><span>March 2024 – December 2027</span></div><div class="r"><i>University of São Paulo</i><i>São Carlos, SP</i></div>
+    <h5>Experience</h5>${CV.experience.map(cvBlock).join('')}
+    <h5>AI &amp; Automation Projects</h5>${CV.projects.map(cvBlock).join('')}
+    <h5>Technical Skills</h5><div class="sk"><b>Languages:</b><span>Python, JavaScript, TypeScript, C#, HTML, CSS, Java, C/C++, Swift</span><b>Frameworks:</b><span>React, React Native, Next.js, Node.js, Express.js, Angular, .NET, Tailwind, Material-UI</span><b>Tools:</b><span>Git, Docker, AWS, Supabase, BigQuery, Netlify, PostgreSQL, MongoDB/Atlas, PrismaORM, CI/CD, Swagger</span></div>
+  </article>`
+
+  const review = (saved) => `<div class="a-review">
+    <section class="a-panel a-sum"><h3>This CV</h3>
+      <h4>Requirements <span class="ct">· ${REQS.length} of ${REQS.length + NOT_MET.length} met</span></h4>
+      <p class="a-reqs-sub">Met</p>
+      <ul class="a-reqs">${REQS.map((r) => `<li><button class="a-req-btn" type="button" data-req="${r.key}" aria-label="${esc(r.name)}: see where the CV shows it"><span class="ic met">✓</span><span>${esc(r.name)}<small>${esc(r.hits.map(([id]) => V[id].block).join(', '))}</small></span><span class="chev">›</span></button></li>`).join('')}</ul>
+      <p class="a-reqs-sub">Not met</p>
+      <ul class="a-reqs">${NOT_MET.map((r) => `<li><button class="a-req-btn not" type="button" data-req="${r.key}" aria-label="${esc(r.name)}: add an experience that shows it"><span class="ic not">×</span><span>${esc(r.name)}<small>Add an experience that shows it</small></span><span class="chev">›</span></button></li>`).join('')}</ul>
+      ${blockList()}
+    </section>
+    <div class="a-stage">
+      <div class="a-stage-bar"><span class="sp">${saved ? 'Saved. Double-click a block to edit it again.' : 'Double-click a block to edit it.'}</span><span class="a-seg"><span class="on">1 page</span><span>2 pages</span></span>${saved ? '<span class="a-btn">Open in Compose CV</span>' : '<span class="a-btn">Back to drafts</span><span class="a-btn p">Save 3 versions and the CV</span>'}</div>
+      ${cvPage()}
+    </div>
+  </div>`
+
+  // ── "Check where your answers go": three layouts to choose from (A list that opens, B list + detail, C one at a time) ──
+  const PQ = [
+    { id: 'q4', n: 4, topic: 'Kubernetes', q: Q[3].q, a: Q[3].a, ai: null, why: 'The AI couldn’t tell: none of your experiences mentions this course or Kubernetes.', suggest: 'Cloud Computing course (USP)' },
+    { id: 'q1', n: 1, topic: 'RAG and vector databases', q: Q[0].q, a: Q[0].a, ai: 'Visio AI', also: ['Automated BI Dashboard'], why: 'The AI chose Visio AI because your answer says it happened there.' },
+    { id: 'q2', n: 2, topic: 'LLM evaluation', q: Q[1].q, a: Q[1].a, ai: 'Automated BI Dashboard', also: ['Visio AI'], why: 'The AI chose Automated BI Dashboard because your answer is about its prompts.' },
+  ]
+  // `pk`: the question whose "Goes to" list is open (null = closed, the default).
+  const PV = { A: { open: 'q4', dest: {}, query: '', names: {}, pk: null }, B: { open: 'q4', dest: {}, query: '', names: {}, pk: null }, C: { open: 'q4', dest: {}, query: '', names: {}, pk: null } }
+  // Your 7 experiences plus 5 from your achievements: the picker has to stay the same size with 12, or 50.
+  const ALL_EXP = [...EXPERIENCES, 'Author of “How to Pass Any Exam”', 'Mathematics Olympiads', 'Forró Dance Teacher', 'Scientific Initiation PIBIC 2023', 'Manager — Education Guardians']
+  const newName = (v, q) => PV[v].names[q.id] ?? q.suggest ?? ''
+  const destOf = (v, q) => PV[v].dest[q.id] ?? q.ai ?? ''
+  const status = (v, q) => {
+    const d = destOf(v, q)
+    if (!d) return { cls: 'need', icon: '!', text: 'Needs a place' }
+    const text = d === 'new' ? `${newName(v, q) || 'New experience'} (new)` : d
+    return q.ai && d === q.ai ? { cls: 'ai', icon: '✓', text } : { cls: 'you', icon: '✓', text }
+  }
+  /**
+   * "Goes to" starts closed: one line with where the answer goes. Clicking it opens the fixed-height list below:
+   * search, the AI's suggestions first, every experience A–Z scrolling inside itself, "New experience" pinned.
+   */
+  const picker = (v, q) => {
+    const d = destOf(v, q)
+    const isOpen = PV[v].pk === q.id
+    const label = !d ? 'Choose an experience' : d === 'new' ? newName(v, q) || 'New experience' : d
+    const tag = d === 'new' ? '<span class="a-badge">NEW</span>' : d && d === q.ai ? '<span class="a-aipick">AI’S PICK</span>' : ''
+    const trigger = `<button class="pk-trigger${d ? '' : ' need'}" type="button" data-pk-toggle="${v}" data-q="${q.id}" aria-expanded="${isOpen}"><span class="pk-val">${esc(label)}</span>${tag}<span class="pk-chev" aria-hidden="true">${isOpen ? '▲' : '▼'}</span></button>`
+    if (!isOpen) {
+      return trigger + (!d && q.suggest ? `<p class="pk-sugg">The AI suggests a new experience: <b>${esc(q.suggest)}</b><button class="pk-use" type="button" data-pk-use="${v}" data-q="${q.id}">Use it</button></p>` : '')
+    }
+    const query = (PV[v].query || '').trim().toLowerCase()
+    const sugg = [q.ai, ...(q.also || [])].filter(Boolean)
+    const rest = ALL_EXP.filter((e) => !sugg.includes(e)).sort((a, b) => a.localeCompare(b))
+    const shown = (e) => !query || e.toLowerCase().includes(query)
+    const opt = (e, tag = '') => `<label class="pk-opt" data-name="${esc(e.toLowerCase())}"${shown(e) ? '' : ' hidden'}><input type="radio" name="pv-${v}-${q.id}" data-pv="${v}" data-q="${q.id}" value="${esc(e)}"${d === e ? ' checked' : ''}><span>${esc(e)}</span>${tag}</label>`
+    const any = ALL_EXP.some(shown)
+    return `${trigger}<div class="pk" data-v="${v}" data-q="${q.id}">
+      <div class="pk-search">${svg('search')}<input type="search" value="${esc(PV[v].query || '')}" placeholder="Search ${ALL_EXP.length} experiences" aria-label="Search your experiences" data-pk-search></div>
+      <div class="pk-list" role="radiogroup" aria-label="Experience for Q${q.n}">
+        <p class="pk-group"${query ? ' hidden' : ''}>Suggested by the AI</p>
+        ${sugg.length ? sugg.map((e, i) => opt(e, i === 0 ? '<span class="a-aipick">AI’S PICK</span>' : '<span class="pk-also">also fits</span>')).join('') : `<p class="pk-none"${query ? ' hidden' : ''}>None of your experiences fits. The AI suggests a new one, below.</p>`}
+        <p class="pk-group"${query ? ' hidden' : ''}>All experiences</p>
+        ${rest.map((e) => opt(e)).join('')}
+        <p class="pk-empty"${any ? ' hidden' : ''}>No experience matches. Create it as a new one, below.</p>
+      </div>
+      <label class="pk-new"><input type="radio" name="pv-${v}-${q.id}" data-pv="${v}" data-q="${q.id}" value="new"${d === 'new' ? ' checked' : ''}><span>New experience</span><input class="pk-new-name" type="text" value="${esc(newName(v, q))}" placeholder="Name it" aria-label="Name of the new experience" data-pk-newname></label>
+    </div>${q.suggest ? '<p class="pk-note">The AI suggested the new name from your answer. You can change it.</p>' : ''}`
+  }
+  const detail = (v, q) => `<div class="pv-detail">
+    <div class="pv-field"><span class="pv-k">Question</span><p>${esc(q.q)}</p></div>
+    <div class="pv-field"><span class="pv-k">Your answer</span><p class="pv-ans">${esc(q.a)}</p></div>
+    <div class="pv-field"><span class="pv-k">Goes to</span><p class="pv-why">${esc(q.why)}</p>${picker(v, q)}</div></div>`
+  const pvHead = () => `<div class="req-h"><h3>Check where your answers go</h3><button class="x" type="button" aria-label="Close">×</button></div>
+    <p class="a-sub">The AI placed ${PQ.filter((q) => q.ai).length} of your ${PQ.length} answers. Click a question to see your answer and change where it goes.</p>`
+  const skipRow = (side = false) => side
+    ? `<div class="pv-skip"><span class="pv-ic skip">–</span><span><b>Q3</b>Kafka<small>You don’t have it: nothing to add.</small></span></div>`
+    : `<div class="pv-skip"><span class="pv-ic skip">–</span><span><b>Q3</b>Kafka</span><span>You don’t have it: nothing to add.</span></div>`
+  const pvFoot = (v) => {
+    const missing = PQ.filter((q) => !destOf(v, q))
+    return `<div class="foot"><button class="a-link-btn" type="button">Not now: keep ${missing.length ? 'it' : 'them'} in “Answers to the AI’s questions”</button><span class="sp"></span>${missing.length ? `<span class="pv-hint">Pick a place for ${missing.map((q) => 'Q' + q.n).join(', ')}</span>` : ''}<span class="a-btn p${missing.length ? ' dis' : ''}">Add and update drafts</span></div>`
+  }
+  const popA = () => `<div class="a-scrim"><div class="a-pop pv pv-a" role="dialog" aria-label="Check where your answers go">${pvHead()}<div class="pv-list">
+    ${PQ.map((q) => {
+      const open = PV.A.open === q.id
+      const s = status('A', q)
+      return `<div class="pv-item${open ? ' on' : ''}"><button class="pv-row" type="button" data-pv-open="A" data-q="${q.id}" aria-expanded="${open}"><span class="pv-ic ${s.cls}">${s.icon}</span><span class="pv-q"><b>Q${q.n}</b>${esc(q.topic)}</span><span class="pv-dest ${s.cls}">${esc(s.text)}</span><span class="pv-chev">${open ? '▲' : '▼'}</span></button>${open ? detail('A', q) : ''}</div>`
+    }).join('')}${skipRow()}</div>${pvFoot('A')}</div></div>`
+  const popB = () => {
+    const sel = PQ.find((q) => q.id === PV.B.open) ?? PQ[0]
+    const ss = status('B', sel)
+    return `<div class="a-scrim"><div class="a-pop pv pv-b" role="dialog" aria-label="Check where your answers go">${pvHead()}<div class="pv-split">
+      <div class="pv-side">${PQ.map((q) => {
+        const s = status('B', q)
+        return `<button class="pv-side-row${q.id === sel.id ? ' on' : ''}" type="button" data-pv-open="B" data-q="${q.id}" aria-pressed="${q.id === sel.id}"><span class="pv-ic ${s.cls}">${s.icon}</span><span><b>Q${q.n}</b>${esc(q.topic)}<small class="${s.cls}">${esc(s.text)}</small></span></button>`
+      }).join('')}${skipRow(true)}</div>
+      <div class="pv-main"><div class="pv-main-h"><span class="pv-ic ${ss.cls}">${ss.icon}</span>Q${sel.n} · ${esc(sel.topic)}</div>${detail('B', sel)}</div>
+    </div>${pvFoot('B')}</div></div>`
+  }
+  const popC = () => {
+    const i = Math.max(0, PQ.findIndex((q) => q.id === PV.C.open))
+    const q = PQ[i]
+    const s = status('C', q)
+    const last = i === PQ.length - 1
+    const missing = PQ.some((x) => !destOf('C', x))
+    return `<div class="a-scrim"><div class="a-pop pv pv-c" role="dialog" aria-label="Check where your answers go">${pvHead()}
+      <div class="pv-steps">${PQ.map((x, j) => { const sx = status('C', x); return `<button class="pv-dot ${sx.cls}${j === i ? ' on' : ''}" type="button" data-pv-open="C" data-q="${x.id}">Q${x.n} · ${esc(sx.text)}</button>` }).join('')}</div>
+      <div class="pv-card"><div class="pv-card-h"><span class="pv-ic ${s.cls}">${s.icon}</span>Q${q.n} · ${esc(q.topic)}<span class="sp"></span><span class="pv-count">${i + 1} of ${PQ.length}</span></div>${detail('C', q)}</div>
+      ${skipRow()}
+      <div class="foot">${i > 0 ? `<button class="a-btn" type="button" data-pv-open="C" data-q="${PQ[i - 1].id}">← Q${PQ[i - 1].n}</button>` : '<button class="a-link-btn" type="button">Not now</button>'}<span class="sp"></span>${last ? `${missing ? '<span class="pv-hint">Pick a place for every answer</span>' : ''}<span class="a-btn p${missing ? ' dis' : ''}">Add and update drafts</span>` : `<button class="a-btn p" type="button" data-pv-open="C" data-q="${PQ[i + 1].id}">Next: Q${PQ[i + 1].n} →</button>`}</div>
+    </div></div>`
+  }
+
+  // ── The Jobs screen (proposal): "Analyze again" and renaming a job in place ──
+  const JOBS_UI = { editing: false, company: 'ExampleCo', role: 'Senior GenAI Engineer', renamed: '' }
+  const jobName = (company, role) => (company ? `${company} · ${role}` : role)
+  const OTHER_JOBS = [['iFood · GenAI Engineer', 'linkedin.com · ifood.com.br', 'Saved Nov 3'], ['AWS · Software Developer', 'amazon.jobs · aws.amazon.com', 'Saved Nov 1'], ['Tool Builder', 'No links yet', 'Saved Oct 28'], ['JackBox', 'No links yet', 'Saved Oct 25'], ['Web Full-Stack', 'No links yet', 'Saved Oct 20']]
+  const jobsFrame = () => {
+    const label = jobName(JOBS_UI.company, JOBS_UI.role)
+    const top = JOBS_UI.editing
+      ? `<div class="j-edit" data-jobs-edit><div class="j-edit-row"><input aria-label="Company" placeholder="Company" value="${esc(JOBS_UI.company)}" data-jobs-company><span class="dot">·</span><input aria-label="Role" placeholder="Role" value="${esc(JOBS_UI.role)}" data-jobs-role></div><p class="j-hint">Enter saves · Esc cancels. Versions named “${esc(label)}” get the new name too.</p></div>`
+      : `<div class="j-top"><b>${esc(label)}</b><button class="a-icon pen" type="button" data-jobs-pen aria-label="Rename ${esc(label)}">${svg('pen')}</button></div>`
+    const sel = `<li class="j-item on">${top}<span class="j-sub">CV · 1 page · Saved Nov 7</span>
+      <div class="j-links"><span><i>Job posting</i><u>jobs.exampleco.com ↗</u></span></div>
+      ${JOBS_UI.renamed ? `<p class="a-added">✓ ${esc(JOBS_UI.renamed)}</p>` : ''}
+      <div class="j-acts"><span class="a-btn sm dis">PDF</span><span class="a-btn sm">See behavioral</span><span class="a-btn sm">Open in Compose CV</span><button class="a-btn sm" type="button" data-jobs-again>${svg('spark')}Analyze again</button></div></li>`
+    const others = OTHER_JOBS.map(([l, links, saved]) => `<li class="j-item"><div class="j-top"><b>${esc(l)}</b><small>${esc(saved)}</small></div><span class="j-sub">${esc(links)}</span></li>`).join('')
+    return app(`<div class="j-head"><div><div class="a-eyebrow">JOBS</div><div class="a-title">Every job and the CV for it</div></div></div>
+      <div class="j-row"><section class="j-list"><h3>Jobs</h3><div class="j-search">${svg('search')}Search 6 jobs by company, role or link</div><ul class="j-ul">${sel}${others}</ul></section>
+      <section class="j-cv">${cvPage()}</section></div>`, '', 'jobs')
+  }
+
+  const FRAMES = {
+    start: () => app(`${head('none')}${steps(0)}<div class="a-start"><h3>Paste the link to the job posting</h3>
+      <div class="a-url"><div>${svg('link')}https://jobs.exampleco.com/senior-genai-engineer</div><span class="a-btn p">${svg('spark')}Analyze</span></div>
+      <p class="a-hint">The AI reads the posting and creates the job: company, role and link. Then it compares the job with your blocks.</p>
+      <button class="a-link-btn" type="button">Paste the job text instead</button></div>`),
+    reading: () => app(`${head('creating')}${steps(0)}<p class="a-status">Reading the posting (up to 10 seconds per link)…</p><div class="a-cols">${reqPanel(null)}${qPanel('empty')}${madePanel('empty')}</div>`),
+    compare: () => app(`${head('job')}${steps(1)}<p class="a-status">The AI is comparing the posting with your blocks. This takes a minute or two.</p><div class="a-cols">${reqPanel(null)}${qPanel('empty')}${madePanel('empty')}</div>`),
+    input: () => app(`${head('job')}${steps(2)}<div class="a-cols">${reqPanel(REQ_BEFORE)}${qPanel('blank')}${madePanel('waiting')}</div>`),
+    answer: () => app(`${head('job')}${steps(2)}<div class="a-cols">${reqPanel(REQ_BEFORE)}${qPanel('blank')}${madePanel('waiting')}</div>`, `<div class="a-scrim" inert>${ansPopover(1, { answers: { 1: Q[0].a }, dont: {} })}</div>`),
+    place: () => app(`${head('job')}${steps(3)}<div class="a-cols">${reqPanel(REQ_BEFORE)}${qPanel('answered')}${madePanel('waiting')}</div>`, placePopover()),
+    placeA: () => app(`${head('job')}${steps(3)}<div class="a-cols">${reqPanel(REQ_BEFORE)}${qPanel('answered')}${madePanel('waiting')}</div>`, popA()),
+    placeB: () => app(`${head('job')}${steps(3)}<div class="a-cols">${reqPanel(REQ_BEFORE)}${qPanel('answered')}${madePanel('waiting')}</div>`, popB()),
+    placeC: () => app(`${head('job')}${steps(3)}<div class="a-cols">${reqPanel(REQ_BEFORE)}${qPanel('answered')}${madePanel('waiting')}</div>`, popC()),
+    drafts: () => app(`${head('job')}${steps(3)}<div class="a-cols">${reqPanel(REQ_AFTER)}${qPanel('done')}${madePanel('drafts')}</div>`),
+    edit: () => app(`${head('job')}${steps(3)}<div class="a-cols">${reqPanel(REQ_AFTER)}${qPanel('done')}${madePanel('drafts')}</div>`, `<div class="a-scrim" inert>${editDialog('visioNew', false)}</div>`),
+    review: () => app(`${head('job')}${steps(4)}${review(false)}`),
+    jobs: () => jobsFrame(),
+    resumed: () => app(`${head('resumed')}${steps(3)}<div class="a-cols">${reqPanel(REQ_AFTER)}${qPanel('done')}${madePanel('drafts')}</div>`),
+    saved: () => app(`${head('job')}${steps(5)}<div class="a-ok-banner">✓ Saved 3 to your library and the CV for ${esc(JOB)}.<span class="sp"></span><span class="a-btn sm">Analyze another job</span></div>${review(true)}`),
+  }
+
+  /** The bullet text with the matching words wrapped in <mark>; `hit` says whether any were found. */
+  const markText = (text, phrases) => {
+    const ranges = phrases.map((p) => { const i = text.indexOf(p); return i < 0 ? null : [i, i + p.length] }).filter(Boolean).sort((a, b) => a[0] - b[0])
+    let html = ''
+    let at = 0
+    for (const [s, e] of ranges) {
+      if (s < at) continue
+      html += esc(text.slice(at, s)) + `<mark class="a-mark">${esc(text.slice(s, e))}</mark>`
+      at = e
+    }
+    return { html: html + esc(text.slice(at)), hit: ranges.length > 0 }
+  }
+
+  /** Met: the block(s) of this CV that show the requirement, with the exact words highlighted. */
+  const metPopoverStacked = (r) => `<div class="a-pop">
+    <div class="req-h"><span class="a-met">MET</span><h3>${esc(r.name)}</h3><button class="x" type="button" data-close aria-label="Close">×</button></div>
+    <p class="a-sub">Where this CV shows it: ${r.hits.length} block${r.hits.length === 1 ? '' : 's'}. The highlighted words are what matches.</p>
+    ${r.hits.map(([id, phrases]) => {
+      const v = V[id]
+      const tag = v.isNew ? `<span class="a-new">${v.newBlock ? 'NEW BLOCK' : 'NEW VERSION'}</span>` : `<span class="a-asis">AS IS</span>`
+      const head = v.project ? `<div class="r"><b>${esc(v.title)}</b></div>` : `<div class="r"><b>${esc(v.title)}</b><span>${esc(v.dates)}</span></div>`
+      const marked = v.bullets.filter(([k, t]) => k !== 'MISSING' && t.trim()).map(([, t]) => markText(t, phrases))
+      const lost = marked.some((m) => m.hit) ? '' : '<p class="a-sub">The words that matched were edited. Check that this block still shows it.</p>'
+      return `<div class="a-hl"><div class="src">${tag}${esc(v.block)}<span class="sp"></span><button class="a-btn sm" type="button" data-edit="${id}">Edit block</button></div>${head}<ul>${marked.map((m) => `<li${m.hit ? ' class="hit"' : ''}>${m.html}</li>`).join('')}</ul>${lost}</div>`
+    }).join('')}
+    <div class="foot"><span class="sp"></span><button class="a-btn" type="button" data-close>Close</button></div></div>`
+
+  /** Not met: write down an experience that would meet it; the AI files it and drafts a block for this CV. */
+  const notMetPopover = (r) => `<div class="a-pop src-b" data-notmet="${r.key}">
+    <div class="req-h"><span class="a-notmet">NOT MET</span><h3>${esc(r.name)}</h3><button class="x" type="button" data-close aria-label="Close">×</button></div>
+    <div class="src-cols"><div class="src-col"><span class="pv-k">The posting says</span>${srcQuotes(r.key, true)}<button class="a-link2" type="button" data-posting="${r.key}">See it in the full posting</button></div>
+    <div class="src-col"><span class="pv-k">Add an experience that shows it</span>
+    <p class="a-sub">No block in this CV shows it. ${esc(r.why)} If you have done it since, write it down: the AI adds it to your Experiences and drafts a block for this CV.</p>
+    <label class="a-field">Where did you do it?<select class="a-sel" data-where>${EXPERIENCES.map((e) => `<option>${esc(e)}</option>`).join('')}<option value="new" selected>New experience…</option></select></label>
+    <label class="a-field" data-newname>Name of the new experience<input class="a-in" placeholder="e.g. a personal project, a course, a job"></label>
+    <label class="a-field">What did you do?<textarea class="a-ta" placeholder="What you built with ${esc(r.topic)}, for whom, and what came out of it. Numbers help."></textarea></label>
+    <div class="a-chips"><button type="button" class="a-chip-btn" data-chip="Something I did">+ Something I did</button><button type="button" class="a-chip-btn" data-chip="A number or result">+ A number or result</button><button type="button" class="a-chip-btn" data-chip="What was hard">+ What was hard</button></div>
+    <p class="a-err" data-err hidden>Write what you did first: the AI only uses what you write.</p></div></div>
+    <div class="foot"><button class="a-link-btn" type="button" data-close>Cancel</button><span class="sp"></span><button class="a-btn p" type="button" data-addexp>Add to Experiences and draft a block</button></div></div>`
+
+  // ── The posting, as saved with the job (fictional), and where each requirement comes from in it ──
+  const POSTING = {
+    title: 'Senior GenAI Engineer', meta: 'ExampleCo · São Paulo (hybrid) · Full-time', url: 'jobs.exampleco.com/senior-genai-engineer',
+    sections: [
+      ['About us', ['ExampleCo builds AI assistants that help finance teams close their books faster. Our assistants read invoices, contracts and bank statements and answer questions in plain language.'], 'p'],
+      ['What you will do', [
+        'Design, build and run retrieval-augmented generation (RAG) pipelines in production, from document ingestion to answer quality.',
+        'Own our vector search layer (we use pgvector on PostgreSQL) and keep retrieval fast and accurate.',
+        'Set up offline evaluations and regression sets so every prompt or model change is measured before it ships.',
+        'Work with our platform team on event-driven services built on Kafka.',
+        'Deploy and operate services on Kubernetes.',
+        'Mentor junior engineers through code reviews and pairing.',
+      ], 'ul'],
+      ['Requirements', [
+        '3+ years building backend or data systems in Python; TypeScript is a plus for our internal tools.',
+        'Experience with event streaming (Kafka or similar).',
+        'Comfortable deploying containerized services to Kubernetes.',
+      ], 'ul'],
+      ['Nice to have', ['Experience in fintech or with financial data.'], 'ul'],
+    ],
+  }
+  // [section, line] of every sentence that made the AI list the requirement, and the words to mark in it.
+  const SOURCE = {
+    rag: { at: [[1, 0]], keys: ['retrieval-augmented generation (RAG) pipelines in production'] },
+    vector: { at: [[1, 1]], keys: ['vector search', 'pgvector'] },
+    evals: { at: [[1, 2]], keys: ['offline evaluations and regression sets'] },
+    kafka: { at: [[1, 3], [2, 1]], keys: ['Kafka', 'event streaming'] },
+    k8s: { at: [[1, 4], [2, 2]], keys: ['Kubernetes'] },
+    lead: { at: [[1, 5]], keys: ['Mentor junior engineers'] },
+    pyts: { at: [[2, 0]], keys: ['Python', 'TypeScript'] },
+  }
+  const keyMark = (text, keys) => {
+    const ranges = keys.map((k) => { const i = text.indexOf(k); return i < 0 ? null : [i, i + k.length] }).filter(Boolean).sort((a, b) => a[0] - b[0])
+    let html = ''
+    let at = 0
+    for (const [s, e] of ranges) {
+      if (s < at) continue
+      html += esc(text.slice(at, s)) + `<mark class="a-key">${esc(text.slice(s, e))}</mark>`
+      at = e
+    }
+    return html + esc(text.slice(at))
+  }
+  /** The posting's own sentence(s), word for word; `context` adds the line before and after, in grey. */
+  const srcQuotes = (key, context = false) => SOURCE[key].at.map(([s, i]) => {
+    const [name, lines] = POSTING.sections[s]
+    const ctx = (j) => (context && lines[j] ? `<span class="a-ctx">${esc(lines[j])}</span>` : '')
+    return `<div class="a-srcq"><span class="where">IN “${esc(name.toUpperCase())}”</span>${ctx(i - 1)}<q>${keyMark(lines[i], SOURCE[key].keys)}</q>${ctx(i + 1)}</div>`
+  }).join('')
+  /** Blocks that show a requirement, with the matching words highlighted; a block left out of this CV says so. */
+  const hitCards = (hits) => hits.map(([id, phrases]) => {
+    const v = V[id]
+    const out = Boolean(LEFT_OUT[id])
+    const tag = out ? '<span class="a-notmet">NOT IN THIS CV</span>' : v.isNew ? `<span class="a-new">${v.newBlock ? 'NEW BLOCK' : 'NEW VERSION'}</span>` : '<span class="a-asis">AS IS</span>'
+    const head = v.project ? `<div class="r"><b>${esc(v.title)}</b></div>` : `<div class="r"><b>${esc(v.title)}</b><span>${esc(v.dates)}</span></div>`
+    const marked = v.bullets.filter(([k, t]) => k !== 'MISSING' && t.trim()).map(([, t]) => markText(t, phrases))
+    return `<div class="a-hl"><div class="src">${tag}${esc(v.block)}<span class="sp"></span>${out ? '' : `<button class="a-btn sm" type="button" data-edit="${id}">Edit block</button>`}</div>${head}<ul>${marked.map((m) => `<li${m.hit ? ' class="hit"' : ''}>${m.html}</li>`).join('')}</ul></div>`
+  }).join('')
+  const cvHits = (r) => hitCards(r.hits)
+  /** "What the job asks for": the posting's words next to how your blocks cover it, or why they don't yet. */
+  const jobReqPopover = (phase, i) => {
+    const [st, name, why, key] = (phase === 'after' ? REQ_AFTER : REQ_BEFORE)[i]
+    const q = ASKED_IN[key]
+    const tag = { cov: '<span class="a-met">COVERED</span>', part: '<span class="a-part">PARTIAL</span>', miss: '<span class="a-notmet">MISSING</span>' }[st]
+    const title = { cov: 'How it is covered', part: 'How it is partly covered', miss: 'Why it is not covered' }[st]
+    let next = ''
+    if (st !== 'cov' && phase === 'before' && q) next = `<div class="a-ask-q"><span class="pv-k">The AI asks about it</span><p>Q${q} · ${esc(Q[q - 1].q)}</p><button class="a-btn p sm" type="button" data-ans-live="${q}">Answer Q${q} ›</button></div>`
+    if (st !== 'cov' && phase === 'after' && key === 'kafka') next = '<button class="a-btn p sm" type="button" data-req="kafka">+ Add experience</button>'
+    return `<div class="a-pop src-b">
+      <div class="req-h">${tag}<h3>${esc(name)}</h3><button class="x" type="button" data-close aria-label="Close">×</button></div>
+      <div class="src-cols">
+        <div class="src-col"><span class="pv-k">The job says</span>${srcQuotes(key, true)}<button class="a-link2" type="button" data-posting="${key}" data-back-jobreq="${phase}:${i}">See it in the full posting</button></div>
+        <div class="src-col"><span class="pv-k">${title}</span><p class="a-sub">${esc(why)}</p>${hitCards(JOB_HITS[phase][key] ?? [])}${next}</div>
+      </div>
+      <div class="foot"><span class="sp"></span><button class="a-btn" type="button" data-close>Close</button></div></div>`
+  }
+  const metHead = (r) => `<div class="req-h"><span class="a-met">MET</span><h3>${esc(r.name)}</h3><button class="x" type="button" aria-label="Close">×</button></div>`
+  const closeFoot = '<div class="foot"><span class="sp"></span><span class="a-btn">Close</span></div>'
+  const EXAMPLE = () => REQS.find((r) => r.key === 'pyts')
+  const STAGES = {
+    srcA: () => { const r = EXAMPLE(); return `<div class="a-pop src-a">${metHead(r)}
+      <div class="pv-field"><div class="a-src-h"><span class="pv-k">Why it’s a requirement</span><span class="sp"></span><button class="a-link2" type="button" data-posting="${r.key}">See it in the full posting</button></div><p class="a-sub">The posting says, word for word:</p>${srcQuotes(r.key)}</div>
+      <div class="pv-field"><span class="pv-k">Where your CV shows it · ${r.hits.length} blocks</span><p class="a-sub">The highlighted words are what matches.</p>${cvHits(r)}</div>${closeFoot}</div>` },
+    srcB: () => { const r = EXAMPLE(); return `<div class="a-pop src-b">${metHead(r)}<div class="src-cols">
+      <div class="src-col"><span class="pv-k">The posting says</span>${srcQuotes(r.key, true)}<button class="a-link2" type="button" data-posting="${r.key}">See it in the full posting</button></div>
+      <div class="src-col"><span class="pv-k">Your CV shows it · ${r.hits.length} blocks</span>${cvHits(r)}</div></div>${closeFoot}</div>` },
+    srcC: () => { const r = EXAMPLE(); return `<div class="a-pop src-c">${metHead(r)}
+      ${SOURCE[r.key].at.map(([s, i]) => `<button class="src-chip" type="button" data-posting="${r.key}"><span class="k">POSTING</span><span class="t">“${esc(POSTING.sections[s][1][i])}”</span><span class="go">Show ›</span></button>`).join('')}
+      <p class="a-sub">Where this CV shows it: ${r.hits.length} blocks. The highlighted words are what matches.</p>${cvHits(r)}${closeFoot}</div>` },
+  }
+  /** Met (option B, chosen): the posting's sentence on the left, the CV blocks that show it on the right. */
+  const metPopover = (r, backBlock) => `<div class="a-pop src-b">
+    <div class="req-h"><span class="a-met">MET</span><h3>${esc(r.name)}</h3><button class="x" type="button" data-close aria-label="Close">×</button></div>
+    <div class="src-cols">
+      <div class="src-col"><span class="pv-k">The posting says</span>${srcQuotes(r.key, true)}<button class="a-link2" type="button" data-posting="${r.key}">See it in the full posting</button></div>
+      <div class="src-col"><span class="pv-k">Your CV shows it · ${r.hits.length} block${r.hits.length === 1 ? '' : 's'}</span>${cvHits(r)}</div>
+    </div>
+    <div class="foot">${backBlock ? `<button class="a-btn" type="button" data-block="${backBlock}">← Back to ${esc(V[backBlock].block)}</button>` : ''}<span class="sp"></span><button class="a-btn" type="button" data-close>Close</button></div></div>`
+
+  /** A block of this CV (or one left out): its words that match on the left, the requirements it matches on the right. */
+  const blockPopover = (id) => {
+    const v = V[id]
+    const out = LEFT_OUT[id]
+    const reqs = blockReqs(id)
+    const tag = out ? '<span class="a-notmet">LEFT OUT</span>' : v.isNew ? `<span class="a-new">${v.newBlock ? 'NEW BLOCK' : 'NEW VERSION'}</span>` : '<span class="a-asis">AS IS</span>'
+    const head = v.project ? `<div class="r"><b>${esc(v.title)}</b></div><div class="r"><span>${esc(v.stack)}</span></div>` : `<div class="r"><b>${esc(v.title)}</b><span>${esc(v.dates)}</span></div>`
+    const marked = v.bullets.filter(([k, t]) => k !== 'MISSING' && t.trim()).map(([, t]) => markText(t, reqs.flatMap((x) => x.phrases)))
+    const full = reqs.filter((x) => !x.part).length
+    const title = reqs.length ? `${out ? 'Would match' : 'Matches'} ${full} requirement${full === 1 ? '' : 's'}${reqs.length > full ? ` + ${reqs.length - full} partly` : ''}` : 'No requirement of this job'
+    const firstLine = (key) => { const [s, i] = SOURCE[key].at[0]; return POSTING.sections[s][1][i] }
+    return `<div class="a-pop src-b">
+      <div class="req-h">${tag}<h3>${esc(v.block)}</h3><span class="a-sub">· version “${esc(v.version)}”</span><button class="x" type="button" data-close aria-label="Close">×</button></div>
+      <div class="src-cols">
+        <div class="src-col"><span class="pv-k">${out ? 'The block (not in this CV)' : 'The block in this CV'}</span><div class="a-hl">${head}<ul>${marked.map((m) => `<li${m.hit ? ' class="hit"' : ''}>${m.html}</li>`).join('')}</ul></div>${out ? '' : `<button class="a-btn sm" type="button" data-edit="${id}">Edit block</button>`}</div>
+        <div class="src-col"><span class="pv-k">${esc(title)}</span>${out ? `<p class="a-sub">${esc(out.why)}</p>` : ''}
+          ${reqs.length ? `<div class="blk-list">${reqs.map(({ r, phrases, part }) => `<button class="blk-req" type="button" data-req="${r.key}" data-back-block="${id}"><span class="ic ${part ? 'part' : 'met'}">${part ? '–' : '✓'}</span><span><b>${esc(r.name)}</b>${part ? '<span class="pt">partly</span>' : ''}<small><span class="lbl">JOB SAYS</span><q>${keyMark(firstLine(r.key), SOURCE[r.key].keys)}</q></small><small><span class="lbl">YOUR WORDS</span>${phrases.map((p) => `<mark class="a-mark">${esc(p)}</mark>`).join(', ')}</small></span><span class="chev">›</span></button>`).join('')}</div>` : `<p class="a-sub">${esc(NO_MATCH[id] ?? 'None of the job’s requirements shows up in this block.')}</p>`}
+        </div>
+      </div>
+      <div class="foot"><span class="sp"></span><button class="a-btn" type="button" data-close>Close</button></div></div>`
+  }
+
+  /** The whole posting, scrolled to the sentence(s) behind one requirement. */
+  const postingPopover = (key, backQ, backJob) => {
+    const req = [...REQS, ...NOT_MET].find((r) => r.key === key)
+    const { at, keys } = SOURCE[key]
+    const isHit = (s, i) => at.some(([a, b]) => a === s && b === i)
+    const line = (s, i, l) => (isHit(s, i) ? keyMark(l, keys) : esc(l))
+    return `<div class="a-pop pop-wide"><div class="req-h"><span class="a-met">POSTING</span><h3>The job posting</h3><button class="x" type="button" data-close aria-label="Close">×</button></div>
+      <p class="a-sub">${esc(POSTING.url)} · saved with the job. Highlighted: what made the AI list “${esc(req.name)}”.</p>
+      <div class="posting"><div class="ttl2">${esc(POSTING.title)}</div><div class="meta2">${esc(POSTING.meta)}</div>
+        ${POSTING.sections.map(([name, lines, kind], s) => `<div><h4>${esc(name)}</h4>${kind === 'p'
+          ? lines.map((l, i) => `<p class="${isHit(s, i) ? 'hit' : ''}">${line(s, i, l)}</p>`).join('')
+          : `<ul>${lines.map((l, i) => `<li class="${isHit(s, i) ? 'hit' : ''}">${line(s, i, l)}</li>`).join('')}</ul>`}</div>`).join('')}
+      </div>
+      <div class="foot">${backQ ? `<button class="a-btn" type="button" data-ans-go="${backQ}">← Back to Q${backQ}</button>` : `<button class="a-btn" type="button" ${backJob ? `data-jobreq="${backJob}"` : `data-req="${key}"`}>← Back to “${esc(req.name)}”</button>`}<span class="sp"></span><button class="a-btn" type="button" data-close>Close</button></div></div>`
+  }
+
+  const renderAll = () => document.querySelectorAll('[data-frame]').forEach((el) => { el.innerHTML = FRAMES[el.dataset.frame]() })
+  renderAll()
+  document.querySelectorAll('[data-stage]').forEach((el) => { el.innerHTML = STAGES[el.dataset.stage]() })
+
+  // ── The live edit popover: pencil on a draft, or double-click (or Enter) on a CV block ──
+  const dlg = document.getElementById('live-edit')
+  const show = () => { if (!dlg.open && typeof dlg.showModal === 'function') dlg.showModal() }
+  const open = (id) => {
+    dlg.innerHTML = editDialog(id, true)
+    show()
+    dlg.querySelector('.ttl')?.focus()
+  }
+  /** Opens the answer popover on question n (1–4) over `state` (LIVE in step 3, SENT in step 4); what you type stays there. */
+  const openAns = (n, state = ANS) => {
+    if (!n || n < 1 || n > Q.length) return
+    ANS = state
+    dlg.innerHTML = ansPopover(n, state)
+    show()
+    const ta = dlg.querySelector('[data-ans-text]')
+    if (ta && !ta.disabled) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length) }
+  }
+  const openReq = (key, backBlock) => {
+    const met = REQS.find((r) => r.key === key)
+    dlg.innerHTML = met ? metPopover(met, backBlock) : notMetPopover(NOT_MET.find((r) => r.key === key))
+    show()
+  }
+  /** Re-renders one frame and puts focus back on the control that changed it. */
+  const rerender = (name, focusSel) => {
+    document.querySelectorAll(`[data-frame="${name}"]`).forEach((el) => { el.innerHTML = FRAMES[name]() })
+    if (focusSel) document.querySelector(`[data-frame="${name}"] ${focusSel}`)?.focus({ preventScroll: true })
+  }
+  document.addEventListener('change', (e) => {
+    const radio = e.target.closest('input[data-pv]')
+    if (!radio) return
+    const { pv: v, q } = radio.dataset
+    PV[v].dest[q] = radio.value
+    // Picking an experience closes the list; "New experience" keeps it open so you can name it.
+    if (radio.value !== 'new') {
+      PV[v].pk = null
+      return rerender('place' + v, `[data-pk-toggle][data-q="${q}"]`)
+    }
+    const top = radio.closest('[data-frame]')?.querySelector('.pk-list')?.scrollTop ?? 0
+    rerender('place' + v, `.pk[data-q="${q}"] [data-pk-newname]`)
+    const list = document.querySelector(`[data-frame="place${v}"] .pk-list`)
+    if (list) list.scrollTop = top
+  })
+  /** While you type a new experience's name, the "Goes to" line above the list shows it. */
+  const syncLabel = (pk) => {
+    const q = PQ.find((x) => x.id === pk.dataset.q)
+    const val = pk.parentElement.querySelector(`[data-pk-toggle][data-q="${q.id}"] .pk-val`)
+    if (val && destOf(pk.dataset.v, q) === 'new') val.textContent = newName(pk.dataset.v, q).trim() || 'New experience'
+  }
+  // Search filters the list in place (no re-render, so the caret stays); no match → the text becomes the new name.
+  document.addEventListener('input', (e) => {
+    const search = e.target.closest('[data-pk-search]')
+    if (search) {
+      const pk = search.closest('.pk')
+      const query = search.value.trim().toLowerCase()
+      PV[pk.dataset.v].query = search.value
+      let shown = 0
+      pk.querySelectorAll('.pk-opt').forEach((o) => { o.hidden = Boolean(query) && !o.dataset.name.includes(query); if (!o.hidden) shown += 1 })
+      pk.querySelectorAll('.pk-group, .pk-none').forEach((g) => { g.hidden = Boolean(query) })
+      pk.querySelector('.pk-empty').hidden = shown > 0
+      if (!shown) {
+        const name = pk.querySelector('[data-pk-newname]')
+        name.value = search.value.trim()
+        PV[pk.dataset.v].names[pk.dataset.q] = name.value
+        syncLabel(pk)
+      }
+      return
+    }
+    const name = e.target.closest('[data-pk-newname]')
+    if (name) {
+      const pk = name.closest('.pk')
+      PV[pk.dataset.v].names[pk.dataset.q] = name.value
+      syncLabel(pk)
+    }
+  })
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('[data-jobs-pen]')) {
+      Object.assign(JOBS_UI, { editing: true, renamed: '' })
+      return rerender('jobs', '[data-jobs-role]')
+    }
+    if (e.target.closest('[data-jobs-again]')) return document.getElementById('t-resumed').scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const toggle = e.target.closest('[data-pk-toggle]')
+    if (toggle) {
+      const v = toggle.dataset.pkToggle
+      const q = toggle.dataset.q
+      PV[v].pk = PV[v].pk === q ? null : q
+      PV[v].query = ''
+      return rerender('place' + v, PV[v].pk ? `.pk[data-q="${q}"] [data-pk-search]` : `[data-pk-toggle][data-q="${q}"]`)
+    }
+    const use = e.target.closest('[data-pk-use]')
+    if (use) {
+      PV[use.dataset.pkUse].dest[use.dataset.q] = 'new'
+      return rerender('place' + use.dataset.pkUse, `[data-pk-toggle][data-q="${use.dataset.q}"]`)
+    }
+    const pv = e.target.closest('[data-pv-open]')
+    if (pv) {
+      const v = pv.dataset.pvOpen
+      PV[v].open = v === 'A' && PV.A.open === pv.dataset.q ? null : pv.dataset.q
+      PV[v].query = ''
+      PV[v].pk = null
+      return rerender('place' + v, `[data-pv-open][data-q="${pv.dataset.q}"]`)
+    }
+    const card = e.target.closest('[data-ans]')
+    if (card && !card.closest('[inert]')) return openAns(Number(card.dataset.ans), LIVE)
+    const sentRow = e.target.closest('[data-resend-open]')
+    if (sentRow && !sentRow.closest('[inert]')) return openAns(Number(sentRow.dataset.resendOpen), SENT)
+    const jobReq = e.target.closest('[data-jobreq]')
+    if (jobReq) {
+      const [phase, i] = jobReq.dataset.jobreq.split(':')
+      dlg.innerHTML = jobReqPopover(phase, Number(i))
+      show()
+      return
+    }
+    const pen = e.target.closest('[data-edit]')
+    if (pen && !pen.closest('[inert]')) return open(pen.dataset.edit)
+    const posting = e.target.closest('[data-posting]')
+    if (posting) {
+      dlg.innerHTML = postingPopover(posting.dataset.posting, posting.dataset.backQ, posting.dataset.backJobreq)
+      show()
+      dlg.querySelector('.posting .hit')?.scrollIntoView({ block: 'center' })
+      return
+    }
+    const block = e.target.closest('[data-block]')
+    if (block) {
+      dlg.innerHTML = blockPopover(block.dataset.block)
+      show()
+      return
+    }
+    const req = e.target.closest('[data-req]')
+    if (req) openReq(req.dataset.req, req.dataset.backBlock)
+  })
+  document.addEventListener('dblclick', (e) => {
+    const block = e.target.closest('[data-edit-dbl]')
+    if (block) { window.getSelection()?.removeAllRanges(); open(block.dataset.editDbl) }
+  })
+  document.addEventListener('keydown', (e) => {
+    const block = e.target.closest?.('[data-edit-dbl]')
+    if (block && e.key === 'Enter') open(block.dataset.editDbl)
+    // Renaming a job on the Jobs screen: Enter saves (a role is required), Esc cancels.
+    const jobsEdit = e.target.closest?.('[data-jobs-edit]')
+    if (jobsEdit && (e.key === 'Enter' || e.key === 'Escape')) {
+      e.preventDefault()
+      if (e.key === 'Enter') {
+        const company = jobsEdit.querySelector('[data-jobs-company]').value.trim()
+        const role = jobsEdit.querySelector('[data-jobs-role]').value.trim()
+        if (!role) return jobsEdit.querySelector('[data-jobs-role]').focus()
+        const before = jobName(JOBS_UI.company, JOBS_UI.role)
+        const after = jobName(company, role)
+        Object.assign(JOBS_UI, { company, role, renamed: before === after ? '' : `Renamed. Versions named “${before}” now use “${after}”.` })
+      }
+      JOBS_UI.editing = false
+      return rerender('jobs', '[data-jobs-pen]')
+    }
+    // Esc closes an open "Goes to" list and puts focus back on its line.
+    const pk = e.key === 'Escape' && e.target.closest?.('.pk')
+    if (pk) { PV[pk.dataset.v].pk = null; rerender('place' + pk.dataset.v, `[data-pk-toggle][data-q="${pk.dataset.q}"]`) }
+  })
+  const changed = () => { const s = dlg.querySelector('.ft .sp'); if (s) s.textContent = 'Changes not saved yet: press Done.' }
+  dlg.addEventListener('input', changed)
+  // Answer popover: keep what you type, light the tab's dot, Ctrl+Enter goes to the next question.
+  dlg.addEventListener('input', (e) => {
+    if (!e.target.matches('[data-ans-text]')) return
+    const n = Number(dlg.querySelector('[data-ans-pop]').dataset.ansPop)
+    ANS.answers[n] = e.target.value
+    const tab = dlg.querySelector(`.ans-tab[data-ans-go="${n}"]`)
+    if (tab) tab.className = `ans-tab ${ansState(n, ANS)} on`
+    if (ANS !== SENT) return
+    const btn = dlg.querySelector('[data-resend]')
+    if (btn) btn.disabled = !canSend(n)
+    const hint = dlg.querySelector('[data-send-hint]')
+    if (hint) hint.textContent = sendHint(n)
+  })
+  dlg.addEventListener('keydown', (e) => {
+    const pop = dlg.querySelector('[data-ans-pop]')
+    if (!pop || e.key !== 'Enter' || !(e.ctrlKey || e.metaKey) || ANS === SENT) return
+    e.preventDefault()
+    const n = Number(pop.dataset.ansPop)
+    if (n < Q.length) openAns(n + 1)
+    else dlg.close()
+  })
+  // Closing shows the answers on the question cards of step 3 and in the answers list of step 4.
+  dlg.addEventListener('close', () => { rerender('input'); rerender('drafts'); rerender('edit') })
+  dlg.addEventListener('change', (e) => {
+    if (e.target.matches('.a-row select')) e.target.className = kindClass(e.target.value)
+    if (e.target.matches('[data-where]')) dlg.querySelector('[data-newname]').hidden = e.target.value !== 'new'
+    if (e.target.matches('[data-ans-dont]')) {
+      const n = Number(dlg.querySelector('[data-ans-pop]').dataset.ansPop)
+      ANS.dont[n] = e.target.checked
+      openAns(n)
+      return
+    }
+    changed()
+  })
+  dlg.addEventListener('click', (e) => {
+    if (e.target === dlg || e.target.closest('[data-close]')) return dlg.close()
+    // Resend one question: only this answer goes back to the AI, which replaces what it added before.
+    const resend = e.target.closest('[data-resend]')
+    if (resend) {
+      if (resend.disabled) return
+      const n = Number(resend.dataset.resend)
+      SENT.sent[n] = SENT.dont[n] ? undefined : SENT.answers[n]
+      SENT.sentDont[n] = Boolean(SENT.dont[n])
+      SENT.resent[n] = true
+      openAns(n, SENT)
+      rerender('drafts')
+      return
+    }
+    const go = e.target.closest('[data-ans-go]')
+    if (go && !go.disabled) return openAns(Number(go.dataset.ansGo))
+    const ansLive = e.target.closest('[data-ans-live]')
+    if (ansLive) return openAns(Number(ansLive.dataset.ansLive), LIVE)
+    const chip = e.target.closest('[data-chip]')
+    if (chip) {
+      const ta = dlg.querySelector('.a-ta')
+      const body = ta.value.replace(/\s+$/, '')
+      ta.value = `${body ? `${body}\n\n` : ''}${chip.dataset.chip}: `
+      ta.dispatchEvent(new Event('input', { bubbles: true }))
+      ta.focus()
+      return
+    }
+    if (e.target.closest('[data-addexp]')) {
+      const pop = dlg.querySelector('[data-notmet]')
+      const text = pop.querySelector('.a-ta').value.trim()
+      if (!text) { pop.querySelector('[data-err]').hidden = false; pop.querySelector('.a-ta').focus(); return }
+      const where = pop.querySelector('[data-where]').value
+      const place = where === 'new' ? pop.querySelector('.a-in').value.trim() || 'a new experience' : where
+      const r = NOT_MET.find((x) => x.key === pop.dataset.notmet)
+      pop.innerHTML = `<div class="req-h"><span class="a-notmet">NOT MET</span><h3>${esc(r.name)}</h3><button class="x" type="button" data-close aria-label="Close">×</button></div>
+        <div class="a-done-msg"><b>✓ Added to ${esc(place)}${where === 'new' ? ' (new)' : ''}.</b><span>The AI is drafting a block for “${esc(r.name)}” from what you wrote. It appears in Blocks for this CV with Keep, Edit and Discard, and this requirement moves to Met once you keep it.</span></div>
+        <div class="foot"><span class="sp"></span><button class="a-btn p" type="button" data-close>Back to the CV</button></div>`
+      return
+    }
+    const rows = dlg.querySelector('.rows')
+    const row = e.target.closest('.a-row')
+    if (e.target.closest('[data-del]') && row) { row.remove(); changed(); return }
+    const move = e.target.closest('[data-move]')
+    if (move && row) {
+      const sib = move.dataset.move === '-1' ? row.previousElementSibling : row.nextElementSibling
+      if (sib) move.dataset.move === '-1' ? rows.insertBefore(row, sib) : rows.insertBefore(sib, row)
+      changed(); return
+    }
+    if (e.target.closest('[data-add]')) {
+      const tmp = document.createElement('div')
+      tmp.innerHTML = `<div class="a-row"><select aria-label="Kind of bullet" class="k-I">${Object.entries(KINDS).filter(([k]) => k !== 'MISSING').map(([k, l]) => `<option value="${k}"${k === 'IMPACT' ? ' selected' : ''}>${l}</option>`).join('')}</select><span class="bul">•</span><textarea rows="1" aria-label="New bullet" placeholder="New bullet"></textarea><span class="tools"><button type="button" data-move="-1" aria-label="Move up">▲</button><button type="button" data-move="1" aria-label="Move down">▼</button><button type="button" data-del aria-label="Delete bullet">🗑</button></span></div>`
+      rows.appendChild(tmp.firstElementChild); rows.lastElementChild.querySelector('textarea').focus(); changed(); return
+    }
+    if (e.target.closest('[data-done]')) {
+      const id = dlg.querySelector('.a-dlg').dataset.id
+      V[id].title = dlg.querySelector('.ttl').value.trim() || V[id].title
+      V[id].bullets = [...dlg.querySelectorAll('.a-row')].map((r) => {
+        const kind = r.querySelector('select').value
+        const text = r.querySelector('textarea').value.trim()
+        return text ? [kind, text] : ['MISSING', '', kind]
+      })
+      dlg.close()
+      renderAll()
+    }
+  })
+})()
+</script>
+
+</body></html>
