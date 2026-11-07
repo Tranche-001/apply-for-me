@@ -46,14 +46,28 @@ const isCarried = (d: SessionDraft): boolean => d.editedByHand || isUserMade(d)
 
 const ownValue = <T>(record: Readonly<Record<string, T>>, key: string): T | undefined => (Object.hasOwn(record, key) ? record[key] : undefined)
 
-/** The new requirement id for an old one, matched by normalized text (null when the new analysis has no such requirement). */
+/**
+ * The new requirement id for an old one: same normalized text, else a posting sentence both quote (quotes
+ * are the posting's own words, so they survive the AI rewording the requirement); null when neither.
+ */
 function requirementRemap(from: JobAnalysis, to: JobAnalysis): (oldId: string) => string | null {
   const byText = new Map<string, string>()
-  for (const r of to.requirements) if (!byText.has(normText(r.text))) byText.set(normText(r.text), r.id)
-  const oldText = new Map(from.requirements.map((r) => [r.id, normText(r.text)]))
+  const byQuote = new Map<string, string>()
+  for (const r of to.requirements) {
+    if (!byText.has(normText(r.text))) byText.set(normText(r.text), r.id)
+    for (const q of r.quotes) if (!byQuote.has(normText(q))) byQuote.set(normText(q), r.id)
+  }
+  const old = new Map(from.requirements.map((r) => [r.id, r]))
   return (oldId) => {
-    const text = oldText.get(oldId)
-    return text === undefined ? null : (byText.get(text) ?? null)
+    const r = old.get(oldId)
+    if (!r) return null
+    const sameText = byText.get(normText(r.text))
+    if (sameText) return sameText
+    for (const q of r.quotes) {
+      const shared = byQuote.get(normText(q))
+      if (shared) return shared
+    }
+    return null
   }
 }
 

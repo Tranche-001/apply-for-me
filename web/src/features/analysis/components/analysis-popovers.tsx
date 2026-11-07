@@ -15,7 +15,7 @@ import type { BlockTagKind } from './ui/hit-card'
 import type { Analysis } from './use-analysis'
 import { askNumber, findView, hitsFor, requirementOf, type BlockView, type BlockViews, type EditTarget } from './view-model'
 
-type Props = { a: Analysis; views: BlockViews; lines: string[]; onEdit: (target: EditTarget) => void }
+type Props = { a: Analysis; views: BlockViews; lines: string[]; listItems: boolean[]; onEdit: (target: EditTarget) => void }
 
 const hostOf = (url: string | null | undefined): string => {
   try {
@@ -27,7 +27,7 @@ const hostOf = (url: string | null | undefined): string => {
 
 const cardTag = (v: BlockView): BlockTagKind => (v.tag === 'left-out' ? 'not-in-cv' : v.tag)
 
-export function AnalysisPopovers({ a, views, lines, onEdit }: Props) {
+export function AnalysisPopovers({ a, views, lines, listItems, onEdit }: Props) {
   const s = a.session
   const m = a.modal
   if (!s || !m) return null
@@ -107,7 +107,7 @@ export function AnalysisPopovers({ a, views, lines, onEdit }: Props) {
     case 'posting': {
       const r = requirementOf(s, m.reqId)
       if (!r) return null
-      return <PostingPopover lines={lines} host={host} requirementName={r.text} quotes={r.quotes} keys={r.keys} backLabel={m.backLabel} onBack={() => a.setModal(m.back)} onClose={close} />
+      return <PostingPopover lines={lines} listItems={listItems} host={host} requirementName={r.text} quotes={r.quotes} keys={r.keys} backLabel={m.backLabel} onBack={() => a.setModal(m.back)} onClose={close} />
     }
     case 'met': {
       const r = requirementOf(s, m.reqId)

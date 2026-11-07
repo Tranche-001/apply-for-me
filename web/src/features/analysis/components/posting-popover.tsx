@@ -11,6 +11,8 @@ import { Modal } from './ui/modal'
 export type Props = {
   /** The saved posting, split with postingLines(). */
   lines: string[]
+  /** postingListItems(): which of those lines were list items in the posting (shown as a bulleted list). */
+  listItems?: readonly boolean[]
   /** Where the posting came from, e.g. "jobs.exampleco.com". */
   host: string
   requirementName: string
@@ -23,8 +25,11 @@ export type Props = {
   onClose: () => void
 }
 
-type Section = { heading: string | null; lines: { text: string; index: number }[] }
+type Line = { text: string; index: number }
+type Section = { heading: string | null; lines: Line[] }
 type Layout = { title: string | null; meta: string[]; sections: Section[] }
+/** A paragraph (one line), or a run of list items shown as one list. */
+type Run = { list: boolean; lines: Line[] }
 
 const stripColon = (line: string) => line.trim().replace(/:$/, '').trim()
 
@@ -37,10 +42,10 @@ function isHeading(lines: readonly string[], index: number): boolean {
 /**
  * The posting laid out like the prototype. Heading-like lines before any text are its title (the first) and
  * meta line(s) ("ExampleCo · São Paulo · Full-time"); the last of them heads the first section. Then each
- * heading with the lines under it. A highlighted line is never a heading.
+ * heading with the lines under it. A highlighted line, or a list item, is never a heading.
  */
-function toLayout(lines: readonly string[], hits: ReadonlySet<number>): Layout {
-  const heading = (i: number) => !hits.has(i) && isHeading(lines, i)
+function toLayout(lines: readonly string[], hits: ReadonlySet<number>, listItems: readonly boolean[]): Layout {
+  const heading = (i: number) => !hits.has(i) && !listItems[i] && isHeading(lines, i)
   const firstText = lines.findIndex((_, i) => !heading(i))
   const leading = firstText < 0 ? lines.length : firstText
   const top = leading >= 2 ? lines.slice(0, leading - 1) : []
@@ -54,21 +59,39 @@ function toLayout(lines: readonly string[], hits: ReadonlySet<number>): Layout {
   return { title: top[0] ?? null, meta: top.slice(1), sections }
 }
 
-export function PostingPopover({ lines, host, requirementName, quotes, keys, backLabel, onBack, onClose }: Props) {
+/** A section's lines: each paragraph on its own, consecutive list items together in one list. */
+function toRuns(lines: readonly Line[], listItems: readonly boolean[]): Run[] {
+  return lines.reduce<Run[]>((out, line) => {
+    const list = Boolean(listItems[line.index])
+    const last = out.at(-1)
+    if (last?.list && list) return [...out.slice(0, -1), { list, lines: [...last.lines, line] }]
+    return [...out, { list, lines: [line] }]
+  }, [])
+}
+
+export function PostingPopover({ lines, listItems = [], host, requirementName, quotes, keys, backLabel, onBack, onClose }: Props) {
   const box = useRef<HTMLDivElement>(null)
-  const firstHit = useRef<HTMLParagraphElement>(null)
   const hits = useMemo(() => new Set(quotes.map((q) => findQuoteLine(lines, q)).filter((i) => i >= 0)), [lines, quotes])
-  const { title, meta, sections } = useMemo(() => toLayout(lines, hits), [lines, hits])
+  const { title, meta, sections } = useMemo(() => toLayout(lines, hits, listItems), [lines, hits, listItems])
   const first = hits.size ? Math.min(...hits) : -1
 
   // Centre the first highlighted line inside the posting box only (scrollIntoView would move the page too).
   useLayoutEffect(() => {
     const el = box.current
-    const hit = firstHit.current
+    const hit = el?.querySelector<HTMLElement>('[data-first-hit]')
     if (!el || !hit) return
     const top = hit.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop
     el.scrollTop = Math.max(0, top - (el.clientHeight - hit.offsetHeight) / 2)
   }, [first, sections])
+
+  const line = (Tag: 'p' | 'li', { text, index }: Line) =>
+    hits.has(index) ? (
+      <Tag key={index} className={c('hit')} data-first-hit={index === first || undefined}>
+        <Marked text={text} phrases={keys} tone="job" />
+      </Tag>
+    ) : (
+      <Tag key={index}>{text}</Tag>
+    )
 
   return (
     <Modal label="The job posting" onClose={onClose}>
@@ -93,15 +116,7 @@ export function PostingPopover({ lines, host, requirementName, quotes, keys, bac
           {sections.map((s, i) => (
             <div key={i}>
               {s.heading && <h4>{s.heading}</h4>}
-              {s.lines.map(({ text, index }) =>
-                hits.has(index) ? (
-                  <p key={index} ref={index === first ? firstHit : undefined} className={c('hit')}>
-                    <Marked text={text} phrases={keys} tone="job" />
-                  </p>
-                ) : (
-                  <p key={index}>{text}</p>
-                ),
-              )}
+              {toRuns(s.lines, listItems).map((run) => (run.list ? <ul key={run.lines[0].index}>{run.lines.map((l) => line('li', l))}</ul> : line('p', run.lines[0])))}
             </div>
           ))}
         </div>

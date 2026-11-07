@@ -114,10 +114,14 @@ export const requirementOf = (s: AnalysisSession, id: string | null | undefined)
 
 export const askNumber = (s: AnalysisSession, askId: string): number => s.analysis.asks.findIndex((a) => a.id === askId) + 1
 
-/** What a question is about, for short labels ("Kafka · not added"): its requirement, else "Question n". */
+/** What a question is about, for short labels ("Kafka · not added"): its requirement, else the question's start. */
 export function topicFor(s: AnalysisSession, askId: string): string {
   const ask = s.analysis.asks.find((a) => a.id === askId)
-  return requirementOf(s, ask?.requirementId)?.text ?? `Question ${askNumber(s, askId)}`
+  const req = requirementOf(s, ask?.requirementId)
+  if (req) return req.text
+  const text = (ask?.text ?? '').trim()
+  if (!text) return `Question ${askNumber(s, askId)}`
+  return text.length > 48 ? `${text.slice(0, 47).trimEnd()}…` : text
 }
 
 /** The draft or as-is version behind a block of the review CV (double-click to edit). */

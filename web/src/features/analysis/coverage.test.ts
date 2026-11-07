@@ -44,7 +44,9 @@ describe('requirementCountLabel', () => {
     [[...full(1), ...part(1)], true, 'Would match 1 requirement + 1 partly'],
     [[], false, 'No requirement'],
     [[], true, 'No requirement'],
-    [part(2), false, '0 requirements + 2 partly'],
+    [part(2), false, '2 requirements, partly'],
+    [part(1), false, '1 requirement, partly'],
+    [part(1), true, 'Would match 1 requirement, partly'],
   ])('%j wouldMatch=%s -> %s', (list, wouldMatch, expected) => {
     expect(requirementCountLabel(list, { wouldMatch })).toBe(expected)
   })

@@ -41,6 +41,16 @@ export function postingLines(postingText: string): string[] {
     .filter(Boolean)
 }
 
+const LIST_MARK = /^\s*[•·▪◦●○■□‣⁃*\-–—]/
+
+/** For each of postingLines(), whether the posting marked it as a list item ("- " from a fetched <li>, "• "…). */
+export function postingListItems(postingText: string): boolean[] {
+  return postingText
+    .split(/\r?\n/)
+    .filter((line) => line.replace(BULLET_GLYPH, '').trim())
+    .map((line) => LIST_MARK.test(line))
+}
+
 function normalize(text: string): string {
   return text
     .replace(/[“”„‟]/g, '"')

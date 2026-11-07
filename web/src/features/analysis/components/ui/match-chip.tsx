@@ -1,3 +1,4 @@
+import { matchChipLabel } from '../../review-labels'
 import { c } from './cx'
 
 /** One requirement a block helps match, and how (the block's own words). */
@@ -15,12 +16,11 @@ export function MatchChip({ items, emptyText }: { items: ChipItem[]; emptyText: 
       </span>
     )
   }
-  const full = items.filter((i) => !i.partly).length
-  const part = items.length - full
+  const { lead, partly } = matchChipLabel(items)
   return (
     <span className={c('a-match')} tabIndex={0}>
-      ✓ {full} requirement{full === 1 ? '' : 's'}
-      {part > 0 && <span className={c('pt')}>· {part} partly</span>}
+      {lead}
+      {partly && <span className={c('pt')}>{partly}</span>}
       <span className={c('a-tip')} role="tooltip">
         <b>Helps match</b>
         <ul>

@@ -23,13 +23,21 @@ type Props = {
   error: string | null
   onSave: () => void
   onCancel: () => void
+  /** Job analysis' own words (its edit popover); Compose CV leaves them out. */
+  copy?: EditorCopy
 }
+
+/**
+ * versionLine replaces "version “Base”" in the header; savedNote replaces "Open job ↗" after the new version's
+ * name; saveLabel replaces the save button's label.
+ */
+export type EditorCopy = { versionLine?: string; savedNote?: string; saveLabel?: string }
 
 /**
  * Edit a block without leaving Compose (decision log): the page follows as you type, and you save it as a
  * new version for this job (named after the job) or update it everywhere. A gap left empty stays a gap.
  */
-export function ComposeEditor({ editing, onChange, block, version, job, status, canSave, busy, error, onSave, onCancel }: Props) {
+export function ComposeEditor({ editing, onChange, block, version, job, status, canSave, busy, error, onSave, onCancel, copy }: Props) {
   if (editing.kind === 'new') {
     const meta = editing.meta
     return (
@@ -37,7 +45,7 @@ export function ComposeEditor({ editing, onChange, block, version, job, status, 
         labelledBy="ed-h"
         header={<NewBlockHeader meta={meta} onChange={(m) => onChange({ ...editing, meta: m })} />}
         status={<span style={{ color: status.warn ? C.amber : C.muted, fontWeight: status.warn ? 500 : 400 }}>{status.text}</span>}
-        saveLabel="Add block"
+        saveLabel={copy?.saveLabel ?? 'Add block'}
         saveDisabled={!canSave}
         busy={busy}
         error={error}
@@ -66,11 +74,11 @@ export function ComposeEditor({ editing, onChange, block, version, job, status, 
           <h2 id="ed-h" style={{ margin: 0, fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}>
             Edit {block.name}
           </h2>
-          <span style={{ fontSize: 12, color: C.muted }}>version “{verName}”</span>
+          <span style={{ fontSize: 12, color: C.muted }}>{copy?.versionLine ?? `version “${verName}”`}</span>
         </>
       }
       status={<span style={{ color: status.warn ? C.amber : C.muted, fontWeight: status.warn ? 500 : 400 }}>{status.text}</span>}
-      saveLabel={isNew ? 'Save new version' : 'Update version'}
+      saveLabel={copy?.saveLabel ?? (isNew ? 'Save new version' : 'Update version')}
       saveDisabled={!canSave}
       busy={busy}
       error={error}
@@ -83,9 +91,11 @@ export function ComposeEditor({ editing, onChange, block, version, job, status, 
             {job ? (
               <SaveAsCard name="ed-mode" checked={isNew} onSelect={() => onChange({ ...editing, saveAs: 'new' })} label="A new version for this job">
                 <span>Named “{job.label}”</span> ·{' '}
-                <a href={`/analyze?job=${encodeURIComponent(job.id)}`} target="_blank" rel="noopener noreferrer" aria-label={`Open the job ${job.label} in a new tab`} onClick={(ev) => ev.stopPropagation()} style={{ fontWeight: 500 }}>
-                  Open job ↗
-                </a>
+                {copy?.savedNote ?? (
+                  <a href={`/analyze?job=${encodeURIComponent(job.id)}`} target="_blank" rel="noopener noreferrer" aria-label={`Open the job ${job.label} in a new tab`} onClick={(ev) => ev.stopPropagation()} style={{ fontWeight: 500 }}>
+                    Open job ↗
+                  </a>
+                )}
               </SaveAsCard>
             ) : (
               <SaveAsCard name="ed-mode" checked={false} onSelect={() => undefined} label="A new version for this job">

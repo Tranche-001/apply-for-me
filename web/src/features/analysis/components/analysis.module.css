@@ -10,12 +10,21 @@
 
 /* Real modal: a fixed scrim over the page (the prototype's .a-scrim was inside a frame). */
 .modal-scrim { position: fixed; inset: 0; background: var(--scrim); display: grid; place-items: center; padding: 24px; z-index: 100; overflow-y: auto; }
-.modal-scrim > * { max-height: calc(100vh - 48px); overflow-y: auto; }
+.modal-scrim > * { max-width: 100%; max-height: calc(100vh - 48px); overflow-y: auto; }
 .modal-scrim { font: 400 13px/1.45 var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; color: var(--text); }
 .modal-scrim button { font: inherit; color: inherit; }
 .modal-scrim p { margin: 0; }
 .modal-box { border-radius: 14px; }
 .modal-box:focus { outline: none; }
+
+/* The prototype ran on the browser's own box model: content-box, with buttons, selects, checkboxes, radios and
+   search fields border-box. Tailwind's preflight makes every box border-box, which made each popover 40px
+   narrower, the tooltip 22px narrower and fixed-height pieces 2px shorter. The ported pieces get the browser's
+   model back; the real CV (CvPreview, in .a-stage) and the Compose editor keep the app's. Zero specificity, so a
+   box-sizing a rule below sets on purpose still wins. */
+:where(.a-head, .a-jobline, .a-steps, .a-status, .a-ok-banner, .a-start, .a-cols, .a-sum, .a-stage-bar, .modal-scrim),
+:where(.a-head, .a-jobline, .a-steps, .a-status, .a-ok-banner, .a-start, .a-cols, .a-sum, .a-stage-bar, .modal-scrim) :where(*, ::before, ::after) { box-sizing: content-box; }
+:where(.a-jobline, .a-ok-banner, .a-start, .a-cols, .a-sum, .a-stage-bar, .modal-scrim) :where(button, select, input[type="checkbox"], input[type="radio"], input[type="search"]) { box-sizing: border-box; }
 .a-main { padding: 16px 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .a-head { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
 .a-eyebrow { font: 500 10px/1 var(--font-geist-mono), ui-monospace, monospace; letter-spacing: 0.08em; color: var(--indigo); margin-bottom: 5px; }
@@ -440,7 +449,7 @@ mark.a-key { background: var(--indigo-soft); color: var(--indigo); border-bottom
 .a-panel > .a-btn, .a-stage-bar .a-btn, .modal-scrim .a-btn { font-size: 12.5px; font-weight: 500; }
 .a-ok-banner .a-btn.sm, .modal-scrim .a-btn.sm { font-size: 11.5px; font-weight: 500; }
 /* …and a span is content-box (32px + borders = 34px tall), a button border-box: keep the spans' height. */
-.a-panel > .a-btn, .a-stage-bar .a-btn, .a-ok-banner .a-btn { box-sizing: content-box; }
+.a-panel > .a-btn, .a-stage-bar .a-btn, .a-ok-banner .a-btn, .a-start .a-btn, .a-jobline .a-btn.sm { box-sizing: content-box; }
 .a-draft .a-icon:not(.pen), .a-ask .a-icon { color: var(--text-2); }
 .modal-scrim .x { font-size: 18px; line-height: 1; color: var(--text-2); }
 .modal-scrim .a-link2 { font: 500 12px var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; color: var(--indigo); }
@@ -453,7 +462,7 @@ mark.a-key { background: var(--indigo-soft); color: var(--indigo); border-bottom
 .a-keep.off i { background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--border-strong); color: transparent; }
 .a-keep:has(input:focus-visible) i { outline: 2px solid var(--indigo); outline-offset: 2px; }
 /* "Ask for changes": a real input where the prototype drew its placeholder. */
-.a-ask input { flex: 1; min-width: 0; height: 30px; box-sizing: content-box; border: 1px solid var(--border-strong); border-radius: 7px; padding: 0 9px; background: var(--surface); color: var(--text); font: 400 12px var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; }
+.a-ask input { flex: 1; min-width: 0; height: 30px; border: 1px solid var(--border-strong); border-radius: 7px; padding: 0 9px; background: var(--surface); color: var(--text); font: 400 12px var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; }
 .a-ask input::placeholder { color: var(--faint); }
 .a-ask input:focus { outline: none; border-color: var(--indigo); box-shadow: 0 0 0 3px var(--indigo-soft); }
 .a-ask .a-icon:disabled { opacity: 0.4; cursor: default; }
@@ -467,10 +476,12 @@ mark.a-key { background: var(--indigo-soft); color: var(--indigo); border-bottom
 .cv-block { cursor: pointer; outline: 1px solid transparent; }
 .cv-block:hover, .cv-block:focus-visible { outline: 1px dashed var(--indigo); background: #fafaff; }
 .cv-block.new::before { content: "NEW"; position: absolute; left: -26px; top: 4px; font: 500 8px/1 var(--font-geist-mono), ui-monospace, monospace; color: var(--indigo); background: var(--indigo-soft); padding: 2px 3px; border-radius: 3px; }
-/* Tailwind's preflight makes every box border-box; in the prototype the side-by-side popover (960px + padding)
-   and its text field (32px + borders) were content-box. The popover still fits a narrow window. */
-.a-pop.src-b { box-sizing: content-box; max-width: calc(100% - 40px); }
-.a-field > .a-in { box-sizing: content-box; }
+/* A popover is content-box (its width + 40px of padding, as in the prototype); it still fits a narrow window. */
+.a-pop { max-width: calc(100% - 40px); }
+/* The match chip's tooltip keeps its 280px (+ padding) but never runs past its card: in a narrow third column
+   (a ~1024px window) the hidden tooltips would otherwise widen the page. */
+.a-draft { container-type: inline-size; }
+.a-tip { max-width: calc(100cqw - 22px); }
 /* "Met" / "Not met" keep their margin over the .screen p reset (0,1,1), as over the prototype's p { margin: 0 }. */
 .a-sum .a-reqs-sub { margin: 2px 0 -1px; }
 
@@ -493,8 +504,8 @@ a.a-chip:hover { border-color: var(--indigo-line); }
 /* Status line, error variant: plain language in amber, like AiError (features/ai/ui/ai-changes.tsx). */
 .a-status.err { border: 1px solid var(--amber-line); background: var(--amber-soft); color: var(--amber-ink); border-radius: 8px; padding: 8px 12px; font-size: 13px; line-height: 1.45; }
 .a-status .retry { border: 0; background: none; padding: 0; font-weight: 600; color: var(--indigo); text-decoration: underline; cursor: pointer; }
-/* Full posting: the saved text has no list markup, so lines are paragraphs under their headings. */
-.posting > div > p + p { margin-top: 4px; }
+/* Full posting: paragraphs, and the posting's list items as a list (postingListItems), 4px apart like the lists. */
+.posting > div > :is(p, ul) + :is(p, ul) { margin-top: 4px; }
 
 /* ── Questions about the gaps: question cards, answer popover, sent answers, "Check where your answers go"
    (questions-panel, answer-popover, answers-done, placement-popover, experience-picker). ── */
@@ -509,10 +520,7 @@ a.a-chip:hover { border-color: var(--indigo-line); }
    .modal-scrim button reset (0,1,1). */
 .modal-scrim .ans-tab { font: 500 12px var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; color: var(--text-2); }
 .modal-scrim .ans-tab.on { color: var(--indigo); }
-/* The prototype ran on the browser's box model (content-box; only real buttons are border-box) and Tailwind's
-   preflight makes everything border-box. These v2 pieces set a size, so they restore content-box to measure
-   like the prototype (pill 27px, card 686px, link field 41px). The card stays inside a narrow column. */
-.a-steps .a-step, .a-step i, .a-url div, .a-start .a-btn, .a-jobline .a-chip, .a-jobline .a-btn.sm { box-sizing: content-box; }
-.a-start { box-sizing: content-box; max-width: calc(100% - 46px); }
+/* The start card is content-box (686px with its padding, as in the prototype); it stays inside a narrow column. */
+.a-start { max-width: calc(100% - 46px); }
 /* Preflight removes list markers; the prototype's hit cards (and the full posting's lists) show discs. */
 .a-hl ul, .posting ul { list-style: disc; }

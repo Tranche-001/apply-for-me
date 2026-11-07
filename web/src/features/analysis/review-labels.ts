@@ -84,6 +84,17 @@ export function savedBannerText(saved: number, jobLabel: string): string {
   return saved ? `✓ Saved ${saved} to your library and the CV for ${jobLabel}.` : `✓ Saved the CV for ${jobLabel}.`
 }
 
+/**
+ * The chip under a block: "✓ 2 requirements" and, in amber, "· 1 partly"; a block that only partly matches
+ * says "– 1 requirement, partly" (never "✓ 0 requirements · 1 partly"). The list is never empty here.
+ */
+export function matchChipLabel(list: readonly { partly: boolean }[]): { lead: string | null; partly: string | null } {
+  const full = list.filter((x) => !x.partly).length
+  const part = list.length - full
+  if (!full) return { lead: null, partly: `– ${plural(part, 'requirement')}, partly` }
+  return { lead: `✓ ${plural(full, 'requirement')}`, partly: part ? `· ${part} partly` : null }
+}
+
 /** The block popover's right column: "Matches 3 requirements", "Would match 1 requirement + 1 partly". */
 export function blockMatchTitle(list: readonly { partly: boolean }[], leftOut: boolean): string {
   if (!list.length) return 'No requirement of this job'

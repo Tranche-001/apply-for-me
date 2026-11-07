@@ -6,14 +6,14 @@ import { useRouter } from 'next/navigation'
 import type { DraftBullet } from '../../ai/types'
 import { fromEditorBullets, toEditorBullets } from '../../blocks/bullets'
 import type { BulletData, LibBlock, LibVersion } from '../../blocks/types'
-import { ComposeEditor, type ComposeEditing } from '../../cv/components/compose-editor'
+import { ComposeEditor, type ComposeEditing, type EditorCopy } from '../../cv/components/compose-editor'
 import { toSavedItems } from '../../cv/composition'
 import { printCv } from '../../cv/print'
 import type { JobData } from '../../jobs/types'
 import type { ProfileData } from '../../profile/types'
 import { blockRequirements, cvRequirements } from '../coverage'
 import { compositionForReview, draftVersionId, libraryWithDrafts } from '../cv-draft'
-import { postingLines } from '../highlight'
+import { postingLines, postingListItems } from '../highlight'
 import type { LoadedAnalysisJob } from '../queries'
 import { blocksSummary, discardedLabel, improvesLabel, metBlocksLine, reviewBlockSub, reviewBlockTag, saveLabel } from '../review-labels'
 import { discardDraft, editAsIs, pipelineStep, restoreDraft, setKeep, setPages, setStep, toggleAsIsOut, updateDraft } from '../session-state'
@@ -50,14 +50,19 @@ const WORKING: Record<Exclude<Phase, 'idle'>, string> = {
   saving: 'Saving the versions and the CV…',
 }
 
+/** The edit popover in the prototype's words: Done keeps the edit with this job's CV, saved at the end. */
+const EDIT_COPY: EditorCopy = { saveLabel: 'Done', savedNote: 'saved with the CV at the end' }
+
 const jobAsData = (j: { id: string; company: string; role: string; label: string }): JobData => ({ ...j, links: [], cv: null })
 const asBullets = (b: readonly DraftBullet[]): BulletData[] => b.map((x) => ({ kind: x.kind, text: x.text, want: x.want ?? null }))
 
 export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, notReadyText }: Props) {
   const a = useAnalysis({ loaded, experiences })
   const router = useRouter()
-  const [editing, setEditing] = useState<{ target: EditTarget; editing: ComposeEditing } | null>(null)
+  /** The open editor: what it edits, the edit so far, and how it started ("No changes yet." until they differ). */
+  const [editing, setEditing] = useState<{ target: EditTarget; editing: ComposeEditing; start: ComposeEditing } | null>(null)
   const lines = useMemo(() => postingLines(a.postingText), [a.postingText])
+  const listItems = useMemo(() => postingListItems(a.postingText), [a.postingText])
   const s = a.session
   const views = useMemo(() => (s ? blockViews(s, library) : null), [s, library])
   // The review CV is only laid out on the review steps (layout is the costly part).
@@ -80,12 +85,14 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
       const d = s.drafts.find((x) => x.key === target.key)
       if (!d) return
       const draft = { title: d.title, bullets: toEditorBullets(asBullets(d.bullets), (i) => `${d.key}-${i}`) }
-      setEditing({ target, editing: d.newBlock ? { kind: 'new', meta: { ...d.newBlock }, draft, focusTitle: true } : { kind: 'edit', blockId: d.blockId ?? '', versionId: draftVersionId(d.key), draft, saveAs: d.saveAs } })
+      const e: ComposeEditing = d.newBlock ? { kind: 'new', meta: { ...d.newBlock }, draft, focusTitle: true } : { kind: 'edit', blockId: d.blockId ?? '', versionId: draftVersionId(d.key), draft, saveAs: d.saveAs }
+      setEditing({ target, editing: e, start: e })
       return
     }
     const r = s.analysis.reused.find((x) => x.versionId === target.versionId)
     if (!r) return
-    setEditing({ target, editing: { kind: 'edit', blockId: r.blockId, versionId: r.versionId, draft: { title: r.title, bullets: toEditorBullets(asBullets(r.bullets), (i) => `${r.versionId}-${i}`) }, saveAs: 'new' } })
+    const e: ComposeEditing = { kind: 'edit', blockId: r.blockId, versionId: r.versionId, draft: { title: r.title, bullets: toEditorBullets(asBullets(r.bullets), (i) => `${r.versionId}-${i}`) }, saveAs: 'new' }
+    setEditing({ target, editing: e, start: e })
   }
 
   function saveEdit() {
@@ -258,7 +265,7 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
         </div>
       )}
       {(a.job || a.phase !== 'idle') && (reviewing ? review() : panels())}
-      {views && <AnalysisPopovers a={a} views={views} lines={lines} onEdit={openEdit} />}
+      {views && <AnalysisPopovers a={a} views={views} lines={lines} listItems={listItems} onEdit={openEdit} />}
       {editing && a.job && (
         <ComposeEditor
           editing={editing.editing}
@@ -266,7 +273,8 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
           block={editBlock}
           version={editVersion}
           job={jobAsData(a.job)}
-          status={{ text: 'Kept with this job’s CV; saved when you save the CV.', warn: false }}
+          status={{ text: JSON.stringify(editing.editing) === JSON.stringify(editing.start) ? 'No changes yet.' : 'Changes not saved yet: press Done.', warn: false }}
+          copy={editing.target.type === 'draft' ? { ...EDIT_COPY, versionLine: `version “${a.job.label}” · new` } : EDIT_COPY}
           canSave
           busy={false}
           error={null}

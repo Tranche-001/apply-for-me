@@ -163,6 +163,26 @@ describe('blocks used as they are', () => {
   })
 })
 
+describe('applyRedraft keeps an answered question tied to its requirement', () => {
+  const quoted = (id: string, text: string, quotes: string[]) => ({ id, text, status: 'partial' as const, evidence: '', quotes, keys: [] })
+  const RAG = 'Design, build and run retrieval-augmented generation (RAG) pipelines in production.'
+
+  test('when the AI rewords the requirement, the shared posting quote still links them', () => {
+    let s = newSession(analysis({ requirements: [quoted('r1', 'RAG pipelines in production', [RAG])] }), NOW)
+    s = setAnswer(s, 'q1', 'Yes, at Visio AI.')
+    const next = analysis({ asks: [], requirements: [quoted('r4', 'Production RAG pipelines with pgvector', [RAG])] })
+    const r = applyRedraft(s, next, NOW)
+    expect(r.analysis.asks.find((a) => a.id === 'q1')?.requirementId).toBe('r4')
+  })
+
+  test('with neither the same text nor a shared quote, the link is dropped', () => {
+    let s = newSession(analysis({ requirements: [quoted('r1', 'RAG pipelines in production', [RAG])] }), NOW)
+    s = setAnswer(s, 'q1', 'Yes.')
+    const r = applyRedraft(s, analysis({ asks: [], requirements: [quoted('r4', 'Kafka', ['Experience with Kafka.'])] }), NOW)
+    expect(r.analysis.asks.find((a) => a.id === 'q1')?.requirementId).toBeNull()
+  })
+})
+
 describe('applyRedraft', () => {
   test('replaces drafts you did not touch and keeps the ones you edited by hand', () => {
     const edited = updateDraft(newSession(analysis(), NOW), 'd1', { title: 'My own title' })

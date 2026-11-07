@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findQuoteLine, hasMark, markSegments, postingLines, quoteContext, sectionTitle } from './highlight'
+import { findQuoteLine, hasMark, markSegments, postingLines, postingListItems, quoteContext, sectionTitle } from './highlight'
 
 describe('sectionTitle', () => {
   const lines = [
@@ -97,6 +97,19 @@ describe('postingLines', () => {
 
   it('drops lines that are only a glyph', () => {
     expect(postingLines('•\n-\nreal')).toEqual(['real'])
+  })
+})
+
+describe('postingListItems', () => {
+  it('says which of postingLines() were list items in the posting', () => {
+    const text = 'Requirements\n\n- Python\n• TypeScript\n   * Kafka\nNice to have\n-\nFintech'
+    expect(postingLines(text)).toEqual(['Requirements', 'Python', 'TypeScript', 'Kafka', 'Nice to have', 'Fintech'])
+    expect(postingListItems(text)).toEqual([false, true, true, true, false, false])
+  })
+
+  it('is all false for a posting pasted without list marks', () => {
+    expect(postingListItems('About us\nWe build.\n3+ years of Python.')).toEqual([false, false, false])
+    expect(postingListItems('')).toEqual([])
   })
 })
 

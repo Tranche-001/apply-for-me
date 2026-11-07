@@ -12,12 +12,18 @@ export function blockRequirements(matches: readonly RequirementMatch[], requirem
   })
 }
 
-/** "3 requirements", "2 requirements + 1 partly", "Would match 1 requirement + 1 partly", "No requirement". */
+const requirements = (n: number): string => `${n} requirement${n === 1 ? '' : 's'}`
+
+/**
+ * "3 requirements", "2 requirements + 1 partly", "Would match 1 requirement + 1 partly", "No requirement";
+ * only partly: "1 requirement, partly" (never "0 requirements + 1 partly").
+ */
 export function requirementCountLabel(list: readonly { partly: boolean }[], opts: { wouldMatch: boolean }): string {
   if (!list.length) return 'No requirement'
   const full = list.filter((x) => !x.partly).length
   const partly = list.length - full
-  return `${opts.wouldMatch ? 'Would match ' : ''}${full} requirement${full === 1 ? '' : 's'}${partly ? ` + ${partly} partly` : ''}`
+  const count = full ? `${requirements(full)}${partly ? ` + ${partly} partly` : ''}` : `${requirements(partly)}, partly`
+  return `${opts.wouldMatch ? 'Would match ' : ''}${count}`
 }
 
 export type CvHit = { id: string; blockName: string; phrases: string[]; partly: boolean }

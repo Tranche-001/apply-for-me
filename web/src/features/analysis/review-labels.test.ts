@@ -8,6 +8,7 @@ import {
   discardedLabel,
   gapHint,
   improvesLabel,
+  matchChipLabel,
   metBlocksLine,
   metCountLine,
   requirementTopic,
@@ -80,10 +81,12 @@ describe('reviewBlockSub', () => {
   it('blocks as they are: the count and the version used', () => {
     expect(reviewBlockSub({ group: 'asis', matches: [{ partly: false }], versionName: 'Web Full-Stack' })).toBe('1 requirement · version “Web Full-Stack”')
     expect(reviewBlockSub({ group: 'asis', matches: [], versionName: 'Web Full-Stack' })).toBe('No requirement · version “Web Full-Stack”')
+    expect(reviewBlockSub({ group: 'asis', matches: [{ partly: true }], versionName: 'Base' })).toBe('1 requirement, partly · version “Base”')
   })
 
   it('blocks left out: what they would match, nothing else', () => {
     expect(reviewBlockSub({ group: 'out', matches: [{ partly: false }, { partly: true }], versionName: 'Base', note: 'ignored' })).toBe('Would match 1 requirement + 1 partly')
+    expect(reviewBlockSub({ group: 'out', matches: [{ partly: true }] })).toBe('Would match 1 requirement, partly')
   })
 })
 
@@ -121,6 +124,8 @@ describe('popover labels', () => {
   it('blockMatchTitle: matches, would match, or none', () => {
     expect(blockMatchTitle([{ partly: false }, { partly: false }, { partly: false }], false)).toBe('Matches 3 requirements')
     expect(blockMatchTitle([{ partly: false }, { partly: true }], true)).toBe('Would match 1 requirement + 1 partly')
+    expect(blockMatchTitle([{ partly: true }], false)).toBe('Matches 1 requirement, partly')
+    expect(blockMatchTitle([{ partly: true }, { partly: true }], true)).toBe('Would match 2 requirements, partly')
     expect(blockMatchTitle([], false)).toBe('No requirement of this job')
   })
 
@@ -138,5 +143,17 @@ describe('popover labels', () => {
   it('addedToLabel marks a new experience', () => {
     expect(addedToLabel('Visio AI', false)).toBe('✓ Added to Visio AI.')
     expect(addedToLabel('Kafka side project', true)).toBe('✓ Added to Kafka side project (new).')
+  })
+})
+
+describe('matchChipLabel', () => {
+  it('counts the requirements a block matches, the partial ones after a dot', () => {
+    expect(matchChipLabel([{ partly: false }])).toEqual({ lead: '✓ 1 requirement', partly: null })
+    expect(matchChipLabel([{ partly: false }, { partly: false }, { partly: true }])).toEqual({ lead: '✓ 2 requirements', partly: '· 1 partly' })
+  })
+
+  it('reads naturally when the block only partly matches', () => {
+    expect(matchChipLabel([{ partly: true }])).toEqual({ lead: null, partly: '– 1 requirement, partly' })
+    expect(matchChipLabel([{ partly: true }, { partly: true }])).toEqual({ lead: null, partly: '– 2 requirements, partly' })
   })
 })
