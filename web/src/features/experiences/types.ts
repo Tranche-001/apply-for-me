@@ -45,3 +45,33 @@ export function appendEntry(notes: string, entry: string): string {
   const gap = notes.endsWith('\n\n') ? '' : notes.endsWith('\n') ? '\n' : '\n\n'
   return `${notes}${gap}${entry}`
 }
+
+/**
+ * Resend: the first exact occurrence of `oldEntry` becomes `newEntry`; everything else stays byte for byte.
+ * Not found (edited by hand, or empty) → `newEntry` is appended at the end like appendEntry, `replaced: false`.
+ */
+export function replaceEntry(notes: string, oldEntry: string, newEntry: string): { notes: string; replaced: boolean } {
+  const at = oldEntry ? notes.indexOf(oldEntry) : -1
+  if (at < 0) return { notes: appendEntry(notes, newEntry), replaced: false }
+  return { notes: `${notes.slice(0, at)}${newEntry}${notes.slice(at + oldEntry.length)}`, replaced: true }
+}
+
+const BLANK_LINES = ['\r\n\r\n', '\n\n'] as const
+
+/**
+ * The first exact occurrence of `entry` is removed together with ONE blank-line separator: the one right
+ * before it, or the one right after it when nothing precedes it. Nothing else changes. Not found → unchanged.
+ */
+export function removeEntry(notes: string, entry: string): { notes: string; removed: boolean } {
+  const at = entry ? notes.indexOf(entry) : -1
+  if (at < 0) return { notes, removed: false }
+  let before = notes.slice(0, at)
+  let after = notes.slice(at + entry.length)
+  const gapBefore = BLANK_LINES.find((g) => before.endsWith(g))
+  if (gapBefore) before = before.slice(0, -gapBefore.length)
+  else if (!before) {
+    const gapAfter = BLANK_LINES.find((g) => after.startsWith(g))
+    if (gapAfter) after = after.slice(gapAfter.length)
+  }
+  return { notes: `${before}${after}`, removed: true }
+}

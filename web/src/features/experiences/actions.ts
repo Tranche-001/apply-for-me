@@ -9,7 +9,7 @@ import { draftVersionInput } from '../ai/draft-schema'
 import { saveDraftToLibrary } from '../ai/library-writes'
 import { jobLabel } from '../ai/labels'
 import { fail, invalidInput, ok, type ActionResult } from '../ai/result'
-import { appendAnswerToExperience, type PlacedAnswer } from './answers'
+import { appendAnswerToExperience, resendAnswerInExperience, type PlacedAnswer, type ResentAnswer } from './answers'
 import { answerEntry, type ExperienceFields, type ExperienceItem } from './types'
 
 const id = z.string().trim().min(1, 'is missing').max(64, 'is not a valid id')
@@ -91,10 +91,20 @@ const answersInput = z.object({
         question: z.string().trim().min(1, 'is missing').max(2000, 'is too long'),
         answer: z.string().trim().min(1, 'Write your answer first.').max(4000, 'Your answer is too long (4000 characters at most).'),
         experienceId: id.nullable(),
+        /** Used only when experienceId is null: the answer goes to a new experience with this title. */
+        newExperienceTitle: z.string().trim().min(1, 'Give the new experience a title.').max(120, 'The title is too long (120 characters at most).').nullish(),
       }),
     )
     .min(1)
     .max(12),
+})
+
+const resendInput = z.object({
+  jobId: id,
+  experienceId: id,
+  oldEntry: z.string().min(1, 'is missing').max(6000, 'is too long'),
+  question: z.string().trim().min(1, 'is missing').max(2000, 'is too long'),
+  answer: z.string().trim().min(1, 'Write your answer first.').max(4000, 'Your answer is too long (4000 characters at most).').nullable(),
 })
 
 /**
@@ -113,9 +123,28 @@ export async function addAnswersToExperiences(input: z.input<typeof answersInput
       const placed: PlacedAnswer[] = []
       for (const item of items) {
         const entry = answerEntry({ jobLabel: jobLabel(job), question: item.question, answer: item.answer })
-        placed.push(await appendAnswerToExperience(tx, item.experienceId, entry))
+        placed.push(await appendAnswerToExperience(tx, item.experienceId, entry, { newExperienceTitle: item.newExperienceTitle }))
       }
       return placed
+    }),
+  )
+}
+
+/**
+ * An answer already saved is sent again: only the exact text it wrote into that experience is replaced
+ * (or removed when `answer` is null); the rest of the notes stays as it was. If that text was edited by hand,
+ * the new entry is added at the end instead.
+ */
+export async function resendAnswer(input: z.input<typeof resendInput>): Promise<ActionResult<ResentAnswer>> {
+  const parsed = resendInput.safeParse(input)
+  if (!parsed.success) return fail(invalidInput(parsed.error))
+  const { jobId, experienceId, oldEntry, question, answer } = parsed.data
+  return attempt('resendAnswer', () =>
+    db.$transaction(async (tx) => {
+      const job = await tx.job.findUnique({ where: { id: jobId }, select: { company: true, role: true } })
+      if (!job) throw Object.assign(new Error('gone'), { code: 'P2025' })
+      const newEntry = answer === null ? null : answerEntry({ jobLabel: jobLabel(job), question, answer })
+      return resendAnswerInExperience(tx, { experienceId, oldEntry, newEntry })
     }),
   )
 }
