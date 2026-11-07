@@ -59,7 +59,13 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
   const [editing, setEditing] = useState<{ target: EditTarget; editing: ComposeEditing } | null>(null)
   const lines = useMemo(() => postingLines(a.postingText), [a.postingText])
   const s = a.session
-  const views = s ? blockViews(s, library) : null
+  const views = useMemo(() => (s ? blockViews(s, library) : null), [s, library])
+  // The review CV is only laid out on the review steps (layout is the costly part).
+  const printed = useMemo(() => {
+    if (!s || (s.step !== 'review' && s.step !== 'saved')) return null
+    const comp = compositionForReview({ library, drafts: s.drafts, reused: s.analysis.reused, asIsOut: s.asIsOut, pages: s.pages })
+    return { comp, print: printCv(comp, libraryWithDrafts(library, s.drafts), profile) }
+  }, [s, library, profile])
   const busy = a.phase !== 'idle'
   const reqs = s?.analysis.requirements ?? []
 
@@ -69,6 +75,7 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
   // ── Edit popover: the same one as Compose CV (decision log); Done keeps the edit with this job's CV ──
   function openEdit(target: EditTarget) {
     if (!s) return
+    a.setModal(null) // the editor is its own dialog; a popover left open would cover it
     if (target.type === 'draft') {
       const d = s.drafts.find((x) => x.key === target.key)
       if (!d) return
@@ -195,12 +202,11 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
 
   // ── Review & save: the whole CV for this job ──
   const review = () => {
-    if (!s || !views || !a.job) return null
+    if (!s || !views || !a.job || !printed) return null
     const job = a.job
     const keptDrafts = views.drafts.filter((v) => v.keep)
     const kept = [...keptDrafts, ...views.asIs]
-    const comp = compositionForReview({ library, drafts: s.drafts, reused: s.analysis.reused, asIsOut: s.asIsOut, pages: s.pages })
-    const printed = printCv(comp, libraryWithDrafts(library, s.drafts), profile)
+    const comp = printed.comp
     const { met, notMet } = cvRequirements(s.analysis, kept.map((v) => ({ id: v.ref, blockName: v.blockName, matches: v.matches })))
     const group = (g: 'new' | 'asis' | 'out', list: typeof kept) =>
       list.map((v) => ({ group: g, id: v.ref, name: v.blockName, tag: reviewBlockTag(g, v.isNewBlock), sub: reviewBlockSub({ group: g, matches: blockRequirements(v.matches, reqs), versionName: v.versionName }), matched: v.matches.length > 0 }))
@@ -213,9 +219,9 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
           notMet={notMet.map((r) => ({ id: r.id, name: r.text }))}
           total={reqs.length}
           blocks={[...group('new', keptDrafts), ...group('asis', views.asIs), ...group('out', [...views.leftOut, ...views.asIsOut])]}
-          layout={printed.layout}
+          layout={printed.print.layout}
           profile={profile}
-          labels={printed.labels}
+          labels={printed.print.labels}
           newBlockIds={keptDrafts.map((v) => v.blockId)}
           pages={s.pages}
           saved={saved}
@@ -245,13 +251,13 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
       {a.problem && <StatusLine tone="error" text={a.problem.message} onRetry={a.problem.retry ?? undefined} />}
       {a.notice && !busy && <StatusLine text={a.notice} />}
       {a.saveState.status === 'error' && a.saveState.error && <StatusLine tone="error" text={`Couldn’t save your progress with the job: ${a.saveState.error}`} />}
-      {!a.job && a.phase === 'idle' ? (
-        <StartCard busy={busy} aiReady={aiReady} notReadyText={notReadyText} error={null} onAnalyzeUrl={(url) => void a.start({ url })} onUsePasted={(text) => void a.start({ text })} />
-      ) : reviewing ? (
-        review()
-      ) : (
-        panels()
+      {/* Kept mounted while the posting is read, so a failed read gives back the link or text you pasted. */}
+      {!a.job && (
+        <div hidden={a.phase !== 'idle'}>
+          <StartCard busy={busy} aiReady={aiReady} notReadyText={notReadyText} error={null} onAnalyzeUrl={(url) => void a.start({ url })} onUsePasted={(text) => void a.start({ text })} />
+        </div>
       )}
+      {(a.job || a.phase !== 'idle') && (reviewing ? review() : panels())}
       {views && <AnalysisPopovers a={a} views={views} lines={lines} onEdit={openEdit} />}
       {editing && a.job && (
         <ComposeEditor

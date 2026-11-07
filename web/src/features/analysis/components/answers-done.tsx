@@ -69,7 +69,7 @@ function AddedRow({ row, onOpen }: { row: SentRow; onOpen(askId: string): void }
   const { askId, n, sent } = row
   const to = sent.experienceTitle.trim() || null
   return (
-    <button className={c('a-filed-row edit')} type="button" aria-label={`Q${n}: see your answer, change it and resend it`} onClick={() => onOpen(askId)}>
+    <button className={c('a-filed-row edit')} type="button" onClick={() => onOpen(askId)}>
       <span className={c('ex')}>{EXP}</span>
       <span>
         <b>
@@ -89,7 +89,6 @@ function NotAddedRow({ row, topic, onAddExperience }: { row: SentRow; topic: str
     <button
       className={c('a-filed-row skip')}
       type="button"
-      aria-label={`${topic} was not added: add an experience that shows it`}
       onClick={() => onAddExperience(row.askId)}
     >
       <span className={c('ex')}>!</span>

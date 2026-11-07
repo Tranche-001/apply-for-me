@@ -70,14 +70,18 @@ export function ExperiencePicker({ askId, n, experiences, aiPick, alsoFits, sugg
     setDraftName(next)
     if (value.kind === 'new') onChange({ kind: 'new', name: next })
   }
-  const pick = (id: string) => {
-    onChange({ kind: 'existing', id })
+  // Arrow keys only move the choice (radios fire change on arrows); a click or Enter takes it and closes the list.
+  const pick = (id: string) => onChange({ kind: 'existing', id })
+  const takeOnClick = (ev: { detail: number }) => {
+    if (ev.detail > 0) close()
+  }
+  const takeOnEnter = (ev: KeyboardEvent) => {
+    if (ev.key !== 'Enter') return
+    ev.preventDefault()
     close()
   }
-  const pickNew = () => {
-    onChange({ kind: 'new', name })
-    nameField.current?.focus()
-  }
+  const pickNew = () => onChange({ kind: 'new', name })
+  const focusName = () => nameField.current?.focus()
   // "Use it" takes the AI's new experience; its line goes away, so focus goes back to "Goes to".
   const takeSuggestion = () => {
     onChange({ kind: 'new', name: draftName })
@@ -132,8 +136,8 @@ export function ExperiencePicker({ askId, n, experiences, aiPick, alsoFits, sugg
   const shown = (e: PickerExperience) => !q || matching.has(e.id)
   const radio = `pk-${askId}`
   const option = (e: PickerExperience, tag?: 'ai' | 'also') => (
-    <label key={e.id} className={c('pk-opt')}>
-      <input type="radio" name={radio} value={e.id} checked={value.kind === 'existing' && value.id === e.id} onChange={() => pick(e.id)} />
+    <label key={e.id} className={c('pk-opt')} onClick={takeOnClick}>
+      <input type="radio" name={radio} value={e.id} checked={value.kind === 'existing' && value.id === e.id} onChange={() => pick(e.id)} onKeyDown={takeOnEnter} />
       <span>{e.title}</span>
       {tag === 'ai' && <span className={c('a-aipick')}>AI’S PICK</span>}
       {tag === 'also' && <span className={c('pk-also')}>also fits</span>}
@@ -165,7 +169,21 @@ export function ExperiencePicker({ askId, n, experiences, aiPick, alsoFits, sugg
           {found.empty && <p className={c('pk-empty')}>No experience matches. Create it as a new one, below.</p>}
         </div>
         <label className={c('pk-new')}>
-          <input type="radio" name={radio} value="new" checked={value.kind === 'new'} onChange={pickNew} />
+          <input
+            type="radio"
+            name={radio}
+            value="new"
+            checked={value.kind === 'new'}
+            onChange={pickNew}
+            onClick={(ev) => {
+              if (ev.detail > 0) focusName()
+            }}
+            onKeyDown={(ev) => {
+              if (ev.key !== 'Enter') return
+              ev.preventDefault()
+              focusName()
+            }}
+          />
           <span>New experience</span>
           <input
             ref={nameField}

@@ -64,7 +64,7 @@ function Requirements({ met, notMet, total, onOpenRequirement }: Pick<Props, 'me
           <ul className={c('a-reqs')}>
             {met.map((r) => (
               <li key={r.id}>
-                <button className={c('a-req-btn')} type="button" onClick={() => onOpenRequirement(r.id)} aria-label={`${r.name}: see where the CV shows it`}>
+                <button className={c('a-req-btn')} type="button" onClick={() => onOpenRequirement(r.id)}>
                   <span className={c('ic', r.partly ? 'part' : 'met')}>{r.partly ? '–' : '✓'}</span>
                   <span>
                     {r.name}
@@ -83,7 +83,7 @@ function Requirements({ met, notMet, total, onOpenRequirement }: Pick<Props, 'me
           <ul className={c('a-reqs')}>
             {notMet.map((r) => (
               <li key={r.id}>
-                <button className={c('a-req-btn not')} type="button" onClick={() => onOpenRequirement(r.id)} aria-label={`${r.name}: add an experience that shows it`}>
+                <button className={c('a-req-btn not')} type="button" onClick={() => onOpenRequirement(r.id)}>
                   <span className={c('ic not')}>×</span>
                   <span>
                     {r.name}
@@ -112,7 +112,7 @@ function BlockList({ blocks, onOpenBlock }: Pick<Props, 'blocks' | 'onOpenBlock'
             <ul className={c('a-reqs')}>
               {list.map((b) => (
                 <li key={b.id}>
-                  <button className={c('a-req-btn')} type="button" onClick={() => onOpenBlock(b.id)} aria-label={`${b.name}: see which requirements it matches`}>
+                  <button className={c('a-req-btn')} type="button" onClick={() => onOpenBlock(b.id)}>
                     <span className={c('ic', b.matched ? 'met' : 'not')}>
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         {BLOCKS_ICON.map((d) => (

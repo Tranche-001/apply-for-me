@@ -50,7 +50,6 @@ export function RequirementsPanel({ analysis, phase, blockNameOf, onOpen }: Prop
         <button
           className={c('a-req-btn', !covered && 'not')}
           type="button"
-          aria-label={`${r.text}: see how ${covered ? 'it is' : 'it is not'} covered`}
           onClick={() => onOpen(r.id)}
         >
           <span className={c('ic', cls)}>{glyph}</span>

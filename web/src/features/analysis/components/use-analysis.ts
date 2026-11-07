@@ -34,6 +34,12 @@ type SendItem = { askId: string; question: string; answer: string }
 
 const NO_NOT_MET: NotMetState = { busy: false, done: null, error: null }
 const now = () => new Date().toISOString()
+const OFFLINE = 'Couldn’t reach the app. Check that it is running, then try again.'
+
+// Stable on purpose: useAutosave rebuilds its timer when these change, and a new closure each render would
+// save the whole session on every keystroke.
+const saveSession = (v: { jobId: string; session: AnalysisSession }) => saveAnalysisSession(v)
+const sameJob = (a: { jobId: string }, b: { jobId: string }) => a.jobId === b.jobId
 
 /** Every question's answer for the AI: "I don't have this" is null, unanswered is ''. */
 const answersFor = (s: AnalysisSession) =>
@@ -68,9 +74,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
   const sessionRef = useRef(session)
   const jobRef = useRef(job)
 
-  const autosave = useAutosave((v: { jobId: string; session: AnalysisSession }) => saveAnalysisSession(v), {
-    sameTarget: (a, b) => a.jobId === b.jobId,
-  })
+  const autosave = useAutosave(saveSession, { sameTarget: sameJob })
   const { queue } = autosave
 
   /** The one way the session changes: state, the ref async flows read, and the autosave. */
@@ -88,10 +92,23 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     if (s) commit(fn(s))
   }, [commit])
 
+  // A failure closes any popover, so its message and Retry are seen (they sit at the top of the page).
   const fail = (message: string, retry: (() => void) | null) => {
     setPhase('idle')
+    setModal(null)
     setProblem({ message, retry })
   }
+
+  /** Every flow ends idle: a thrown action (network, timeout) becomes a plain error with Retry. */
+  const guard =
+    <A extends unknown[]>(fn: (...args: A) => Promise<void>) =>
+    async (...args: A): Promise<void> => {
+      try {
+        await fn(...args)
+      } catch {
+        fail(OFFLINE, () => void guard(fn)(...args))
+      }
+    }
 
   const addExperiences = (placed: { experienceId: string; title: string }[]) =>
     setExperiences((list) => {
@@ -202,7 +219,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
   /** Placement popover: your choices (or "Not now": the answers place). */
   const confirmPlacement = (dest: Record<string, Destination | null>) => {
     const s = sessionRef.current
-    if (s) void file(dest, toSend(s))
+    if (s) void guard(file)(dest, toSend(s))
   }
 
   /** Resend one question: only the text it wrote to the experience is replaced (or removed), then a redraft. */
@@ -241,7 +258,12 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     const req = s?.analysis.requirements.find((r) => r.id === reqId)
     if (!s || !j || !req) return
     setNotMet({ busy: true, done: null, error: null })
-    const res = await addExperienceForRequirement({ jobId: j.id, requirementId: reqId, requirementName: req.text, ...v })
+    let res: Awaited<ReturnType<typeof addExperienceForRequirement>>
+    try {
+      res = await addExperienceForRequirement({ jobId: j.id, requirementId: reqId, requirementName: req.text, ...v })
+    } catch {
+      return setNotMet({ busy: false, done: null, error: OFFLINE })
+    }
     if (!res.ok) return setNotMet({ busy: false, done: null, error: res.error })
     change((cur) => ({ ...cur, drafts: [...cur.drafts, { ...res.data.draft, keep: false, editedByHand: false, saveAs: 'new' }] }))
     addExperiences([res.data.placed])
@@ -282,8 +304,14 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
 
   return {
     job, postingText, session, resumed, phase, problem, notice, experiences, modal, undo, notMet, saveState: autosave,
-    setModal, setUndo, setProblem, change, openNotMet,
-    start, analyzeAgain, redraft, updateDrafts, confirmPlacement, send, addExperience, save, reset,
+    setModal, setUndo, setProblem, change, openNotMet, confirmPlacement, addExperience, reset,
+    // Wrapped when called (from an event), never during render.
+    start: (input: { url: string } | { text: string }) => guard(start)(input),
+    analyzeAgain: () => guard(analyzeAgain)(),
+    redraft: (instruction: string | null = null) => guard(redraft)(instruction),
+    updateDrafts: () => guard(updateDrafts)(),
+    send: (askId: string) => guard(send)(askId),
+    save: (cv: Parameters<typeof saveAnalysisCv>[0]['cv']) => guard(save)(cv),
   }
 }
 

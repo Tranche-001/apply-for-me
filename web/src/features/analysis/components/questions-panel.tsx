@@ -66,7 +66,7 @@ function QuestionCard({ ask, n, answer, dont, hintFor, onOpen }: CardProps) {
   const label = STATE_LABEL[st]
   const hint = st === 'empty' ? hintFor(ask.id) : null
   return (
-    <button className={c('q-card')} type="button" aria-label={`Q${n}: ${label}`} onClick={() => onOpen(ask.id)}>
+    <button className={c('q-card')} type="button" onClick={() => onOpen(ask.id)}>
       <span className={c('q-n')}>{`Q${n}`}</span>
       <span className={c('q-body')}>
         <span className={c('q-text')}>{ask.text}</span>

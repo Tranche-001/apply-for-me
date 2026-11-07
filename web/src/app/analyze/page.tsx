@@ -26,8 +26,8 @@ async function Analyze({ searchParams }: Props) {
   const [experiences, library, profile, loaded] = await Promise.all([listExperienceOptions(), getLibrary(), getProfile(), wanted ? loadAnalysisJob(wanted) : null])
   const aiReady = aiProvider() !== null
   return (
+    // No key: a refresh() after a write re-renders this page with ?job=, and the screen must keep its state.
     <AnalyzeScreen
-      key={loaded?.job.id ?? 'new'}
       loaded={loaded}
       experiences={experiences}
       library={library}
