@@ -108,6 +108,19 @@ export type JobAnalysis = {
   report: AiReportLine[]
 }
 
+/**
+ * Where one written answer should go in Experiences, as the AI sees it. `experienceId` null with a
+ * `newExperienceName` = a place that is not an experience yet; both null = the screen asks.
+ */
+export type AnswerPlacement = {
+  askId: string
+  experienceId: string | null
+  /** Up to 2 other experiences it could also go to. */
+  alsoFits: string[]
+  why: string
+  newExperienceName: string | null
+}
+
 /** A drafted interview answer and what the draft did. */
 export type AnswerDraft = { text: string; changes: string[] }
 

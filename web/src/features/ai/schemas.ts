@@ -101,6 +101,25 @@ export const blockDraftOutputSchema = z.object({
 })
 export type BlockDraftOutput = z.infer<typeof blockDraftOutputSchema>
 
+export const jobInfoOutputSchema = z.object({
+  company: z.string().describe('The hiring company, as the posting names it. Empty when the posting does not say.'),
+  role: z.string().describe('The job title, as the posting names it. Empty when the posting does not say.'),
+})
+export type JobInfoOutput = z.infer<typeof jobInfoOutputSchema>
+
+export const placementOutputSchema = z.object({
+  placements: z.array(
+    z.object({
+      askId: z.string().describe('The id of the question, exactly as given.'),
+      experienceId: z.string().nullable().describe('Id of the experience this answer belongs to, or null when it names a place that is not in the list.'),
+      alsoFits: z.array(z.string()).describe('At most 2 other experience ids where this answer could also go. Never the main one.'),
+      why: z.string().describe('One short sentence, in English, saying why it goes there. Name experiences by their titles, never by id.'),
+      newExperienceName: z.string().nullable().describe('Only when the answer names a place that is not an experience yet: that place\'s name, as he wrote it. Otherwise null.'),
+    }),
+  ),
+})
+export type PlacementOutput = z.infer<typeof placementOutputSchema>
+
 /** Parses the model's text as JSON for `schema`; returns null when it is not valid. */
 export function parseModelJson<T>(schema: z.ZodType<T>, text: string): T | null {
   let raw: unknown

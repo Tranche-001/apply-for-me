@@ -32,4 +32,8 @@ export const TASKS = {
   analysis: { maxTokens: 64_000, effort: 'high' },
   answer: { maxTokens: 16_000, effort: 'medium' },
   blockDraft: { maxTokens: 16_000, effort: 'medium' },
+  /** Company and role from a posting: a few words out, so little thinking and a small budget. */
+  jobInfo: { maxTokens: 2_000, effort: 'low' },
+  /** Which experience each written answer belongs to: short structured output. */
+  placement: { maxTokens: 6_000, effort: 'low' },
 } as const satisfies Record<string, { maxTokens: number; effort: Effort }>

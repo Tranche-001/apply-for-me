@@ -10,12 +10,14 @@ import { getAi, type AiRunner } from './client'
 import { loadExperiences, loadJob, loadLibrary, loadProfile, loadQuestion, loadRules } from './context'
 import { errorLogContext, plainAiError } from './errors'
 import { TASKS } from './model'
+import { finalizeJobInfo, type JobNames } from './job-info'
+import { finalizePlacement } from './placement'
 import { finalizeAnalysis, finalizeBlockDraft, finalizeCvPlan, toPostingSummary } from './postprocess'
 import { NOT_READY } from './provider'
-import { buildAnalysisPrompt, buildAnswerPrompt, buildBlockDraftPrompt, buildCvPlanPrompt } from './prompts'
+import { buildAnalysisPrompt, buildAnswerPrompt, buildBlockDraftPrompt, buildCvPlanPrompt, buildJobInfoPrompt, buildPlacementPrompt } from './prompts'
 import { fail, invalidInput, ok } from './result'
-import { analysisOutputSchema, answerOutputSchema, blockDraftOutputSchema, cvPlanOutputSchema } from './schemas'
-import type { AiAsk, AiReportLine, AiResult, AnalyzeJobInput, AnswerDraft, CvPlan, DraftVersion, JobAnalysis } from './types'
+import { analysisOutputSchema, answerOutputSchema, blockDraftOutputSchema, cvPlanOutputSchema, jobInfoOutputSchema, placementOutputSchema } from './schemas'
+import type { AiAsk, AiReportLine, AiResult, AnalyzeJobInput, AnswerDraft, AnswerPlacement, CvPlan, DraftVersion, JobAnalysis } from './types'
 
 const id = z.string().trim().min(1, 'is missing').max(64, 'is not a valid id')
 
@@ -157,5 +159,51 @@ export async function draftBlockFromExperience(input: { experienceId: string }):
     const prompt = buildBlockDraftPrompt({ experience, linkedBlocks, otherBlockNames, rules })
     const raw = await ai.run(prompt, blockDraftOutputSchema, TASKS.blockDraft)
     return ok(finalizeBlockDraft(raw, library, experience))
+  })
+}
+
+const jobInfoInput = z.object({
+  postingText: z.string().trim().min(20, 'There is no job text to read.').max(40_000, 'The job text is too long (40,000 characters at most).'),
+})
+
+/** Job analysis v2 → "Analyze": which company and role a posting is for. Writes nothing; either name may come back empty. */
+export async function readJobInfo(input: { postingText: string }): Promise<AiResult<JobNames>> {
+  const parsed = jobInfoInput.safeParse(input)
+  if (!parsed.success) return fail(invalidInput(parsed.error))
+  const ai = getAi()
+  if (!ai) return fail(NOT_READY)
+  return guarded('readJobInfo', ai, async () => {
+    const raw = await ai.run(buildJobInfoPrompt(parsed.data.postingText), jobInfoOutputSchema, TASKS.jobInfo)
+    return ok(finalizeJobInfo(raw))
+  })
+}
+
+const placeInput = z.object({
+  jobId: id,
+  items: z
+    .array(
+      z.object({
+        askId: z.string().trim().min(1, 'is missing').max(40, 'is not a valid id'),
+        question: z.string().trim().min(1, 'is missing').max(2000, 'is too long'),
+        answer: z.string().trim().min(1, 'Write your answer first.').max(4000, 'Your answer is too long (4000 characters at most).'),
+      }),
+    )
+    .min(1, 'There is no answer to place.')
+    .max(12, 'Place at most 12 answers at a time.'),
+})
+
+/** Job analysis v2 → "Send answers": the AI says which experience each written answer belongs to. Writes nothing. */
+export async function placeAnswers(input: { jobId: string; items: { askId: string; question: string; answer: string }[] }): Promise<AiResult<AnswerPlacement[]>> {
+  const parsed = placeInput.safeParse(input)
+  if (!parsed.success) return fail(invalidInput(parsed.error))
+  const ai = getAi()
+  if (!ai) return fail(NOT_READY)
+  const { jobId, items } = parsed.data
+  return guarded('placeAnswers', ai, async () => {
+    const job = await loadJob(jobId)
+    if (!job) return fail(MISSING_JOB)
+    const experiences = await loadExperiences()
+    const raw = await ai.run(buildPlacementPrompt({ items, experiences }), placementOutputSchema, TASKS.placement)
+    return ok(finalizePlacement(raw, items, experiences))
   })
 }

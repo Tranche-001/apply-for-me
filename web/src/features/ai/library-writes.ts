@@ -9,10 +9,21 @@ export type SavedDraft = { blockId: string; blockName: string; versionId: string
 
 type Tx = Prisma.TransactionClient
 
-function bulletRows(draft: DraftVersionInput) {
+export function bulletRows(draft: Pick<DraftVersionInput, 'bullets'>) {
   return draft.bullets
     .filter((b) => b.kind === 'MISSING' || b.text)
     .map((b, position) => ({ kind: b.kind, text: b.kind === 'MISSING' ? '' : b.text, want: b.kind === 'MISSING' ? (b.want ?? null) : null, position }))
+}
+
+/**
+ * "Save as: Update": the version the draft started from takes the draft's title and bullets; its name stays.
+ * Throws 'block-missing' (plain "deleted" error) when the version is gone or is not a version of the draft's block.
+ */
+export async function updateVersionFromDraft(tx: Tx, versionId: string, draft: DraftVersionInput): Promise<SavedDraft> {
+  const version = await tx.version.findUnique({ where: { id: versionId }, select: { id: true, name: true, blockId: true, block: { select: { name: true } } } })
+  if (!version || version.blockId !== draft.blockId) throw new Error('block-missing')
+  await tx.version.update({ where: { id: version.id }, data: { title: draft.title, bullets: { deleteMany: {}, create: bulletRows(draft) } } })
+  return { blockId: version.blockId, blockName: version.block.name, versionId: version.id, versionName: version.name, isNewBlock: false }
 }
 
 async function uniqueSlug(tx: Tx, name: string): Promise<string> {

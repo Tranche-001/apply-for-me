@@ -1,7 +1,9 @@
 import 'server-only'
 import { db } from '@/lib/db'
 import { jobLabel } from '../ai/labels'
-import type { ExperienceOption, JobSummary } from './types'
+import { toJobSummary } from './job-summary'
+import { parseSession } from './session'
+import type { AnalysisSession, ExperienceOption, JobSummary } from './types'
 
 /** Every job, most recently changed first, with its links and how much posting text is saved. */
 export async function listJobsForAnalysis(): Promise<JobSummary[]> {
@@ -21,4 +23,27 @@ export async function listJobsForAnalysis(): Promise<JobSummary[]> {
 export async function listExperienceOptions(): Promise<ExperienceOption[]> {
   const rows = await db.experience.findMany({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], select: { id: true, title: true } })
   return rows.map((e) => ({ id: e.id, title: e.title.trim() || 'Untitled experience' }))
+}
+
+export type LoadedAnalysisJob = { job: JobSummary; postingText: string; session: AnalysisSession | null; analyzedAt: string | null }
+
+/**
+ * One job with its saved posting text and analysis session, or null when the job is gone. The session is read
+ * with an explicit select (the client leaves Job.analysis out by default); an old or invalid one comes back null.
+ */
+export async function loadAnalysisJob(jobId: string): Promise<LoadedAnalysisJob | null> {
+  const row = await db.job.findUnique({
+    where: { id: jobId },
+    select: {
+      id: true,
+      company: true,
+      role: true,
+      postingText: true,
+      analysis: true,
+      analyzedAt: true,
+      links: { orderBy: { position: 'asc' }, select: { id: true, kind: true, url: true } },
+    },
+  })
+  if (!row) return null
+  return { job: toJobSummary(row), postingText: row.postingText, session: parseSession(row.analysis), analyzedAt: row.analyzedAt?.toISOString() ?? null }
 }
