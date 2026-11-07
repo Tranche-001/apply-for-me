@@ -9,7 +9,8 @@ const jobInclude = {
   cv: { include: { items: { orderBy: { position: 'asc' } } } },
 } satisfies Prisma.JobInclude
 
-type JobRow = Prisma.JobGetPayload<{ include: typeof jobInclude }>
+// db omits Job.analysis by default (src/lib/db.ts).
+type JobRow = Prisma.JobGetPayload<{ include: typeof jobInclude; omit: { analysis: true } }>
 
 function savedLabel(source: string, savedAt: Date): string {
   if (source.trim()) return source.trim()
