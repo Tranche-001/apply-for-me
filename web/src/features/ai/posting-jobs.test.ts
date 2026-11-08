@@ -20,6 +20,7 @@ const rawJob = (over: Partial<RawJob> = {}): RawJob => ({
   lastLine: 'Requirements: Python, SQL.',
   lines: ['Design, build and run RAG pipelines in production.', 'Own our vector search layer on pgvector.'],
   requirementCount: 9,
+  isTrack: false,
   ...over,
 })
 const rawB = (over: Partial<RawJob> = {}) =>
@@ -119,12 +120,25 @@ describe('finalizePostingJobs', () => {
   test('fallback uses the first entry for the names and keeps its valid lines', () => {
     const jobs = finalizePostingJobs({ jobs: [rawJob({ company: ' Example  Co ', lines: ['Own our vector search layer on pgvector.', 'nope'] })] }, TEXT_2)
     expect(jobs).toEqual([
-      { company: 'Example Co', role: 'Senior GenAI Engineer', location: 'São Paulo', kind: 'Full-time', text: TEXT_2, lines: ['Own our vector search layer on pgvector.'], requirementCount: 9 },
+      {
+        company: 'Example Co',
+        role: 'Senior GenAI Engineer',
+        location: 'São Paulo',
+        kind: 'Full-time',
+        text: TEXT_2,
+        lines: ['Own our vector search layer on pgvector.'],
+        requirementCount: 9,
+        track: false,
+        startsWith: '',
+        shared: [],
+      },
     ])
   })
 
   test('no jobs at all: one job with the whole text and empty names', () => {
-    expect(finalizePostingJobs({ jobs: [] }, TEXT_2)).toEqual([{ company: '', role: '', location: '', kind: '', text: TEXT_2, lines: [], requirementCount: 0 }])
+    expect(finalizePostingJobs({ jobs: [] }, TEXT_2)).toEqual([
+      { company: '', role: '', location: '', kind: '', text: TEXT_2, lines: [], requirementCount: 0, track: false, startsWith: '', shared: [] },
+    ])
   })
 
   test('a job with no role is dropped', () => {
@@ -157,10 +171,71 @@ describe('finalizePostingJobs', () => {
   })
 })
 
+// ---- Tracks: one posting (a program) with several tracks that each have their own requirements ----
+
+const PROGRAM = 'Programa de Estágio - GenAI\nSobre o programa\nUm programa de dois anos para estudantes de tecnologia.'
+const GENERAL = 'Requisitos gerais\nEstar matriculado em curso superior com conclusão entre 2027 e 2029.'
+const TRACK_ENG = 'Trilha AI Engineer\nConstruir agentes com LLMs em produção.\nRequisitos: Python e APIs.'
+const TRACK_BUILDER = 'Trilha AI Builder\nCriar soluções de IA para as áreas de negócio.\nRequisitos: curiosidade e no-code.'
+const BENEFITS = 'Bolsa e benefícios\nBolsa mensal e vale-refeição.'
+const TRACKS_TEXT = [PROGRAM, GENERAL, TRACK_ENG, TRACK_BUILDER, BENEFITS].join('\n\n')
+
+const trackEng = (over: Partial<RawJob> = {}): RawJob =>
+  rawJob({ company: 'iFood', role: 'AI Engineer', isTrack: true, firstLine: 'Trilha AI Engineer', lastLine: 'Requisitos: Python e APIs.', lines: ['Construir agentes com LLMs em produção.'], requirementCount: 3, ...over })
+const trackBuilder = (over: Partial<RawJob> = {}): RawJob =>
+  rawJob({ company: 'iFood', role: 'AI Builder', isTrack: true, firstLine: 'Trilha AI Builder', lastLine: 'Requisitos: curiosidade e no-code.', lines: [], requirementCount: 2, ...over })
+const SHARED_HEADINGS = ['Sobre o programa', 'Requisitos gerais', 'Bolsa e benefícios']
+
+describe('finalizePostingJobs: tracks of one posting', () => {
+  test('each track keeps the shared part (before, between and after the tracks) and only its own section', () => {
+    const [eng, builder] = finalizePostingJobs({ jobs: [trackEng(), trackBuilder()], sharedHeadings: SHARED_HEADINGS }, TRACKS_TEXT)
+    expect(eng.text).toBe([PROGRAM, GENERAL, TRACK_ENG, BENEFITS].join('\n\n'))
+    expect(builder.text).toBe([PROGRAM, GENERAL, TRACK_BUILDER, BENEFITS].join('\n\n'))
+    expect(eng.text).not.toContain('AI Builder')
+    expect(builder.text).not.toContain('AI Engineer')
+  })
+
+  test('tracks are marked, start with their own first line, and carry the shared headings', () => {
+    const jobs = finalizePostingJobs({ jobs: [trackEng(), trackBuilder()], sharedHeadings: SHARED_HEADINGS }, TRACKS_TEXT)
+    expect(jobs.map((j) => j.track)).toEqual([true, true])
+    expect(jobs.map((j) => j.startsWith)).toEqual(['Trilha AI Engineer', 'Trilha AI Builder'])
+    expect(jobs[0].shared).toEqual(SHARED_HEADINGS)
+  })
+
+  test('a heading the AI names that is not in the shared part is dropped (P1), as is one inside a track', () => {
+    const jobs = finalizePostingJobs({ jobs: [trackEng(), trackBuilder()], sharedHeadings: ['Sobre o programa', 'Processo seletivo', 'Trilha AI Engineer', 'Sobre o programa'] }, TRACKS_TEXT)
+    expect(jobs[0].shared).toEqual(['Sobre o programa'])
+  })
+
+  test('only when every entry is a track; otherwise the plain split (intro first) stays', () => {
+    const jobs = finalizePostingJobs({ jobs: [trackEng(), trackBuilder({ isTrack: false })], sharedHeadings: SHARED_HEADINGS }, TRACKS_TEXT)
+    expect(jobs.map((j) => j.track)).toEqual([false, false])
+    expect(jobs[0].text).toBe([PROGRAM, GENERAL, TRACK_ENG].join('\n\n'))
+    expect(jobs[0].shared).toEqual([])
+  })
+
+  test('a long shared part is capped, so each track keeps its own section in full', () => {
+    const long = `Sobre o programa\n${'palavra '.repeat(3000).trim()}`
+    const text = [long, TRACK_ENG, TRACK_BUILDER].join('\n\n')
+    const [eng] = finalizePostingJobs({ jobs: [trackEng(), trackBuilder()], sharedHeadings: [] }, text)
+    expect(eng.text.length).toBeLessThan(13_000)
+    expect(eng.text).toContain(TRACK_ENG)
+    expect(eng.text.startsWith('Sobre o programa')).toBe(true)
+  })
+
+  test('a single track that checks out falls back to one job with the whole text', () => {
+    const jobs = finalizePostingJobs({ jobs: [trackEng(), trackBuilder({ firstLine: 'Trilha inexistente' })], sharedHeadings: SHARED_HEADINGS }, TRACKS_TEXT)
+    expect(jobs).toHaveLength(1)
+    expect(jobs[0]).toMatchObject({ text: TRACKS_TEXT, track: false, shared: [] })
+  })
+})
+
 describe('postingJobsOutputSchema', () => {
   test('every field is required, none optional', () => {
-    expect(postingJobsOutputSchema.safeParse({ jobs: [rawJob()] }).success).toBe(true)
-    expect(postingJobsOutputSchema.safeParse({ jobs: [{ ...rawJob(), kind: undefined }] }).success).toBe(false)
+    expect(postingJobsOutputSchema.safeParse({ jobs: [rawJob()], sharedHeadings: [] }).success).toBe(true)
+    expect(postingJobsOutputSchema.safeParse({ jobs: [{ ...rawJob(), kind: undefined }], sharedHeadings: [] }).success).toBe(false)
+    expect(postingJobsOutputSchema.safeParse({ jobs: [{ ...rawJob(), isTrack: undefined }], sharedHeadings: [] }).success).toBe(false)
+    expect(postingJobsOutputSchema.safeParse({ jobs: [rawJob()] }).success).toBe(false)
     expect(postingJobsOutputSchema.safeParse({}).success).toBe(false)
   })
 })
@@ -178,6 +253,13 @@ describe('buildPostingJobsPrompt', () => {
     expect(p.system).toMatch(/first line/i)
     expect(p.system).toMatch(/last line/i)
     expect(p.system).toMatch(/word for word/i)
+  })
+
+  test('asks whether the entries are tracks of one posting, and for the shared headings word for word', () => {
+    const p = buildPostingJobsPrompt('x'.repeat(100))
+    expect(p.system).toMatch(/isTrack/)
+    expect(p.system).toMatch(/track/i)
+    expect(p.system).toMatch(/sharedHeadings/)
   })
 
   test('the whole posting is sent, up to the 40,000-character limit', () => {

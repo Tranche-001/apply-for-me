@@ -268,7 +268,7 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
       )}
       {/* Opened from Jobs ("Analyze") for a job never analyzed: compare its saved posting, or ask for one. */}
       {a.split ? (
-        <JobSplit candidates={a.split.candidates} busy={busy} onAnalyze={(id) => void a.analyzePicked(id)} onBack={a.useAnotherLink} />
+        <JobSplit candidates={a.split.candidates} source={a.split.source} busy={busy} onAnalyze={(id) => void a.analyzePicked(id)} onBack={a.useAnotherLink} />
       ) : a.job && !s && a.phase === 'idle' && !a.problem ? (
         a.postingText ? (
           <div className={c('a-start')}>

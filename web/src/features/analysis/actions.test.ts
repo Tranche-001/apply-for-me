@@ -311,9 +311,10 @@ describe('startFromPosting: more than one job in what was read', () => {
         kind: 'split',
         urls: [URL_A, URL_B],
         unread: [{ url: URL_B, error: 'Blocked. You can paste the job text instead.' }],
+        source: 'link',
         candidates: [
-          { id: 'c1', company: 'ExampleCo', role: 'Senior GenAI Engineer', meta: 'ExampleCo · São Paulo (hybrid) · Full-time', lines: ['Design RAG pipelines.', 'Own vector search.'], requirementCount: 9, text: 'JOB A TEXT. '.repeat(10) },
-          { id: 'c2', company: 'ExampleCo', role: 'ML Platform Engineer', meta: 'ExampleCo · Remote (Brazil)', lines: ['Run the platform.'], requirementCount: 7, text: 'JOB B TEXT. '.repeat(10) },
+          { id: 'c1', company: 'ExampleCo', role: 'Senior GenAI Engineer', meta: 'ExampleCo · São Paulo (hybrid) · Full-time', lines: ['Design RAG pipelines.', 'Own vector search.'], requirementCount: 9, text: 'JOB A TEXT. '.repeat(10), track: false, startsWith: '', shared: [] },
+          { id: 'c2', company: 'ExampleCo', role: 'ML Platform Engineer', meta: 'ExampleCo · Remote (Brazil)', lines: ['Run the platform.'], requirementCount: 7, text: 'JOB B TEXT. '.repeat(10), track: false, startsWith: '', shared: [] },
         ],
       },
     })
@@ -327,6 +328,7 @@ describe('startFromPosting: more than one job in what was read', () => {
     m.readPostingJobs.mockResolvedValue({ ok: true, data: [aJob({ company: '', location: '', kind: '' }), aJob({ role: 'SRE', company: 'Acme', kind: 'Contract', location: '' })] })
     const r = await startFromPosting({ text: POSTING })
     expect(r.ok && r.data.kind === 'split' && r.data.urls).toEqual([])
+    expect(r.ok && r.data.kind === 'split' && r.data.source).toBe('text')
     expect(r.ok && r.data.kind === 'split' && r.data.candidates.map((c) => c.meta)).toEqual(['', 'Acme · Contract'])
     expect(m.job.create).not.toHaveBeenCalled()
   })

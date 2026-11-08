@@ -113,9 +113,15 @@ export const postingJobsOutputSchema = z.object({
         lastLine: z.string().describe('The last line of this job\'s own text in the posting, copied word for word.'),
         lines: z.array(z.string()).describe('Two sentences that describe this job, copied word for word from its text.'),
         requirementCount: z.number().describe('How many requirements this job lists.'),
+        isTrack: z
+          .boolean()
+          .describe('true when this entry is one track, role or level of a single posting (a program with several tracks that each list their own requirements), not a separate posting.'),
       }),
     )
     .describe('One entry per job in the posting, in the order they appear. One entry when the text holds a single job.'),
+  sharedHeadings: z
+    .array(z.string())
+    .describe('When the entries are tracks of one posting: the headings of the sections every track shares (program intro, general requirements, stipend and benefits, selection process…), each copied word for word. Empty otherwise.'),
 })
 export type PostingJobsOutput = z.infer<typeof postingJobsOutputSchema>
 

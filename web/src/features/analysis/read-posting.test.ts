@@ -14,17 +14,27 @@ const fake = (map: Record<string, FetchResult>) => vi.fn(async (url: string) => 
 describe('readPostingUrls', () => {
   test('one link: its text as is, its title, the link', async () => {
     const r = await readPostingUrls([A], fake({ [A]: good(A, 'posting text') }))
-    expect(r).toEqual({ ok: true, text: 'posting text', title: 'Title posting text', urls: [A], unread: [] })
+    expect(r).toEqual({ ok: true, text: 'posting text', title: 'Title posting text', urls: [A], unread: [], reads: [{ url: A, text: 'posting text' }] })
   })
 
   test('two links both read: From blocks in the order typed, first title', async () => {
     const r = await readPostingUrls([A, B], fake({ [A]: good(A, 'one'), [B]: good(B, 'two') }))
-    expect(r).toEqual({ ok: true, text: `From ${A}:\none\n\nFrom ${B}:\ntwo`, title: 'Title one', urls: [A, B], unread: [] })
+    expect(r).toEqual({
+      ok: true,
+      text: `From ${A}:\none\n\nFrom ${B}:\ntwo`,
+      title: 'Title one',
+      urls: [A, B],
+      unread: [],
+      reads: [
+        { url: A, text: 'one' },
+        { url: B, text: 'two' },
+      ],
+    })
   })
 
   test('one of two blocked: text from the other, the blocked one listed, both links kept', async () => {
     const r = await readPostingUrls([A, B], fake({ [A]: blocked('Blocked. You can paste the job text instead.'), [B]: good(B, 'two') }))
-    expect(r).toEqual({ ok: true, text: 'two', title: 'Title two', urls: [A, B], unread: [{ url: A, error: 'Blocked. You can paste the job text instead.' }] })
+    expect(r).toEqual({ ok: true, text: 'two', title: 'Title two', urls: [A, B], unread: [{ url: A, error: 'Blocked. You can paste the job text instead.' }], reads: [{ url: B, text: 'two' }] })
   })
 
   test('all blocked: the first failure message', async () => {

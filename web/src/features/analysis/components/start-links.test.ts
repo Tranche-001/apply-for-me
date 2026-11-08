@@ -1,10 +1,29 @@
 import { describe, expect, test } from 'vitest'
-import { MAX_LINKS, splitNotice, typedLinks, unreadNotice } from './start-links'
+import { MAX_LINKS, splitHeading, splitNotice, typedLinks, unreadNotice } from './start-links'
 
 describe('splitNotice', () => {
   test('says how many postings there are and that only the picked one is compared', () => {
     expect(splitNotice(2)).toBe('This link has 2 job postings. Pick the one to analyze; the AI compares only that one with your blocks.')
     expect(splitNotice(4)).toContain('This link has 4 job postings.')
+  })
+
+  test('pasted text and several links are named as such; tracks are tracks', () => {
+    expect(splitNotice(2, 'text')).toContain('This text has 2 job postings.')
+    expect(splitNotice(3, 'links')).toContain('These links have 3 job postings.')
+    expect(splitNotice(2, 'link', true)).toBe('This posting has 2 tracks. Pick the one to analyze; the AI compares only that one with your blocks.')
+  })
+})
+
+describe('splitHeading', () => {
+  test('plain jobs: where they came from', () => {
+    expect(splitHeading(2, 'link', false).title).toBe('This link has 2 jobs')
+    expect(splitHeading(2, 'text', false).title).toBe('This text has 2 jobs')
+    expect(splitHeading(3, 'links', false).title).toBe('These links have 3 jobs')
+    expect(splitHeading(2, 'link', false).sub).toMatch(/Pick the one to analyze now/)
+  })
+
+  test('tracks of one posting, whatever the source', () => {
+    expect(splitHeading(2, 'links', true)).toEqual({ title: 'This posting has 2 tracks.', sub: 'Pick the one to analyze. Each keeps the program’s shared part.' })
   })
 })
 

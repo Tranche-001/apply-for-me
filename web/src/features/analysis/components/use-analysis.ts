@@ -10,6 +10,7 @@ import { addAnswersToExperiences, resendAnswer } from '../../experiences/actions
 import { addExperienceForRequirement, saveAnalysisCv, saveAnalysisSession, startFromPosting, startPickedJob, type SplitCandidate, type StartedJob } from '../actions'
 import type { LoadedAnalysisJob } from '../queries'
 import { applyRedraft, markSaved, markSent, newSession, setStep, type DraftUndo } from '../session-state'
+import type { StartSource } from '../start-types'
 import type { AnalysisSession, ExperienceOption, JobSummary, SentAnswer } from '../types'
 import type { Destination, PlacementItem } from './placement-popover'
 import { splitNotice, typedLinks, unreadNotice } from './start-links'
@@ -76,7 +77,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
   const [undo, setUndo] = useState<UndoState | null>(null)
   const [notMet, setNotMet] = useState<NotMetState>(NO_NOT_MET)
   /** The jobs found in what was read, while the user picks one (nothing is created yet). */
-  const [split, setSplit] = useState<{ candidates: SplitCandidate[]; urls: string[] } | null>(null)
+  const [split, setSplit] = useState<{ candidates: SplitCandidate[]; urls: string[]; source: StartSource } | null>(null)
   /** The "Which job?" step pill: 'cur' while choosing, 'done' after a pick for the rest of that pipeline (not saved). */
   const [whichJob, setWhichJob] = useState<'cur' | 'done' | null>(null)
   const sessionRef = useRef(session)
@@ -159,14 +160,15 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     if (!res.ok) return fail(res.error, null)
     const typedCount = 'urls' in input ? typedLinks(input.urls).length : 0
     if (res.data.kind === 'split') {
-      // More than one job in what was read: nothing is created until one is picked.
-      const { candidates, urls, unread } = res.data
-      setSplit({ candidates, urls })
+      // More than one job (or track) in what was read: nothing is created until one is picked.
+      const { candidates, urls, unread, source } = res.data
+      setSplit({ candidates, urls, source })
       setWhichJob('cur')
-      setNotice([splitNotice(candidates.length), unreadNotice(unread, typedCount)].filter(Boolean).join(' '))
+      setNotice([splitNotice(candidates.length, source, candidates.every((x) => x.track)), unreadNotice(unread, typedCount)].filter(Boolean).join(' '))
       setPhase('idle')
       return
     }
+    if (res.data.kind !== 'job') return fail('Unexpected answer from the app. Reload the page, then try again.', null)
     setWhichJob(null)
     await open(res.data, typedCount, [])
   }

@@ -28,6 +28,7 @@ import { toJobSummary } from './job-summary'
 import { readPostingUrls } from './read-posting'
 import { analysisDraftForRequirement } from './requirement-draft'
 import { analysisSessionSchema, MAX_SESSION_CHARS } from './session'
+import { toCandidate, type StartedJob, type StartResult, type StartSource, type UnreadLink } from './start-types'
 import { guessLinkKind, type JobSummary, type ReadResult } from './types'
 import { checkUrl } from './url-guard'
 
@@ -208,13 +209,7 @@ const pastedInput = z
   .min(80, 'Paste the whole posting: what you pasted is too short to analyze.')
   .max(MAX_POSTING_CHARS, `That is too long (${MAX_POSTING_CHARS.toLocaleString('en')} characters at most). Paste only the posting.`)
 
-export type UnreadLink = { url: string; error: string }
-export type StartedJob = { kind: 'job'; job: JobSummary; existed: boolean; postingText: string; unread: UnreadLink[] }
-/** One job of a split, as the "Which job?" card shows it. `text` is that job's own text (saved only once picked). */
-export type SplitCandidate = { id: string; company: string; role: string; meta: string; lines: string[]; requirementCount: number; text: string }
-/** What was read holds more than one job: nothing is created; the user picks one (startPickedJob). */
-export type SplitJobs = { kind: 'split'; candidates: SplitCandidate[]; urls: string[]; unread: UnreadLink[] }
-export type StartResult = StartedJob | SplitJobs
+export type { OverlapLinks, SplitCandidate, SplitJobs, StartedJob, StartResult, UnreadLink } from './start-types'
 
 const MAX_START_LINKS = 5
 const startUrls = z
@@ -233,43 +228,31 @@ export async function startFromPosting(input: { urls: string[] } | { url: string
   const parsedInput = startInput.safeParse(input)
   if (!parsedInput.success) return fail('Paste a link to the job posting, or the job text.')
   const data = parsedInput.data
-  let postingText: string
-  let urls: string[] = []
-  let unread: UnreadLink[] = []
-  let title: string | null = null
   if ('text' in data) {
     const parsedText = pastedInput.safeParse(data.text)
     if (!parsedText.success) return fail(invalidInput(parsedText.error))
-    postingText = parsedText.data
-  } else {
-    const parsedUrls = startUrls.safeParse('urls' in data ? data.urls : [data.url])
-    if (!parsedUrls.success) return fail(invalidInput(parsedUrls.error))
-    const read = await readPostingUrls(parsedUrls.data)
-    if (!read.ok) return fail(read.error)
-    ;({ text: postingText, urls, unread, title } = read)
+    return startFromText({ postingText: parsedText.data, urls: [], unread: [], title: null, source: 'text' })
   }
+  const parsedUrls = startUrls.safeParse('urls' in data ? data.urls : [data.url])
+  if (!parsedUrls.success) return fail(invalidInput(parsedUrls.error))
+  const read = await readPostingUrls(parsedUrls.data)
+  if (!read.ok) return fail(read.error)
+  const { text: postingText, urls, unread, title } = read
+  return startFromText({ postingText, urls, unread, title, source: read.reads.length > 1 ? 'links' : 'link' })
+}
 
+type TextStart = { postingText: string; urls: string[]; unread: UnreadLink[]; title: string | null; source: StartSource }
+
+/** The AI says which jobs (or tracks) the text holds: one is started right away, more go to "Which job?". */
+async function startFromText({ postingText, urls, unread, title, source }: TextStart): Promise<ActionResult<StartResult>> {
   const found = await readPostingJobs({ postingText })
   if (!found.ok) return fail(found.error)
   const [only, ...others] = found.data
-  if (others.length) return ok<StartResult>({ kind: 'split', candidates: found.data.map(toCandidate), urls, unread })
+  if (others.length) return ok<StartResult>({ kind: 'split', candidates: found.data.map(toCandidate), urls, unread, source })
   const names = jobNamesFrom(only, title)
   if (!names) return fail('Couldn’t tell which job this is. Check that it is the whole posting, or paste the job text.')
   return saveStartedJob('startFromPosting', { names, postingText, urls, unread })
 }
-
-type CandidateSource = { company: string; role: string; location: string; kind: string; text: string; lines: string[]; requirementCount: number }
-
-/** The card of one job in "Which job?": nothing about it is saved yet. */
-const toCandidate = (job: CandidateSource, index: number): SplitCandidate => ({
-  id: `c${index + 1}`,
-  company: job.company,
-  role: job.role,
-  meta: [job.company, job.location, job.kind].filter(Boolean).join(' · '),
-  lines: job.lines,
-  requirementCount: job.requirementCount,
-  text: job.text,
-})
 
 /**
  * Find the job with this exact company and role (`existed: true`) or create it, save the posting text, and add the

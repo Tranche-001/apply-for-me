@@ -304,9 +304,11 @@ For each job:
 - company and role: as the posting names them (the role as a short title, such as "Backend Engineer"). location and kind (Full-time, Part-time, Contract…): as the posting says. When the posting does not say one of them, return an empty string for it; never guess.
 - firstLine and lastLine: the first line and the last line of that job's own text, each copied word for word from the posting, so the text of the job can be cut out between them. Different jobs never share lines.
 - lines: two sentences that describe the job, copied word for word from its text.
-- requirementCount: how many requirements the job lists.`,
+- requirementCount: how many requirements the job lists.
+- isTrack: true when the entry is one track, role or level of a single posting, such as an internship program with a "Trilha AI Engineer" and a "Trilha AI Builder" that each list their own requirements. Such tracks count as jobs: one entry per track, its firstLine and lastLine around that track's own section only, never around the shared part. false for separate postings, and for a posting with a single job.
+Tracks of one posting: in sharedHeadings, list the headings of the sections every track shares (the program intro, general requirements, stipend and benefits, selection process…), each copied word for word from the posting, in order. When the entries are not tracks, sharedHeadings is empty.`,
     context: `<job_posting>\n${text}\n</job_posting>`,
-    request: 'Which jobs does this text hold? Give each job\'s names, its first and last line, two sentences from it, and its requirement count.',
+    request: 'Which jobs (or tracks) does this text hold? Give each job\'s names, its first and last line, two sentences from it, its requirement count and whether it is a track; for tracks, the shared headings.',
   }
 }
 

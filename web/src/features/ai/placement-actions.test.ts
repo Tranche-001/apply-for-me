@@ -46,13 +46,16 @@ beforeEach(() => {
 const ITEMS = [{ askId: 'q1', question: 'Did you use Kafka?', answer: 'Yes, at Visio AI.' }]
 
 const SINGLE = 'Acme is hiring a Backend Engineer to build things.'
-const entry = (over = {}) => ({ company: '  Acme  ', role: 'Backend\nEngineer', location: '', kind: '', firstLine: 'Acme is hiring', lastLine: 'to build things.', lines: [], requirementCount: 3, ...over })
+const entry = (over = {}) => ({ company: '  Acme  ', role: 'Backend\nEngineer', location: '', kind: '', firstLine: 'Acme is hiring', lastLine: 'to build things.', lines: [], requirementCount: 3, isTrack: false, ...over })
 
 describe('readPostingJobs', () => {
   test('one job: the tidy names and the whole text, asking with low effort and a small budget', async () => {
-    replyWith({ jobs: [entry()] })
+    replyWith({ jobs: [entry()], sharedHeadings: [] })
     const r = await readPostingJobs({ postingText: SINGLE })
-    expect(r).toEqual({ ok: true, data: [{ company: 'Acme', role: 'Backend Engineer', location: '', kind: '', text: SINGLE, lines: [], requirementCount: 3 }] })
+    expect(r).toEqual({
+      ok: true,
+      data: [{ company: 'Acme', role: 'Backend Engineer', location: '', kind: '', text: SINGLE, lines: [], requirementCount: 3, track: false, startsWith: '', shared: [] }],
+    })
     expect(stream.mock.calls[0][0].max_tokens).toBeLessThanOrEqual(4_000)
   })
 
@@ -63,6 +66,7 @@ describe('readPostingJobs', () => {
         entry({ firstLine: 'Backend Engineer', lastLine: 'Requirements: Go.', lines: ['Build APIs.'] }),
         entry({ role: 'SRE', firstLine: 'SRE', lastLine: 'Requirements: Linux.', lines: ['Not in the text at all.'] }),
       ],
+      sharedHeadings: [],
     })
     const r = await readPostingJobs({ postingText: text })
     expect(r.ok && r.data.map((j) => j.role)).toEqual(['Backend Engineer', 'SRE'])

@@ -12,8 +12,20 @@ const hostOf = (url: string): string => {
   }
 }
 
+/** Where the text came from (same as StartSource in ../start-types). */
+type Source = 'link' | 'links' | 'text'
+
+const HOLDER: Record<Source, string> = { link: 'This link has', links: 'These links have', text: 'This text has' }
+
 /** The status line while "Which job?" is open. */
-export const splitNotice = (count: number): string => `This link has ${count} job postings. Pick the one to analyze; the AI compares only that one with your blocks.`
+export const splitNotice = (count: number, source: Source = 'link', tracks = false): string =>
+  `${tracks ? `This posting has ${count} tracks.` : `${HOLDER[source]} ${count} job postings.`} Pick the one to analyze; the AI compares only that one with your blocks.`
+
+/** The "Which job?" heading and the line under it. */
+export function splitHeading(count: number, source: Source, tracks: boolean): { title: string; sub: string } {
+  if (tracks) return { title: `This posting has ${count} tracks.`, sub: 'Pick the one to analyze. Each keeps the program’s shared part.' }
+  return { title: `${HOLDER[source]} ${count} jobs`, sub: 'The AI split what it read into the jobs it found, each with its own text. Pick the one to analyze now.' }
+}
 
 /** One sentence per link that could not be read, then what the analysis uses. `total` is the number of links typed. */
 export function unreadNotice(unread: { url: string; error: string }[], total: number): string | null {

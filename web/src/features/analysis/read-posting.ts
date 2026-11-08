@@ -3,6 +3,7 @@
 import { fetchPosting, type FetchResult } from './fetch-posting'
 import { looksBlocked, MAX_POSTING_CHARS } from './html-text'
 import type { RenderResult } from './render-posting'
+import { joinLinkTexts, type ReadLink } from './start-types'
 import { checkUrl, URL_ERRORS } from './url-guard'
 
 export type PostingRead = { ok: true; url: string; title: string | null; text: string; truncated: boolean } | { ok: false; error: string }
@@ -52,7 +53,7 @@ export async function readPostingUrl(
 }
 
 export type PostingUrlsRead =
-  | { ok: true; text: string; title: string | null; urls: string[]; unread: { url: string; error: string }[] }
+  | { ok: true; text: string; title: string | null; urls: string[]; unread: { url: string; error: string }[]; reads: ReadLink[] }
   | { ok: false; error: string }
 
 /**
@@ -77,6 +78,6 @@ export async function readPostingUrls(
   const read = reads.flatMap((r) => (r.ok ? [r] : []))
   const unread = reads.flatMap((r, i) => (r.ok ? [] : [{ url: urls[i], error: r.error }]))
   if (!read.length) return { ok: false, error: unread[0].error }
-  const combined = read.length === 1 ? read[0].text : read.map((r) => `From ${r.url}:\n${r.text}`).join('\n\n')
-  return { ok: true, text: combined.slice(0, MAX_POSTING_CHARS), title: read[0].title, urls, unread }
+  const texts = read.map((r) => ({ url: r.url, text: r.text }))
+  return { ok: true, text: joinLinkTexts(texts).slice(0, MAX_POSTING_CHARS), title: read[0].title, urls, unread, reads: texts }
 }

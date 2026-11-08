@@ -547,6 +547,9 @@ a.a-chip:hover { border-color: var(--indigo-line); }
 .jp .lines q { font: 400 12.5px/1.45 var(--font-source-serif), Georgia, serif; color: var(--text-2); }
 .jp .count { font: 500 10.5px/1 var(--font-geist-mono), ui-monospace, monospace; letter-spacing: 0.05em; color: var(--muted); text-transform: uppercase; }
 .a-split .foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* Tracks of one posting (next-ideas mockup, #tracks): a "Track" tag and the line the track starts with. */
+.jp-tag { margin-left: auto; font: 500 9.5px/1 var(--font-geist-mono), ui-monospace, monospace; letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid var(--border-strong); color: var(--muted); border-radius: 4px; padding: 3px 6px; }
+.jp .starts { font-size: 12px; color: var(--text-2); }
 .a-split .foot .sp { flex: 1; }
 /* Preflight removes list markers; the prototype's hit cards (and the full posting's lists) show discs. */
 .a-hl ul, .posting ul { list-style: disc; }
