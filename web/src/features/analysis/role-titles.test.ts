@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import type { ReusedVersion } from '../ai/types'
 import type { LibBlock, LibVersion } from '../blocks/types'
 import { compositionForReview, libraryWithDrafts } from './cv-draft'
-import { libraryWithTitles, roleTitleRows, setTitleChoice, titlesForSave, type RoleTitleRow } from './role-titles'
+import { libraryWithTitles, roleTitleRows, setTitleChoice, titlesForSave, titleWithPlace, type RoleTitleRow } from './role-titles'
 import { SESSION_VERSION, type AnalysisSession, type SessionDraft, type TitleChoice } from './types'
 
 const version = (id: string, blockId: string, title: string): LibVersion => ({
@@ -100,6 +100,30 @@ describe('roleTitleRows', () => {
     const nb = draft({ key: 'nb', blockId: null, blockName: 'Kafka', newBlock: { name: 'Kafka', section: 'EXPERIENCE', org: '', location: '', dates: '', stack: '' }, title: 'Data Intern' })
     const rows = rowsFor({ 'new:kafka': { pick: 'ai', own: '' } }, [nb])
     expect(rows.find((r) => r.blockName === 'Kafka')).toMatchObject({ key: 'new:kafka', chosen: 'AI Builder (Estágio)', changed: true })
+  })
+})
+
+describe('titleWithPlace (an experience title is "Role — Place")', () => {
+  test('the place of the title you have stays', () => {
+    expect(titleWithPlace('AI Builder', 'Software Engineer Intern — Visio AI', true)).toBe('AI Builder — Visio AI')
+    expect(titleWithPlace(' Data Engineer ', 'Tech Lead, Full-Stack — Study Rats')).toBe('Data Engineer — Study Rats')
+  })
+
+  test('the AI never rewrites the place; a title you write with its own place is yours', () => {
+    expect(titleWithPlace('AI Builder — iFood', 'Software Engineer Intern — Visio AI', true)).toBe('AI Builder — Visio AI')
+    expect(titleWithPlace('AI Builder — Visio AI (part-time)', 'Software Engineer Intern — Visio AI')).toBe('AI Builder — Visio AI (part-time)')
+  })
+
+  test('a title with no place, or an empty role, stays as given', () => {
+    expect(titleWithPlace('AI Builder', 'Software Engineer Intern', true)).toBe('AI Builder')
+    expect(titleWithPlace('  ', 'Software Engineer Intern — Visio AI')).toBe('')
+  })
+
+  test('the rows offer and show the title with its place', () => {
+    const lib = [block('visio', 'Visio AI', 'EXPERIENCE', 0, 'Software Engineer Intern — Visio AI')]
+    const comp = compositionForReview({ library: lib, drafts: [], reused: [reused('visio-base', 'visio')], asIsOut: [], pages: 1 })
+    const [row] = roleTitleRows({ comp, library: lib, drafts: [], roleTitles: [{ block: 'visio', title: 'AI Builder' }], titles: { visio: { pick: 'ai', own: '' } }, jobRole: 'Trilha AI Builder' })
+    expect(row).toMatchObject({ ai: 'AI Builder — Visio AI', chosen: 'AI Builder — Visio AI', changed: true })
   })
 })
 

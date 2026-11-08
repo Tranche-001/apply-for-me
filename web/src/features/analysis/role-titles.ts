@@ -19,7 +19,7 @@ export type RoleTitleRow = {
   blockName: string
   /** "You have": the title of the version on the CV now. */
   have: string
-  /** "AI recommends": the AI's title for this block, else the job's role. */
+  /** "AI recommends": the AI's title for this block, else the job's role, with the place of the title you have. */
   ai: string
   choice: TitleChoice
   /** The title the CV shows: "Write my own" with nothing written yet shows the one you have. */
@@ -30,9 +30,24 @@ export type RoleTitleRow = {
   updatesVersion: string | null
 }
 
+/** An experience's title is "Role — Place" ("Software Engineer Intern — Visio AI"): the separator. */
+const PLACE_SEPARATOR = ' — '
+
+/**
+ * `role` as the title of this experience: the place part of the title you have stays as it is ("AI Builder" →
+ * "AI Builder — Visio AI"). From the AI only its role part is used, so it never rewrites the place. A title you write
+ * with its own " — " is used as you wrote it.
+ */
+export function titleWithPlace(role: string, have: string, fromAi = false): string {
+  const at = have.indexOf(PLACE_SEPARATOR)
+  const wanted = (fromAi ? role.split(PLACE_SEPARATOR)[0] : role).trim()
+  if (!wanted || at < 0 || (!fromAi && wanted.includes(PLACE_SEPARATOR))) return wanted
+  return `${wanted}${have.slice(at)}`
+}
+
 function chosenTitle(choice: TitleChoice, have: string, ai: string): string {
   if (choice.pick === 'ai') return ai || have
-  if (choice.pick === 'own') return choice.own.trim() || have
+  if (choice.pick === 'own') return titleWithPlace(choice.own, have) || have
   return have
 }
 
@@ -53,7 +68,7 @@ export function roleTitleRows(input: {
     if (!block || !version) return []
     const key = reviewBlockKey(block)
     const have = version.title
-    const ai = input.roleTitles?.find((r) => r.block === key)?.title ?? input.jobRole.trim()
+    const ai = titleWithPlace(input.roleTitles?.find((r) => r.block === key)?.title ?? input.jobRole, have, true)
     const choice = (input.titles && Object.hasOwn(input.titles, key) ? input.titles[key] : null) ?? DEFAULT_TITLE_CHOICE
     const chosen = chosenTitle(choice, have, ai)
     const draft = input.drafts.find((d) => draftVersionId(d.key) === row.versionId)
