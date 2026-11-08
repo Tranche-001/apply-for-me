@@ -81,7 +81,7 @@ export async function analyzeJob(input: AnalyzeJobInput): Promise<AiResult<JobAn
     const [library, experiences, rules, profile] = await Promise.all([loadLibrary(), loadExperiences(), loadRules('cv'), loadProfile()])
     const prompt = buildAnalysisPrompt({ job, library, experiences, rules, answers, instruction, previousDrafts, profile })
     const raw = await ai.run(prompt, analysisOutputSchema, TASKS.analysis)
-    return ok(finalizeAnalysis(raw, library, job.label, experiences, job.postingText, profile))
+    return ok(finalizeAnalysis(raw, library, job.label, experiences, job.postingText, profile, job.role))
   })
 }
 

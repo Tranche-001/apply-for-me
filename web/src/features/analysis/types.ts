@@ -60,7 +60,16 @@ export type AnalysisSession = {
   step: SessionStep
   analyzedAt: string
   savedAt: string | null
+  /**
+   * "Role titles for this job": the title picked per experience block, by block key. A block with no entry keeps the
+   * title it has (no title changes without you choosing). Missing in sessions saved before role titles.
+   */
+  titles?: Record<string, TitleChoice>
 }
+
+/** "AI recommends" (the job's title), "You have" (the version's title) or "Write my own" (`own`). */
+export type TitlePick = 'ai' | 'mine' | 'own'
+export type TitleChoice = { pick: TitlePick; own: string }
 
 export const STEP_NAMES = ['Read posting', 'Compare with blocks', 'Your input', 'Drafts', 'Review & save'] as const
 

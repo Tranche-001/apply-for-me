@@ -21,6 +21,10 @@ export const SESSION_LIMITS = {
   phrases: 10,
   mapKeys: 50,
   profile: 40,
+  /** Blocks in the CV's order, role titles and title choices: every draft and every version used as it is. */
+  cvBlocks: 40,
+  /** A block key: a block id, or `new:` and a new block's name (up to `short`). */
+  blockKey: 310,
   id: 80,
   short: 300,
   long: 2000,
@@ -119,7 +123,12 @@ const jobAnalysisSchema = z.object({
   report: z.array(z.object({ tag: z.enum(['NEW', 'REUSED', 'ORDER', 'ADDED', 'LEFT OUT', 'NOTE']), text: long })).max(L.report),
   // Optional: sessions saved before the profile counted as evidence have none.
   profile: z.array(profileEvidenceSchema).max(L.profile).optional(),
+  // Optional: sessions saved before the AI ordered the blocks and recommended role titles have neither.
+  order: z.array(str(L.blockKey)).max(L.cvBlocks).optional(),
+  roleTitles: z.array(z.object({ block: str(L.blockKey), title: short })).max(L.cvBlocks).optional(),
 })
+
+const titleChoiceSchema = z.object({ pick: z.enum(['ai', 'mine', 'own']), own: short })
 
 const sentAnswerSchema = z.object({
   question: long,
@@ -153,6 +162,11 @@ export const analysisSessionSchema = z.object({
   step: z.enum(['input', 'drafts', 'review', 'saved']),
   analyzedAt: str(40),
   savedAt: str(40).nullable(),
+  // Optional: the role title picked per experience block ("Role titles for this job"); none = the title you have.
+  titles: z
+    .record(str(L.blockKey), titleChoiceSchema)
+    .refine((r) => Object.keys(r).length <= L.cvBlocks, { message: 'too many entries' })
+    .optional(),
 })
 
 /** The session when `value` is a valid current-version session; otherwise null. Never throws. */
@@ -271,6 +285,10 @@ export function fitAnalysis(a: JobAnalysis): JobAnalysis {
     leftOut: a.leftOut.slice(0, L.versions).map((v) => fitView(v, requirementIds)),
     report: a.report.slice(0, L.report).map((l) => ({ ...l, text: truncate(l.text, L.long) })),
     ...(a.profile ? { profile: fitProfile(a.profile, requirementIds) } : {}),
+    ...(a.order ? { order: a.order.filter(within(L.blockKey)).slice(0, L.cvBlocks) } : {}),
+    ...(a.roleTitles
+      ? { roleTitles: a.roleTitles.filter((r) => within(L.blockKey)(r.block)).slice(0, L.cvBlocks).map((r) => ({ ...r, title: truncate(r.title, L.short) })) }
+      : {}),
   }
 }
 

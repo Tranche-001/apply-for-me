@@ -1,6 +1,8 @@
 // The Job analysis session's transitions (pure and immutable): every change returns a new session.
 // The screen keeps one AnalysisSession in state and saves it with the job, so a reload resumes (H1, P2).
 import type { AiAsk, AnalysisDraft, DraftBullet, JobAnalysis, ReusedVersion } from '../ai/types'
+// Which block a draft is for: the same block drafted again replaces the earlier draft.
+import { blockKey } from './block-key'
 import { SESSION_LIMITS } from './session'
 import { SESSION_VERSION, type AnalysisSession, type SentAnswer, type SessionDraft } from './types'
 
@@ -9,8 +11,6 @@ export type DraftUndo = { draft: SessionDraft; index: number }
 
 const toSessionDraft = (d: AnalysisDraft, keep = true): SessionDraft => ({ ...d, keep, editedByHand: false, saveAs: 'new' })
 
-/** Which block a draft is for: the same block drafted again replaces the earlier draft. */
-const blockKey = (d: Pick<AnalysisDraft, 'blockId' | 'newBlock'>): string => d.blockId ?? `new:${(d.newBlock?.name ?? '').trim().toLowerCase()}`
 
 /** `key`, or `key-2`, `key-3`… when it is already taken. */
 function freeKey(key: string, taken: ReadonlySet<string>): string {

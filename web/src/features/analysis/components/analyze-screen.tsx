@@ -70,7 +70,7 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
   // The review CV is only laid out on the review steps (layout is the costly part).
   const printed = useMemo(() => {
     if (!s || (s.step !== 'review' && s.step !== 'saved')) return null
-    const comp = compositionForReview({ library, drafts: s.drafts, reused: s.analysis.reused, asIsOut: s.asIsOut, pages: s.pages })
+    const comp = compositionForReview({ library, drafts: s.drafts, reused: s.analysis.reused, asIsOut: s.asIsOut, pages: s.pages, order: s.analysis.order })
     return { comp, print: printCv(comp, libraryWithDrafts(library, s.drafts), profile) }
   }, [s, library, profile])
   const busy = a.phase !== 'idle'

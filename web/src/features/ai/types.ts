@@ -127,7 +127,17 @@ export type JobAnalysis = {
   report: AiReportLine[]
   /** Profile items that show requirements. Missing in sessions saved before profiles counted as evidence. */
   profile?: ProfileEvidence[]
+  /**
+   * The CV's blocks in the order the AI puts them, following his rules (block keys: a library block's id, `new:<name>`
+   * for a new block). Missing in sessions saved before the AI ordered blocks: those keep the library order.
+   */
+  order?: string[]
+  /** The role title the AI recommends per experience block of the CV, from the job's role (block key → title). */
+  roleTitles?: RoleTitle[]
 }
+
+/** A role title the AI recommends for one experience block, taken from the job's role; you decide whether to use it. */
+export type RoleTitle = { block: string; title: string }
 
 /**
  * Where one written answer should go in Experiences, as the AI sees it. `experienceId` null with a

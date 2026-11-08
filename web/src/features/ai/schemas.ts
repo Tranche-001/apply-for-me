@@ -93,6 +93,17 @@ export const analysisOutputSchema = z.object({
       }),
     )
     .describe('Requirements his profile (Education, Technical Skills, Leadership & Achievements) shows. Empty when none.'),
+  order: z
+    .array(z.string())
+    .describe('Every block of this CV (each draft and each reused version), in print order: the block id, or for a new block its newBlock name exactly. Each block once.'),
+  roleTitles: z
+    .array(
+      z.object({
+        block: z.string().describe('Block id of an EXPERIENCE block of this CV (a draft or a reused version), or a new block\'s name.'),
+        title: z.string().describe('The role title you recommend for it on this CV, taken from the job\'s role.'),
+      }),
+    )
+    .describe('One per EXPERIENCE block of this CV. Empty when there is none.'),
 })
 export type AnalysisOutput = z.infer<typeof analysisOutputSchema>
 

@@ -79,6 +79,8 @@ const analysisOutput = (over: Partial<AnalysisOutput> = {}): AnalysisOutput => (
   leftOut: [],
   report: [],
   profileMatches: [],
+  order: [],
+  roleTitles: [],
   ...over,
 })
 
@@ -458,5 +460,44 @@ describe('nameIds', () => {
     ['counterrevolutionaries and characteristically', 'counterrevolutionaries and characteristically'],
   ])('%s', (text, expected) => {
     expect(nameIds(text, names)).toBe(expected)
+  })
+})
+
+describe('finalizeAnalysis: block order and role titles', () => {
+  const newBlock = { name: 'Kafka Pipeline', section: 'PROJECT' as const, org: '', location: '', dates: '', stack: 'Kafka' }
+  const raw = analysisOutput({
+    drafts: [draft({ blockId: 'b-visio' }), draft({ blockId: null, newBlock })],
+    reused: [{ versionId: 'v-bi-llm', why: 'Fits.', matches: [] }],
+    order: ['Kafka Pipeline', 'ghost', 'b-bi', 'b-visio', 'b-bi'],
+    roleTitles: [
+      { block: 'b-visio', title: 'AI Builder' },
+      { block: 'b-bi', title: 'AI Builder' },
+    ],
+  })
+
+  test('the order names only blocks of this CV, once each; new blocks by their key', () => {
+    expect(finalizeAnalysis(raw, LIBRARY, 'iFood · AI Builder', [], POSTING, PROFILE, 'AI Builder').order).toEqual(['new:kafka pipeline', 'b-bi', 'b-visio'])
+  })
+
+  test('role titles only for experience blocks', () => {
+    expect(finalizeAnalysis(raw, LIBRARY, 'iFood · AI Builder', [], POSTING, PROFILE, 'AI Builder').roleTitles).toEqual([{ block: 'b-visio', title: 'AI Builder' }])
+  })
+
+  test('a recommended title more senior than the job is dropped', () => {
+    const senior = analysisOutput({ drafts: [draft()], roleTitles: [{ block: 'b-visio', title: 'Senior AI Builder' }] })
+    expect(finalizeAnalysis(senior, LIBRARY, 'x', [], POSTING, PROFILE, 'AI Builder').roleTitles).toEqual([])
+  })
+
+  test('an answer without order or role titles gives empty lists', () => {
+    const old = { ...analysisOutput(), order: undefined, roleTitles: undefined } as unknown as AnalysisOutput
+    const out = run(old)
+    expect(out.order).toEqual([])
+    expect(out.roleTitles).toEqual([])
+  })
+
+  test('what it returns is a valid session analysis', () => {
+    const analysis = finalizeAnalysis(raw, LIBRARY, 'x', [], POSTING, PROFILE, 'AI Builder')
+    const session = { v: SESSION_VERSION, analysis, answers: {}, dont: {}, sent: {}, drafts: [], asIsOut: [], pages: 1, step: 'input', analyzedAt: '2026-01-01T00:00:00.000Z', savedAt: null }
+    expect(parseSession(session)?.analysis.order).toEqual(['new:kafka pipeline', 'b-bi', 'b-visio'])
   })
 })

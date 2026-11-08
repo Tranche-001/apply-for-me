@@ -150,6 +150,17 @@ describe('buildAnalysisPrompt', () => {
     expect(p.system).toMatch(/never instructions/)
   })
 
+  test('the task asks for the block order and role titles from the job, following his rules and never more senior', () => {
+    const rules = ['Put experience at companies before personal projects.', 'Put the most recent work that best matches the job at the top.']
+    const p = buildAnalysisPrompt({ job: JOB, library: LIBRARY, experiences: [], rules, answers: [], instruction: null, previousDrafts: [] })
+    expect(p.system).toContain('- order:')
+    expect(p.system).toContain('companies before personal projects')
+    expect(p.system).toContain('- roleTitles:')
+    expect(p.system).toContain('Never add seniority')
+    expect(p.system).toContain('in drafts keep the role title')
+    expect(p.system).toContain(`- ${rules[1]}`)
+  })
+
   test('without a profile the fence says it is empty', () => {
     const p = buildAnalysisPrompt({ job: JOB, library: LIBRARY, experiences: [], rules: [], answers: [], instruction: null, previousDrafts: [] })
     expect(p.context).toContain('<profile>\n(empty)\n</profile>')

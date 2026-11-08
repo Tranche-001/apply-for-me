@@ -152,6 +152,23 @@ describe('compositionForReview', () => {
     expect(c.items).toEqual({ EXPERIENCE: [], PROJECT: [] })
   })
 
+  it('follows the AI order within each section', () => {
+    const c = compositionForReview({ ...base, reused: [reused('visio-base', 'visio'), reused('bi-base', 'bi'), reused('rats-base', 'rats')], order: ['rats', 'bi', 'visio'] })
+    expect(c.items.EXPERIENCE.map((r) => r.blockId)).toEqual(['bi', 'visio'])
+    expect(c.items.PROJECT.map((r) => r.blockId)).toEqual(['rats'])
+  })
+
+  it('a new block is placed by its name; blocks the order does not name follow in library order; unknown ids are ignored', () => {
+    const nb = draft({ key: 'nb', blockId: null, newBlock: { name: 'Kafka', section: 'EXPERIENCE', org: '', location: '', dates: '', stack: '' } })
+    const c = compositionForReview({ ...base, drafts: [nb], reused: [reused('visio-base', 'visio'), reused('bi-base', 'bi')], order: ['ghost', 'new:kafka', 'bi'] })
+    expect(c.items.EXPERIENCE.map((r) => r.blockId)).toEqual(['draftblock:nb', 'bi', 'visio'])
+  })
+
+  it('a session without an order keeps the library order', () => {
+    const c = compositionForReview({ ...base, reused: [reused('bi-base', 'bi'), reused('visio-base', 'visio')], order: undefined })
+    expect(c.items.EXPERIENCE.map((r) => r.blockId)).toEqual(['visio', 'bi'])
+  })
+
   it('does not mutate its inputs', () => {
     const input = { ...base, drafts: [draft()], reused: [reused('visio-base', 'visio')] }
     const before = JSON.stringify(input)

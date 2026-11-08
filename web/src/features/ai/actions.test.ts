@@ -128,6 +128,8 @@ describe('analyzeJob / analyzePosting', () => {
     leftOut: [],
     report: [],
     profileMatches: [],
+    order: [],
+    roleTitles: [],
   }
 
   test('the fixed contract maps statuses to covered', async () => {

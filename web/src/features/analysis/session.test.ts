@@ -81,6 +81,33 @@ describe('parseSession: profile evidence', () => {
   })
 })
 
+describe('parseSession: block order, role titles and the titles you picked', () => {
+  const withOrder = { ...analysis, order: ['b1', 'new:kafka pipeline'], roleTitles: [{ block: 'b1', title: 'AI Builder' }] }
+
+  test('an old session without them still loads', () => {
+    const old = session()
+    expect('order' in old.analysis || 'titles' in old).toBe(false)
+    expect(parseSession(old)).toEqual(old)
+  })
+
+  test('a new session keeps them', () => {
+    const s = session({ analysis: withOrder, titles: { b1: { pick: 'ai', own: '' }, 'new:kafka pipeline': { pick: 'own', own: 'Data Engineer' } } })
+    expect(parseSession(s)).toEqual(s)
+  })
+
+  test('an unknown pick is refused', () => {
+    expect(parseSession(session({ titles: { b1: { pick: 'job' as 'ai', own: '' } } }))).toBeNull()
+  })
+
+  test('fitAnalysis keeps the order and the titles within the limits', () => {
+    const long = { ...withOrder, order: [...Array.from({ length: 50 }, (_, i) => `b${i}`), `new:${'x'.repeat(400)}`] }
+    const fitted = fitAnalysis(long)
+    expect(fitted.order).toHaveLength(SESSION_LIMITS.cvBlocks)
+    expect(fitted.roleTitles).toEqual([{ block: 'b1', title: 'AI Builder' }])
+    expect(parseSession(session({ analysis: fitted }))).not.toBeNull()
+  })
+})
+
 describe('parseSession', () => {
   test('accepts a valid session and returns it unchanged', () => {
     expect(parseSession(session())).toEqual(session())

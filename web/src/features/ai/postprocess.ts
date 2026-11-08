@@ -2,7 +2,9 @@
 // ids that don't exist are dropped (and reported), a block appears once, positions are renumbered,
 // and quotes, keys and phrases are kept only when they really occur in the posting or the bullets (P1).
 import type { Section } from '@prisma/client'
+import { blockKey } from '../analysis/block-key'
 import { fitAnalysis } from '../analysis/session'
+import { cleanOrder, cleanRoleTitles, type CvBlockRef } from './cv-order'
 import type { ExperienceContext, LibraryBlock, LibraryVersion, ProfileContext } from './context-types'
 import { SECTIONS } from './context-types'
 import { cleanProfileMatches, profileItems, withProfileStatus } from './profile-evidence'
@@ -289,6 +291,8 @@ export function finalizeAnalysis(
   experiences: readonly { id: string; title: string }[] = [],
   postingText = '',
   profile: ProfileContext = NO_PROFILE,
+  /** The job's role: a recommended role title may not be more senior than it. */
+  jobRole = '',
 ): JobAnalysis {
   const index = indexVersions(library)
   const blocks = new Map(library.map((b) => [b.id, b]))
@@ -341,6 +345,7 @@ export function finalizeAnalysis(
   const reused = collectVersions(raw.reused, index, requirementIds, names, taken)
   const leftOut = collectVersions(raw.leftOut, index, requirementIds, names, taken)
   const unknownVersions = reused.unknown + leftOut.unknown
+  const cv = cvBlockRefs(drafts, reused.views, blocks)
 
   // Last: whatever the model sent, what the client receives also passes the session schema (it is saved as is).
   return fitAnalysis({
@@ -355,7 +360,17 @@ export function finalizeAnalysis(
       ...skippedNote(unknownVersions, unknownVersions === 1 ? 'version' : 'versions'),
     ],
     profile: profileEvidence,
+    order: cleanOrder(raw.order ?? [], cv),
+    roleTitles: cleanRoleTitles(raw.roleTitles ?? [], cv, jobRole),
   })
+}
+
+/** The blocks this CV is made of: each draft (keyed like the review step keys it) and each version used as it is. */
+function cvBlockRefs(drafts: readonly AnalysisDraft[], reused: readonly VersionView[], blocks: ReadonlyMap<string, LibraryBlock>): CvBlockRef[] {
+  return [
+    ...drafts.map((d) => ({ key: blockKey(d), section: d.newBlock?.section ?? blocks.get(d.blockId ?? '')?.section ?? 'PROJECT', name: d.blockName, versionId: null })),
+    ...reused.map((v) => ({ key: v.blockId, section: v.section, name: v.blockName, versionId: v.versionId })),
+  ]
 }
 
 export function finalizeBlockDraft(raw: BlockDraftOutput, library: LibraryBlock[], experience: ExperienceContext): DraftVersion {
