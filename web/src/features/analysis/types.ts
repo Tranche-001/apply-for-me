@@ -14,8 +14,6 @@ export type JobSummary = {
   postingChars: number
 }
 
-export type ReadResult = { url: string; ok: boolean; title: string | null; message: string | null }
-
 /** An experience an answer can go to (the "Goes to" picker). */
 export type ExperienceOption = { id: string; title: string }
 
