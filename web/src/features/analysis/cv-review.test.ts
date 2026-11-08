@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { CvReviewOutput } from '../ai/schemas'
 import type { JobAnalysis, LeftOutVersion, ReusedVersion } from '../ai/types'
 import type { LibBlock } from '../blocks/types'
-import { afterSession, keepAfter, keepBefore, reviewAfter, withReview } from './cv-review'
+import { afterSession, keepAfter, keepBefore, keptLine, reviewAfter, withReview } from './cv-review'
 import { reviewInput, reviewRows } from './cv-draft'
 import { parseSession } from './session'
+import { applyRedraft } from './session-state'
 import type { AnalysisSession, SessionDraft } from './types'
 
 // The iFood check: Visio and Study Rats (experience), Termo and BI (projects) on the CV; IAAS! left out; Vira Voto in
@@ -139,6 +140,16 @@ describe('reviewAfter: the After CV from the AI’s answer', () => {
   })
 })
 
+describe('keptLine', () => {
+  it('says what was kept and what became of his request', () => {
+    expect(keptLine('before')).toBe('Kept Before. The new CV was discarded.')
+    expect(keptLine('after')).toBe('Kept After. Save keeps it with the job.')
+    expect(keptLine('after', { added: 2, already: 0 })).toBe('Kept After. Saved 2 rules as “Learned from use” in Preferences.')
+    expect(keptLine('after', { added: 1, already: 1 })).toBe('Kept After. Saved 1 rule as “Learned from use” in Preferences.')
+    expect(keptLine('after', { added: 0, already: 2 })).toBe('Kept After. Your rules already say this, so no rule was added.')
+  })
+})
+
 describe('Before / After in the session', () => {
   const reviewing = make({ remove: ['termo'], order: ['visio', 'sr', 'bi'], roleTitles: [{ block: 'visio', title: 'AI Builder' }] })
 
@@ -155,6 +166,10 @@ describe('Before / After in the session', () => {
     expect(after.titles).toEqual({ visio: { pick: 'ai', own: '' } })
     const before = keepBefore(reviewing)
     expect(before).toEqual(session)
+  })
+
+  it('a new analysis (Analyze again, Update drafts) closes an After CV made from the old drafts', () => {
+    expect(applyRedraft(reviewing, analysis, 'later').review).toBeUndefined()
   })
 
   it('with no review open, keeping changes nothing', () => {

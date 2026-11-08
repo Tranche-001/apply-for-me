@@ -149,6 +149,14 @@ export function afterSession(s: AnalysisSession): AnalysisSession {
 /** "Keep After": the After CV becomes the session's CV (saved with the usual Save). */
 export const keepAfter = afterSession
 
+/** The status line after Keep Before / Keep After; `learned` = the rules "Remember this" saved, when it was on. */
+export function keptLine(which: 'before' | 'after', learned?: { added: number; already: number } | null): string {
+  if (which === 'before') return 'Kept Before. The new CV was discarded.'
+  if (!learned) return 'Kept After. Save keeps it with the job.'
+  if (!learned.added) return 'Kept After. Your rules already say this, so no rule was added.'
+  return `Kept After. Saved ${learned.added} ${learned.added === 1 ? 'rule' : 'rules'} as “Learned from use” in Preferences.`
+}
+
 /** "Keep Before": the After CV goes; nothing else changes. */
 export function keepBefore(s: AnalysisSession): AnalysisSession {
   const { review, ...rest } = s

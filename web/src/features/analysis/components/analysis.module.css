@@ -616,3 +616,20 @@ mark.tt-mark { background: var(--mark); color: inherit; border-radius: 2px; padd
 .ord-reset[disabled] { opacity: 0.45; cursor: default; }
 @media (prefers-reduced-motion: no-preference) { .ord-it { transition: background 0.2s, border-color 0.2s; } }
 @media (max-width: 560px) { .ord-it { grid-template-columns: 22px minmax(0, 1fr); } .ord-it > button { grid-column: 2; justify-self: start; } }
+
+/* REVIEW after the CV appears (prototype next-ideas.html #review): say how the CV should be better, compare, keep one. */
+.rv-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.rv-head p { margin: 0; font-size: 12.5px; color: var(--text-2); }
+.rv-open { font: 600 11.5px var(--font-geist-mono), ui-monospace, monospace; letter-spacing: 0.08em; }
+.rv-open[aria-expanded='true'] { border-color: var(--indigo); color: var(--indigo); background: var(--indigo-soft); }
+.rv-box { display: grid; gap: 8px; }
+.rv-box label { font-size: 12.5px; }
+.rv-box textarea { min-height: 72px; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: 400 13px/1.5 var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; resize: vertical; }
+.rv-box textarea:focus-visible { outline: 2px solid var(--indigo); outline-offset: 1px; }
+.rv-check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.rv-check input { width: 16px; height: 16px; accent-color: var(--indigo); }
+.rv-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rv-status { font-size: 12px; color: var(--muted); }
+.rv-compare { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--border); }
+.rv-report { margin: 0; padding-left: 18px; display: grid; gap: 2px; font-size: 12px; color: var(--text-2); }
+.rv-report b { font: 500 10px var(--font-geist-mono), ui-monospace, monospace; letter-spacing: 0.05em; color: var(--muted); margin-right: 4px; }

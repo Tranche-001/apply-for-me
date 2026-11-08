@@ -3,6 +3,7 @@
 import type { AiAsk, AnalysisDraft, DraftBullet, JobAnalysis, ReusedVersion } from '../ai/types'
 // Which block a draft is for: the same block drafted again replaces the earlier draft.
 import { blockKey } from './block-key'
+import { keepBefore } from './cv-review'
 import { SESSION_LIMITS } from './session'
 import { SESSION_VERSION, type AnalysisSession, type SentAnswer, type SessionDraft } from './types'
 
@@ -157,8 +158,9 @@ export function applyRedraft(s: AnalysisSession, analysis: JobAnalysis, now: str
     return key === d.key ? d : { ...d, key }
   })
   const reusedIds = new Set(analysis.reused.map((r) => r.versionId))
+  // An After CV from REVIEW was made from the old drafts: a new analysis closes it (the Before CV is this one).
   return {
-    ...s,
+    ...keepBefore(s),
     analysis: { ...analysis, asks: merged.asks },
     answers: onlyKeys(s.answers, merged.keptIds),
     dont: onlyKeys(s.dont, merged.keptIds),

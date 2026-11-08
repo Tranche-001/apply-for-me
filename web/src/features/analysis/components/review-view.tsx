@@ -40,6 +40,8 @@ export type Props = {
   newBlockIds: string[]
   /** Block ids whose role title is not the one you had: highlighted on the page (not on paper). */
   retitledBlockIds: string[]
+  /** REVIEW (say how the CV should be better, Before / After), first above the CV. */
+  review: ReactNode
   /** "Role titles for this job", above the CV. */
   titles: ReactNode
   /** "Experience & projects" (order, Swap, Move to), above the CV. */
@@ -190,7 +192,7 @@ function StageBar({ pages, oneSection, saved, busy, saveLabel, onPages, onOneSec
 }
 
 export function ReviewView(props: Props) {
-  const { met, notMet, total, blocks, layout, profile, labels, newBlockIds, retitledBlockIds, titles, order, onOpenRequirement, onOpenBlock, onEditBlock } = props
+  const { met, notMet, total, blocks, layout, profile, labels, newBlockIds, retitledBlockIds, review, titles, order, onOpenRequirement, onOpenBlock, onEditBlock } = props
   const fresh = new Set(newBlockIds)
   const retitled = new Set(retitledBlockIds)
   const entryUi = (e: LayoutEntry): EntryUi => ({
@@ -214,6 +216,7 @@ export function ReviewView(props: Props) {
       </section>
       <div className={c('a-stage')}>
         <StageBar {...props} />
+        {review}
         {titles}
         {order}
         <CvPreview layout={layout} profile={profile} labels={labels} entryUi={entryUi} />
