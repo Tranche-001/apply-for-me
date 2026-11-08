@@ -1,0 +1,580 @@
+<title>Apply For Me Next Round</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+  /* Layout: the app's own look (Job analysis v2 tokens). A narrow reading column of ideas; each idea = short why + a live mockup frame. */
+  :root {
+    --bg: #f3f4f6; --surface: #ffffff; --ink: #14161b; --ink-2: #353b47; --muted: #596071; --faint: #8a90a0;
+    --line: #e2e4e9; --line-2: #d5d8de;
+    --indigo: #4338ca; --indigo-soft: #eef0fe; --indigo-line: #c7cbfa;
+    --amber: #8a4300; --amber-soft: #fff5e6; --amber-line: #f2cf94;
+    --ok: #15803d; --ok-ink: #14632f; --ok-soft: #e9f7ee;
+    --mark: #fde68a; --paper: #ffffff; --paper-ink: #14161b;
+    --shadow: 0 1px 2px rgb(20 22 27 / 0.06), 0 10px 28px rgb(20 22 27 / 0.08);
+    --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --serif: "Source Serif 4", "Source Serif Pro", Georgia, "Times New Roman", serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1115; --surface: #171a21; --ink: #eceef3; --ink-2: #c9cdd6; --muted: #9aa1ae; --faint: #7a8190;
+      --line: #2a2f3a; --line-2: #343a47;
+      --indigo: #9aa2ff; --indigo-soft: #1f2347; --indigo-line: #3a3f7a;
+      --amber: #f2b766; --amber-soft: #2b2112; --amber-line: #5a4220;
+      --ok: #7dd99c; --ok-ink: #7dd99c; --ok-soft: #12261a;
+      --mark: #6b5a12; --paper: #1d2029; --paper-ink: #eceef3;
+      --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 28px rgb(0 0 0 / 0.4); color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1115; --surface: #171a21; --ink: #eceef3; --ink-2: #c9cdd6; --muted: #9aa1ae; --faint: #7a8190;
+    --line: #2a2f3a; --line-2: #343a47;
+    --indigo: #9aa2ff; --indigo-soft: #1f2347; --indigo-line: #3a3f7a;
+    --amber: #f2b766; --amber-soft: #2b2112; --amber-line: #5a4220;
+    --ok: #7dd99c; --ok-ink: #7dd99c; --ok-soft: #12261a;
+    --mark: #6b5a12; --paper: #1d2029; --paper-ink: #eceef3;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 28px rgb(0 0 0 / 0.4); color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
+  .wrap { max-width: 980px; margin: 0 auto; padding-block: 40px 80px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  header.top { display: grid; gap: 10px; margin-bottom: 28px; }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: 30px; line-height: 1.15; margin: 0; font-weight: 600; text-wrap: balance; }
+  .lede { color: var(--ink-2); max-width: 68ch; margin: 0; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  nav.toc a { font-size: 12px; color: var(--ink-2); text-decoration: none; border: 1px solid var(--line); background: var(--surface); padding: 4px 10px; border-radius: 999px; }
+  nav.toc a:hover { border-color: var(--indigo-line); color: var(--indigo); }
+  h2.group { font-size: 12px; font-family: var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 44px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  section.idea { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 24px; padding: 22px 0; border-bottom: 1px dashed var(--line); scroll-margin-top: 16px; }
+  section.idea:last-of-type { border-bottom: 0; }
+  @media (max-width: 780px) { section.idea { grid-template-columns: minmax(0, 1fr); gap: 14px; } }
+  .why h3 { margin: 0 0 6px; font-size: 17px; line-height: 1.3; text-wrap: balance; }
+  .why p { margin: 0 0 8px; color: var(--ink-2); }
+  .why .try { font-size: 12.5px; color: var(--muted); border-left: 2px solid var(--indigo-line); padding-left: 10px; }
+  .why .phase { display: inline-block; font-family: var(--mono); font-size: 10.5px; color: var(--indigo); background: var(--indigo-soft); border: 1px solid var(--indigo-line); border-radius: 4px; padding: 1px 6px; margin-bottom: 8px; }
+  .frame { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 18px; min-width: 0; display: grid; gap: 12px; align-content: start; }
+  .frame .cap { font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .between { justify-content: space-between; }
+  button, .btn { font: inherit; font-size: 13px; cursor: pointer; border-radius: 8px; padding: 6px 12px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); }
+  button:hover { border-color: var(--indigo-line); }
+  button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+  button.p { background: var(--indigo); border-color: var(--indigo); color: var(--surface); }
+  button.ghost { border-color: transparent; background: transparent; color: var(--indigo); padding: 4px 6px; }
+  button.icon { padding: 2px 8px; font-family: var(--mono); }
+  button[disabled] { opacity: .4; cursor: default; }
+  .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .05em; text-transform: uppercase; border-radius: 4px; padding: 1px 6px; border: 1px solid var(--line-2); color: var(--muted); white-space: nowrap; }
+  .tag.new { color: var(--indigo); background: var(--indigo-soft); border-color: var(--indigo-line); }
+  .tag.ok { color: var(--ok-ink); background: var(--ok-soft); border-color: transparent; }
+  .tag.amber { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-line); }
+  .card { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; min-width: 0; background: var(--surface); color: var(--ink); }
+  .card.sel { border-color: var(--indigo); box-shadow: 0 0 0 1px var(--indigo) inset; }
+  .card.amber { background: var(--amber-soft); border-color: var(--amber-line); }
+  .muted { color: var(--muted); }
+  .small { font-size: 12.5px; }
+  .q { font-family: var(--serif); font-size: 15px; line-height: 1.5; border-left: 3px solid var(--indigo); background: var(--indigo-soft); padding: 10px 12px; border-radius: 0 8px 8px 0; }
+  .q .ctx { color: var(--muted); font-size: 13px; }
+  .q b { color: var(--indigo); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+  mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1px; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 560px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+  .paper { background: var(--paper); color: var(--paper-ink); border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; font-family: var(--serif); font-size: 13px; line-height: 1.4; display: grid; gap: 10px; min-width: 0; }
+  .paper .sec { font-variant: small-caps; letter-spacing: .04em; font-size: 14px; border-bottom: 1px solid var(--paper-ink); padding-bottom: 2px; }
+  .paper .item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; }
+  .paper .item b { font-weight: 600; }
+  .paper .item .d { text-align: right; white-space: nowrap; font-size: 12px; }
+  .paper .item i { grid-column: 1 / -1; font-size: 12px; }
+  .paper ul { margin: 2px 0 0; padding-left: 18px; grid-column: 1 / -1; }
+  .ord { display: grid; gap: 6px; }
+  .ord .it { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--surface); cursor: grab; touch-action: none; user-select: none; }
+  .ord .it:hover { border-color: var(--indigo-line); }
+  .ord .it .sw, .ord .it .menu { cursor: default; }
+  .opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; grid-column: 1 / -1; }
+  @media (max-width: 560px) { .opts { grid-template-columns: minmax(0, 1fr); } }
+  .opt { display: grid; gap: 2px; text-align: left; padding: 8px 10px; }
+  .opt small { font-family: var(--mono); font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .opt[aria-pressed="true"] { border-color: var(--indigo); background: var(--indigo-soft); box-shadow: 0 0 0 1px var(--indigo) inset; }
+  .opt[aria-pressed="true"] small { color: var(--indigo); }
+  .tt input { grid-column: 1 / -1; }
+  .ord .it .menu { grid-column: 1 / -1; }
+  .ord .it.drag { border-color: var(--indigo); box-shadow: var(--shadow); opacity: .92; }
+  .grip { border: 0; background: transparent; color: var(--faint); padding: 4px 2px; cursor: grab; touch-action: none; font-size: 15px; line-height: 1; letter-spacing: -2px; }
+  .grip:active { cursor: grabbing; }
+  .tt { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .tt:first-child { border-top: 0; }
+  .tt small { display: block; color: var(--muted); font-size: 12px; }
+  .ord .n { font-family: var(--mono); font-size: 11px; color: var(--faint); text-align: right; }
+  .ord .t { min-width: 0; }
+  .ord .t small { display: block; color: var(--muted); font-size: 12px; }
+  .ord .moved { border-color: var(--indigo-line); background: var(--indigo-soft); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12.5px; border: 1px solid var(--line-2); border-radius: 999px; padding: 3px 10px; background: var(--surface); }
+  .chip.on { border-color: var(--indigo); color: var(--indigo); background: var(--indigo-soft); }
+  .chip.add { border-style: dashed; color: var(--muted); }
+  textarea, select, input[type=text] { font: inherit; font-size: 13.5px; width: 100%; border: 1px solid var(--line-2); border-radius: 8px; padding: 9px 10px; background: var(--surface); color: var(--ink); }
+  textarea { min-height: 110px; resize: vertical; }
+  .seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 5px 12px; }
+  .seg button[aria-pressed="true"] { background: var(--indigo-soft); color: var(--indigo); }
+  .rule { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 14px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .rule:first-of-type { border-top: 0; }
+  .rule small { color: var(--muted); font-size: 12px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .menu { border: 1px solid var(--line-2); border-radius: 10px; box-shadow: var(--shadow); background: var(--surface); padding: 6px; display: grid; gap: 2px; }
+  .menu button { text-align: left; border: 0; display: grid; gap: 0; }
+  .menu button:hover { background: var(--indigo-soft); }
+  .menu button small { color: var(--muted); font-size: 12px; }
+  .steps { display: grid; gap: 10px; padding: 0; margin: 0; counter-reset: s; }
+  .steps li { list-style: none; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; }
+  .steps li::before { counter-increment: s; content: counter(s); font-family: var(--mono); font-size: 12px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--indigo-soft); color: var(--indigo); border: 1px solid var(--indigo-line); }
+  .note { font-size: 12.5px; color: var(--amber); background: var(--amber-soft); border: 1px solid var(--amber-line); border-radius: 8px; padding: 8px 10px; }
+  .divider-x { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+  .divider-x::before, .divider-x::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+  @media (prefers-reduced-motion: no-preference) { .ord .it { transition: background .2s, border-color .2s; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">apply-for-me · plano da próxima rodada · mockups</div>
+    <h1>Próxima rodada: vagas, evidências e um CV que a IA ordena e você revisa</h1>
+    <p class="lede">Cada ideia do plano tem um mockup ao lado, no visual do app. As telas usam rótulos em inglês, como no app. Os mockups com botões funcionam: dá para clicar e ver o comportamento. Nada disso está no código ainda. Aprove ou peça mudanças em cada bloco, e só então eu implemento.</p>
+    <nav class="toc" aria-label="Ideias">
+      <a href="#tracks">Trilhas</a><a href="#same-job">Links repetidos</a><a href="#education">Education</a>
+      <a href="#prefs">Preferências</a><a href="#titles">Títulos</a><a href="#order">Ordem e troca</a>
+      <a href="#move">Projeto ↔ experiência</a><a href="#viravoto">Vira Voto</a><a href="#review">REVIEW</a><a href="#learned">Regras aprendidas</a><a href="#phases">Ordem de trabalho</a>
+    </nav>
+  </header>
+
+  <h2 class="group">Ler a vaga</h2>
+
+  <section class="idea" id="tracks">
+    <div class="why">
+      <span class="phase">Fase 1</span>
+      <h3>Trilhas dentro de um anúncio viram vagas</h3>
+      <p>A vaga do iFood é um anúncio só, o "Programa de Estágio - GenAI", com duas trilhas que têm requisitos próprios. A etapa "Which job?" passa a mostrar cada trilha como uma vaga.</p>
+      <p>Cada uma leva a parte comum do programa (elegibilidade, datas, bolsa, benefícios) mais o trecho da própria trilha. O texto continua conferido palavra por palavra.</p>
+      <p class="try">Experimente: escolha uma das trilhas.</p>
+    </div>
+    <div class="frame" data-pick>
+      <div class="cap">Which job? · step 1b</div>
+      <div><b>This posting has 2 tracks.</b> <span class="muted">Pick the one to analyze. Each keeps the program's shared part.</span></div>
+      <div class="grid2">
+        <button class="card sel" data-opt style="text-align:left">
+          <span class="row between"><b>AI Engineer</b><span class="tag">Trilha</span></span>
+          <span class="small muted">iFood · Estágio e Residência Corporativa · IA para Tech</span>
+          <span class="small">Starts: "Trilha AI Engineer"</span>
+        </button>
+        <button class="card" data-opt style="text-align:left">
+          <span class="row between"><b>AI Builder</b><span class="tag">Trilha</span></span>
+          <span class="small muted">iFood · Estágio e Residência Corporativa · IA para Negócios</span>
+          <span class="small">Starts: "Trilha AI Builder"</span>
+        </button>
+      </div>
+      <div class="small muted">Shared part kept in both: Sobre o programa · Requisitos gerais · Bolsa e benefícios · Processo seletivo</div>
+      <div class="row"><button class="p">Analyze this job</button></div>
+    </div>
+  </section>
+
+  <section class="idea" id="same-job">
+    <div class="why">
+      <span class="phase">Fase 1</span>
+      <h3>Dois links que parecem a mesma vaga: você decide</h3>
+      <p>Quando os textos dos links se repetem, o app pergunta antes de seguir. Se for a mesma vaga, junta os dois numa só. Se forem vagas diferentes, mantém separadas e vai para "Which job?".</p>
+      <p class="try">Experimente: alterne entre "Same job" e "Different jobs".</p>
+    </div>
+    <div class="frame">
+      <div class="cap">Read posting · links overlap</div>
+      <div class="card amber">
+        <b>These 2 links look like the same job.</b>
+        <span class="small">carreiras.ifood.com.br/gen-ai/ and carreiras.ifood.com.br/job/8901054002/ share most of their text (both list AI Engineer and AI Builder).</span>
+      </div>
+      <div class="row">
+        <div class="seg" role="group" aria-label="Same job or different jobs">
+          <button aria-pressed="true" data-same="same">Same job</button>
+          <button aria-pressed="false" data-same="diff">Different jobs</button>
+        </div>
+      </div>
+      <div class="small" id="same-out">The app keeps one copy of the text and continues. Both links are saved on the job.</div>
+      <div class="row"><button class="p">Continue</button></div>
+    </div>
+  </section>
+
+  <h2 class="group">Evidências</h2>
+
+  <section class="idea" id="education">
+    <div class="why">
+      <span class="phase">Fase 1</span>
+      <h3>Education conta como evidência</h3>
+      <p>A análise passa a ler também o seu perfil: Education, Technical Skills e Leadership &amp; Achievements. Um requisito como "matriculado em Computação" é coberto pela sua Education, e não por um bloco qualquer como o Study Rats.</p>
+      <p>No "How it is covered" e no "This CV", aparece um cartão "Education" com a frase grifada.</p>
+    </div>
+    <div class="frame">
+      <div class="row between"><div class="row"><span class="tag ok">Covered</span><b>Enrolled in Computer Science, Software Engineering, or related degree</b></div><span class="muted">×</span></div>
+      <div class="grid2">
+        <div style="display:grid;gap:8px;min-width:0">
+          <div class="cap">The job says</div>
+          <div class="q">“Estar regularmente matriculado(a) em curso superior … preferencialmente nas áreas de <b>Ciência da Computação, Engenharia de Software</b>, Matemática, Estatística, Física ou afins.”
+            <div class="ctx">Para estágio, conclusão da graduação prevista entre julho de 2027 e janeiro de 2029.</div></div>
+        </div>
+        <div style="display:grid;gap:8px;min-width:0">
+          <div class="cap">How it is covered</div>
+          <div class="small">Your Education shows an Information Systems degree at USP, ending December 2027, inside the window the job asks for.</div>
+          <div class="card">
+            <div class="row between"><div class="row"><span class="tag new">Education</span><span class="small">From your profile</span></div><button class="ghost">Edit profile</button></div>
+            <div class="paper" style="border:0;padding:0">
+              <div class="item"><b><mark>Bachelor of Information Systems</mark></b><span class="d"><mark>March 2024 – December 2027</mark></span><i>University of São Paulo</i></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <h2 class="group">O CV que a IA monta</h2>
+
+  <section class="idea" id="prefs">
+    <div class="why">
+      <span class="phase">Fase 2</span>
+      <h3>Suas preferências viram regras que a IA segue</h3>
+      <p>As duas preferências que você escreveu entram como regras de "Blocks and CVs", ligadas por padrão:</p>
+      <p>1. Experiência em empresa vem antes de projeto pessoal.<br>2. O mais recente e mais ligado à vaga fica no topo.</p>
+      <p>A IA passa a devolver a ordem dos blocos, e o CV segue essa ordem, não mais a ordem da biblioteca.</p>
+    </div>
+    <div class="frame">
+      <div class="cap">Preferences · Blocks and CVs</div>
+      <div>
+        <div class="rule"><span>Put experience at companies before personal projects.</span><span class="tag ok">On</span><small><span class="tag amber">Learned from use</span>From your request on Nov 8</small></div>
+        <div class="rule"><span>Put the most recent work that best matches the job at the top.</span><span class="tag ok">On</span><small><span class="tag amber">Learned from use</span>From your request on Nov 8</small></div>
+        <div class="rule"><span>Offer the job's title for my roles, and ask me before using it.</span><span class="tag ok">On</span><small><span class="tag amber">Learned from use</span>From your request on Nov 8</small></div>
+        <div class="rule"><span>Start every bullet with a strong past-tense verb: Led, Built, Architected, Owned.</span><span class="tag ok">On</span><small>From your LaTeX CVs</small></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="idea" id="titles">
+    <div class="why">
+      <span class="phase">Fase 2</span>
+      <h3>O título do cargo segue a vaga, e você decide se troca</h3>
+      <p>A IA lê o título da vaga que veio do link e o propõe para as suas experiências. Se a vaga é de Software Engineer, elas viram Software Engineer. Se é de Backend Engineer, viram Backend Engineer, e assim por diante.</p>
+      <p>Para cada experiência há três opções: a recomendação da IA (o título da vaga), o título que você já tem, ou escrever um seu. Nenhum título muda no CV sem você escolher.</p>
+      <p class="try">Experimente: troque o título da vaga e, em cada experiência, escolha uma das três opções. Em "Write my own", digite o título.</p>
+    </div>
+    <div class="frame">
+      <div class="cap">Review · role titles for this job</div>
+      <div style="display:grid;gap:6px">
+        <span class="small muted">Job title, from the link</span>
+        <div class="seg" role="group" aria-label="Job title" id="tt-job" style="flex-wrap:wrap">
+          <button aria-pressed="true">AI Builder</button><button aria-pressed="false">Software Engineer</button><button aria-pressed="false">Backend Engineer</button><button aria-pressed="false">Gen AI Engineer</button>
+        </div>
+      </div>
+      <div class="card">
+        <b id="tt-ask">The job is for AI Builder. Pick the title for each role.</b>
+        <div id="tt-rows"></div>
+      </div>
+      <div class="divider-x">on the CV</div>
+      <div class="paper" id="tt-paper"></div>
+      <div class="small muted">Highlighted = a title that is not the one you already had.</div>
+    </div>
+  </section>
+
+  <section class="idea" id="order">
+    <div class="why">
+      <span class="phase">Fase 3</span>
+      <h3>Arrastar para reordenar, Swap para trocar</h3>
+      <p>Arraste um bloco para a posição que quiser. A ordem fica salva na análise e vai junto quando o CV é salvo. A ordem inicial já vem da IA, seguindo as preferências acima: Apply For Me e Vira Voto perto do topo.</p>
+      <p>O botão Swap troca o bloco por um que ficou de fora, como o Termo pelo IAAS!. O bloco novo entra no mesmo lugar, com os requisitos que cobre, e o "This CV" é recalculado. O bloco que saiu vai para "Left out".</p>
+      <p class="try">Experimente: arraste qualquer bloco (no teclado, foque o bloco e use ↑ e ↓) e clique em Swap no Termo.</p>
+    </div>
+    <div class="frame">
+      <div class="row between"><div class="cap">Review · Experience &amp; projects</div><span class="small muted">Order suggested by the AI</span></div>
+      <div class="ord" id="ord"></div>
+      <div class="row"><button class="ghost" id="ord-reset">Back to the AI's order</button></div>
+    </div>
+  </section>
+
+  <section class="idea" id="move">
+    <div class="why">
+      <span class="phase">Fase 3</span>
+      <h3>Projeto ↔ experiência, ou uma seção só</h3>
+      <p>Cada bloco ganha "Move to Experience" e "Move to Projects". Outra opção é juntar as duas seções numa só, "Experience &amp; Projects", para o trabalho mais ligado à vaga liderar, como o AI Builder na Visio.</p>
+      <p class="try">Experimente: alterne entre "Two sections" e "One section".</p>
+    </div>
+    <div class="frame">
+      <div class="row between"><div class="cap">CV layout</div>
+        <div class="seg" role="group" aria-label="Sections"><button aria-pressed="true" data-sec="two">Two sections</button><button aria-pressed="false" data-sec="one">One section</button></div></div>
+      <div class="paper" id="sec-paper"></div>
+      <div class="row small muted">Block menu: <span class="tag">Move to Experience</span><span class="tag">Move to Projects</span></div>
+    </div>
+  </section>
+
+  <section class="idea" id="viravoto">
+    <div class="why">
+      <span class="phase">Fase 4</span>
+      <h3>Vira Voto atualizado a partir do repositório</h3>
+      <p>Li o repositório. É um sistema que agrupa voluntários de panfletagem: as respostas de um Google Form vão para o Supabase por Apps Script, e um algoritmo monta grupos de até 4 por turno. O algoritmo casa caronas e escolhe o ponto de saída e a área de cada grupo. Um site em Next.js na Vercel mostra o turno a cada voluntário e dá telas à coordenação.</p>
+      <p>Com os seus números: mais de 100 voluntários em mais de 34 grupos, e mais de 1.000 votos virados. Você dirigiu o movimento e organizou as pessoas e a coordenação pelo app.</p>
+    </div>
+    <div class="frame">
+      <div class="cap">Experiences · Projeto Vira Voto · draft notes</div>
+      <div class="paper">
+        <div class="item"><b>Director &amp; Full-Stack Developer — Projeto Vira Voto</b><span class="d">2026</span><i>Next.js 16, React 19, TypeScript, Supabase (Postgres, Edge Functions, pg_cron), Google Apps Script, Vercel</i>
+          <ul>
+            <li>Directed a volunteer canvassing movement, organizing <b>100+</b> volunteers into <b>34+</b> groups that helped turn <b>1,000+</b> votes.</li>
+            <li>Built the platform that ran it: Google Form sign-ups flow through Apps Script into Supabase, where a unit-tested TypeScript algorithm forms teams of up to 4 per shift every 5 minutes, matching carpools, one meeting point and one area per group.</li>
+            <li>Shipped a Next.js site on Vercel where volunteers sign in by phone to see their shift, map and address, and the coordination team (admin) manages people, zones and groups, with server-only database access, rate-limited login and a nonce CSP.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <h2 class="group">Depois do CV</h2>
+
+  <section class="idea" id="review">
+    <div class="why">
+      <span class="phase">Fase 4</span>
+      <h3>REVIEW: diga como melhorar, e a IA gera outro CV</h3>
+      <p>Depois que o CV aparece, o botão REVIEW abre uma caixa para você escrever o que quer mudar: ordem, títulos, o que tirar ou pôr.</p>
+      <p>A IA roda de novo com esse pedido e gera um CV novo. Você compara "Before" e "After" e fica com o que preferir.</p>
+      <p>Se marcar "Remember this for next CVs", o pedido vira regra, com a etiqueta "Learned from use".</p>
+      <p class="try">Experimente: clique em "Make a new CV" e alterne Before / After.</p>
+    </div>
+    <div class="frame">
+      <div class="row between"><div class="cap">Review &amp; save · iFood · AI Builder</div><button id="rv-open" aria-expanded="true">REVIEW</button></div>
+      <div id="rv-box" style="display:grid;gap:8px">
+        <label for="rv-text" class="small"><b>How should this CV be better?</b></label>
+        <textarea id="rv-text">Put company experience first. Put Apply For Me and Vira Voto near the top. Use AI Builder as my title at Visio. Swap Termo for IAAS!.</textarea>
+        <label class="row small"><input type="checkbox" id="rv-remember" checked> Remember this for next CVs</label>
+        <div class="row"><button class="p" id="rv-run">Make a new CV</button><span class="small muted" id="rv-status" role="status"></span></div>
+      </div>
+      <div class="row between" id="rv-compare" hidden>
+        <div class="seg" role="group" aria-label="Compare CVs"><button aria-pressed="false" data-cv="before">Before</button><button aria-pressed="true" data-cv="after">After</button></div>
+        <div class="row"><button>Keep Before</button><button class="p">Keep After</button></div>
+      </div>
+      <div class="paper" id="rv-paper"></div>
+    </div>
+  </section>
+
+  <section class="idea" id="learned">
+    <div class="why">
+      <span class="phase">Fase 4</span>
+      <h3>Regras aprendidas com o uso ganham etiqueta</h3>
+      <p>Hoje cada regra já guarda de onde veio: "From your LaTeX CVs" (veio com o app), "You added this" ou "From 1 edit". Toda regra que o app criar enquanto você usa ganha a etiqueta "Learned from use" e a origem exata. Assim ela não se mistura com as que vieram com o app.</p>
+      <p class="try">Experimente: use o filtro.</p>
+    </div>
+    <div class="frame">
+      <div class="cap">Preferences · Blocks and CVs</div>
+      <div id="rules">
+        <div class="rule" data-kind="app"><span>Start every bullet with a strong past-tense verb: Led, Built, Architected, Owned.</span><span class="tag ok">On</span><small>From your LaTeX CVs</small></div>
+        <div class="rule" data-kind="learned"><span>Put experience at companies before personal projects.</span><span class="tag ok">On</span><small><span class="tag amber">Learned from use</span>From your review of iFood · AI Builder</small></div>
+        <div class="rule" data-kind="you"><span>Write behavioral answers in Portuguese, first person, in STAR order.</span><span class="tag ok">On</span><small>You added this</small></div>
+        <div class="rule" data-kind="learned"><span>Avoid “utilized”. Use the specific verb.</span><span class="tag">Off</span><small><span class="tag amber">Learned from use</span>From 1 edit</small></div>
+      </div>
+      <div class="row small muted">Show:
+        <button class="chip on" data-rf="all">All</button><button class="chip" data-rf="learned">Learned from use</button><button class="chip" data-rf="app">Came with the app</button></div>
+    </div>
+  </section>
+
+  <h2 class="group" id="phases">Ordem de trabalho</h2>
+  <div class="frame" style="box-shadow:none">
+    <ol class="steps">
+      <li><div><b>Aprovar este artifact.</b> <span class="muted">Você comenta ou pede mudanças em cada bloco. Nada vai para o código antes.</span></div></li>
+      <li><div><b>Fase 1, ler a vaga e as evidências:</b> trilhas como vagas, a escolha "mesma vaga / vagas diferentes" e Education como evidência. <span class="muted">Teste com os dois links reais do iFood, num banco de teste separado.</span></div></li>
+      <li><div><b>Fase 2, o que a IA decide:</b> regras de preferência, ordem dos blocos vinda da IA e o título da vaga proposto nas experiências, com a sua confirmação.</div></li>
+      <li><div><b>Fase 3, o que você ajusta:</b> arrastar para reordenar, Swap para trocar bloco, mover entre projeto e experiência ou usar uma seção só.</div></li>
+      <li><div><b>Fase 4, depois do CV:</b> botão REVIEW com Before / After, regras "Learned from use" e as notas do Vira Voto (100+ voluntários, 34+ grupos, 1.000+ votos).</div></li>
+    </ol>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const esc = (t) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const press = (group, on) => group.forEach((x) => x.setAttribute('aria-pressed', String(x === on)));
+
+  $$('[data-pick] [data-opt]').forEach((b) => b.addEventListener('click', () => {
+    $$('[data-pick] [data-opt]').forEach((x) => x.classList.toggle('sel', x === b));
+  }));
+
+  const sameText = {
+    same: 'The app keeps one copy of the text and continues. Both links are saved on the job.',
+    diff: 'The app keeps both texts apart and shows "Which job?" so you pick one.',
+  };
+  $$('[data-same]').forEach((b) => b.addEventListener('click', () => {
+    press($$('[data-same]'), b);
+    $('#same-out').textContent = sameText[b.dataset.same];
+  }));
+
+  // Order: drag by the grip (pointer) or move with ↑/↓ on the focused grip; Swap trades a block with one left out.
+  const BLOCKS = {
+    visio: ['AI Builder — Visio AI', 'Experience · June 2026 – Present · 3 requirements'],
+    afm: ['Apply For Me — AI CV Tailoring Platform', 'Project · 2026 · 2 requirements'],
+    vv: ['Director & Full-Stack Developer — Projeto Vira Voto', 'Project · 2026 · 2 requirements'],
+    sr: ['Software Engineer, Full-Stack — Study Rats', 'Experience · March 2026 – Present · 1 requirement, partly'],
+    bi: ['Automated BI & LLM Insights Pipeline — BI Dashboard', 'Project · 4 requirements + 1 partly'],
+    termo: ['Termo — Portuguese Wordle Web Application', 'Project · 1 requirement + 1 partly'],
+    iaas: ['IAAS!', 'Project · would cover 2 requirements'],
+    att: ['Back-End Developer — Attendance Control App', 'Experience · Sep 2025 – Jan 2026 · would cover 1 requirement, partly'],
+  };
+  const AI_ORDER = ['visio', 'afm', 'vv', 'sr', 'bi', 'termo'];
+  const AI_LEFT = ['iaas', 'att'];
+  let order = [...AI_ORDER];
+  let left = [...AI_LEFT];
+  const swapped = new Set();
+  const ord = $('#ord');
+  const renumber = () => [...ord.children].forEach((r, i) => { r.querySelector('.n').textContent = i + 1; });
+  const sync = () => { order = [...ord.children].map((r) => r.dataset.id); renumber(); };
+  const drawOrder = () => {
+    ord.innerHTML = order.map((id) => {
+      const [t, s] = BLOCKS[id];
+      const menu = left.map((l) => `<button data-to="${l}"><span>${esc(BLOCKS[l][0])}</span><small>Left out · ${esc(BLOCKS[l][1].split(' · ').slice(1).join(' · '))}</small></button>`).join('');
+      return `<div class="it" data-id="${id}" tabindex="0" aria-label="${esc(t)}. Drag, or use the arrow keys to move."><span class="n"></span>` +
+        `<span class="t">${esc(t)}${swapped.has(id) ? ' <span class="tag new">Swapped in</span>' : ''}<small>${esc(s)}</small></span>` +
+        `<button class="sw" aria-expanded="false">Swap</button>` +
+        `<div class="menu" hidden><div class="cap" style="padding:4px 8px">Use instead of ${esc(t.split(' — ').pop())}</div>${menu}</div></div>`;
+    }).join('');
+    renumber();
+  };
+  ord.addEventListener('pointerdown', (e) => {
+    const row = e.target.closest('.it');
+    if (!row || e.target.closest('.sw, .menu') || e.button > 0) return;
+    e.preventDefault();
+    $$('.it', ord).forEach((r) => r.classList.remove('moved'));
+    row.classList.add('drag');
+    const move = (ev) => {
+      const rows = [...ord.children].filter((r) => r !== row);
+      const after = rows.find((r) => { const b = r.getBoundingClientRect(); return ev.clientY < b.top + b.height / 2; });
+      if ((after || null) !== row.nextElementSibling) ord.insertBefore(row, after || null);
+    };
+    const up = () => {
+      row.classList.remove('drag'); row.classList.add('moved');
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+      row.focus({ preventScroll: true });
+      sync();
+    };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+  });
+  ord.addEventListener('keydown', (e) => {
+    const row = e.target.classList && e.target.classList.contains('it') ? e.target : null;
+    if (!row || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+    e.preventDefault();
+    if (e.key === 'ArrowUp' && row.previousElementSibling) ord.insertBefore(row, row.previousElementSibling);
+    if (e.key === 'ArrowDown' && row.nextElementSibling) ord.insertBefore(row.nextElementSibling, row);
+    $$('.it', ord).forEach((r) => r.classList.toggle('moved', r === row));
+    row.focus();
+    sync();
+  });
+  ord.addEventListener('click', (e) => {
+    const sw = e.target.closest('.sw');
+    if (sw) {
+      const m = sw.parentElement.querySelector('.menu');
+      m.hidden = !m.hidden; sw.setAttribute('aria-expanded', String(!m.hidden));
+      return;
+    }
+    const to = e.target.closest('[data-to]');
+    if (!to) return;
+    const out = to.closest('.it').dataset.id, inn = to.dataset.to;
+    order = order.map((id) => (id === out ? inn : id));
+    left = left.map((id) => (id === inn ? out : id));
+    swapped.delete(out); swapped.add(inn);
+    drawOrder();
+  });
+  $('#ord-reset').addEventListener('click', () => { order = [...AI_ORDER]; left = [...AI_LEFT]; swapped.clear(); drawOrder(); });
+  drawOrder();
+
+  const item = (t, d, s) => `<div class="item"><b>${esc(t)}</b><span class="d">${esc(d)}</span><i>${esc(s)}</i></div>`;
+  const EXP = [item('AI Builder — Visio AI', 'June 2026 – Present', 'Visio AI · São Carlos, SP'), item('Software Engineer, Full-Stack — Study Rats', 'March 2026 – Present', 'Codelab USP — Development Group')];
+  const PRJ = [item('Apply For Me — AI CV Tailoring Platform', '2026', 'Next.js 16, React 19, TypeScript, Claude, Gemini'), item('Projeto Vira Voto — Volunteer Grouping Platform', '2026', 'Next.js 16, Supabase, Apps Script, Vercel')];
+  const drawSec = (mode) => {
+    $('#sec-paper').innerHTML = mode === 'two'
+      ? `<div class="sec">Experience</div>${EXP.join('')}<div class="sec">AI &amp; Automation Projects</div>${PRJ.join('')}`
+      : `<div class="sec">Experience &amp; Projects</div>${[EXP[0], PRJ[0], PRJ[1], EXP[1]].join('')}`;
+  };
+  $$('[data-sec]').forEach((b) => b.addEventListener('click', () => { press($$('[data-sec]'), b); drawSec(b.dataset.sec); }));
+  drawSec('two');
+
+  // Role titles: the job's title, offered per experience.
+  const ROLES = [
+    ['Visio AI', 'Software Engineer Intern', 'Visio AI · São Carlos, SP', 'June 2026 – Present'],
+    ['Study Rats', 'Tech Lead, Full-Stack', 'Codelab USP — Development Group', 'March 2026 – Present'],
+    ['Attendance Control App', 'Back-End Developer', 'Codelab USP — Development Group', 'Sep 2025 – Jan 2026'],
+  ];
+  let jobTitle = 'AI Builder';
+  let pick = ROLES.map(() => 'ai');
+  let own = ROLES.map(() => '');
+  const titleFor = (i) => (pick[i] === 'ai' ? jobTitle : pick[i] === 'mine' ? ROLES[i][1] : own[i].trim());
+  const drawPaper = () => {
+    $('#tt-paper').innerHTML = ROLES.map(([where, mine, org, d], i) => {
+      const t = titleFor(i);
+      const shown = t ? (pick[i] === 'mine' ? esc(t) : `<mark>${esc(t)}</mark>`) : '<span class="muted">[your title]</span>';
+      return `<div class="item"><b>${shown} — ${esc(where)}</b><span class="d">${esc(d)}</span><i>${esc(org)}</i></div>`;
+    }).join('');
+  };
+  const opt = (i, kind, label, value) =>
+    `<button class="opt" data-tt="${i}" data-pick="${kind}" aria-pressed="${pick[i] === kind}"><small>${label}</small><span>${esc(value)}</span></button>`;
+  const drawTitles = () => {
+    $('#tt-ask').textContent = `The job is for ${jobTitle}. Pick the title for each role.`;
+    $('#tt-rows').innerHTML = ROLES.map(([where, mine], i) => `<div class="tt"><b>${esc(where)}</b>` +
+      `<div class="opts" role="group" aria-label="Title at ${esc(where)}">` +
+      opt(i, 'ai', 'AI recommends', jobTitle) + opt(i, 'mine', 'You have', mine) + opt(i, 'own', 'Write my own', own[i].trim() || '+ New title') +
+      `</div>${pick[i] === 'own' ? `<input type="text" id="tt-own-${i}" data-own="${i}" placeholder="Your title at ${esc(where)}" value="${esc(own[i])}">` : ''}</div>`).join('');
+    drawPaper();
+  };
+  $$('#tt-job button').forEach((b) => b.addEventListener('click', () => {
+    press($$('#tt-job button'), b); jobTitle = b.textContent; drawTitles();
+  }));
+  $('#tt-rows').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-pick]');
+    if (!b) return;
+    const i = Number(b.dataset.tt);
+    pick = pick.map((v, k) => (k === i ? b.dataset.pick : v));
+    drawTitles();
+    if (pick[i] === 'own') $(`#tt-own-${i}`).focus();
+  });
+  $('#tt-rows').addEventListener('input', (e) => {
+    const inp = e.target.closest('[data-own]');
+    if (!inp) return;
+    const i = Number(inp.dataset.own);
+    own = own.map((v, k) => (k === i ? inp.value : v));
+    const label = inp.previousElementSibling.querySelector('[data-pick="own"] span');
+    if (label) label.textContent = inp.value.trim() || '+ New title';
+    drawPaper();
+  });
+  drawTitles();
+
+  const note = (t) => `<div class="small" style="font-family:var(--sans);color:var(--muted)">${esc(t)}</div>`;
+  const BEFORE = `<div class="sec">Experience</div>${item('Software Engineer Intern — Visio AI', 'June 2026 – Present', 'Visio AI')}${item('Tech Lead, Full-Stack — Study Rats', 'March 2026 – Present', 'Codelab USP')}<div class="sec">AI &amp; Automation Projects</div>${item('Automated BI & LLM Insights Pipeline — BI Dashboard', '2026', 'Lovable, n8n, Supabase')}${item('Termo — Portuguese Wordle Web Application', '2025', 'React, Django, Docker')}${note('Apply For Me is on page 2.')}`;
+  const AFTER = `<div class="sec">Experience</div>${item('AI Builder — Visio AI', 'June 2026 – Present', 'Visio AI')}${item('Software Engineer, Full-Stack — Study Rats', 'March 2026 – Present', 'Codelab USP')}<div class="sec">AI &amp; Automation Projects</div>${item('Apply For Me — AI CV Tailoring Platform', '2026', 'Next.js, Claude, Gemini')}${item('Projeto Vira Voto — Volunteer Grouping Platform', '2026', 'Next.js, Supabase, Vercel')}${item('IAAS!', '2026', 'Swapped in for Termo')}`;
+  const showCv = (which) => {
+    press($$('[data-cv]'), $(`[data-cv="${which}"]`));
+    $('#rv-paper').innerHTML = which === 'after' ? AFTER : BEFORE;
+  };
+  $('#rv-paper').innerHTML = BEFORE;
+  $('#rv-open').addEventListener('click', (e) => {
+    const box = $('#rv-box'); box.hidden = !box.hidden;
+    e.currentTarget.setAttribute('aria-expanded', String(!box.hidden));
+  });
+  $('#rv-run').addEventListener('click', () => {
+    $('#rv-status').textContent = 'Making a new CV…';
+    setTimeout(() => {
+      $('#rv-status').textContent = $('#rv-remember').checked ? '✓ New CV ready · your request was saved as “Learned from use” rules' : '✓ New CV ready';
+      $('#rv-compare').hidden = false;
+      showCv('after');
+    }, 700);
+  });
+  $$('[data-cv]').forEach((b) => b.addEventListener('click', () => showCv(b.dataset.cv)));
+
+  $$('[data-rf]').forEach((b) => b.addEventListener('click', () => {
+    $$('[data-rf]').forEach((x) => x.classList.toggle('on', x === b));
+    $$('#rules .rule').forEach((r) => {
+      const k = b.dataset.rf;
+      r.hidden = !(k === 'all' || r.dataset.kind === k);
+    });
+  }));
+})();
+</script>
