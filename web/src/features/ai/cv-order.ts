@@ -3,6 +3,7 @@
 // seniority the job does not ask for is dropped (P1: drop, never invent).
 import type { Section } from '@prisma/client'
 import { newBlockKey } from '../analysis/block-key'
+import { roleOnly } from '../analysis/role-titles'
 import type { RoleTitle } from './types'
 
 /** A block of this CV: a draft (of a library block or a new one) or a version used as it is. */
@@ -49,7 +50,8 @@ export function cleanRoleTitles(raw: readonly RoleTitle[], blocks: readonly CvBl
   const out: RoleTitle[] = []
   for (const r of raw) {
     const block = resolve(r.block, blocks)
-    const title = r.title.replace(/\s+/g, ' ').trim()
+    // Only the role: the place stays the one of the title he has ("AI Builder — IAAS! Fintech" → "AI Builder").
+    const title = roleOnly(r.title.replace(/\s+/g, ' '))
     if (!block || block.section !== 'EXPERIENCE' || !title || title.length > MAX_TITLE) continue
     if (addsSeniority(title, jobRole) || out.some((o) => o.block === block.key)) continue
     out.push({ block: block.key, title })

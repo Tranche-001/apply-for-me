@@ -21,7 +21,8 @@ const OPTIONS: { pick: TitlePick; label: string }[] = [
 ]
 
 function valueOf(row: RoleTitleRow, pick: TitlePick): string {
-  if (pick === 'ai') return row.ai
+  // The AI's option is its role alone; picked, the CV prints it with the place of the title you have.
+  if (pick === 'ai') return row.aiRole || row.ai
   if (pick === 'mine') return row.have
   return row.choice.own.trim() || '+ New title'
 }

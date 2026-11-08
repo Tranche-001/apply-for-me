@@ -19,7 +19,9 @@ export type RoleTitleRow = {
   blockName: string
   /** "You have": the title of the version on the CV now. */
   have: string
-  /** "AI recommends": the AI's title for this block, else the job's role, with the place of the title you have. */
+  /** "AI recommends" as the option shows it: the role alone ("AI Builder"). */
+  aiRole: string
+  /** "AI recommends" as the CV prints it: that role with the place of the title you have. */
   ai: string
   choice: TitleChoice
   /** The title the CV shows: "Write my own" with nothing written yet shows the one you have. */
@@ -33,6 +35,12 @@ export type RoleTitleRow = {
 /** An experience's title is "Role — Place" ("Software Engineer Intern — Visio AI"): the separator. */
 const PLACE_SEPARATOR = ' — '
 
+/** What an AI may put between a role and a place: a dash with spaces around it, "|", "at" or "@". */
+const AI_PLACE_SEPARATOR = /\s+(?:[—–-]|\||at|@)\s+/i
+
+/** The role part of a title the AI wrote ("AI Builder — IAAS! Fintech" → "AI Builder"). */
+export const roleOnly = (title: string): string => title.split(AI_PLACE_SEPARATOR)[0].trim()
+
 /**
  * `role` as the title of this experience: the place part of the title you have stays as it is ("AI Builder" →
  * "AI Builder — Visio AI"). From the AI only its role part is used, so it never rewrites the place. A title you write
@@ -40,7 +48,7 @@ const PLACE_SEPARATOR = ' — '
  */
 export function titleWithPlace(role: string, have: string, fromAi = false): string {
   const at = have.indexOf(PLACE_SEPARATOR)
-  const wanted = (fromAi ? role.split(PLACE_SEPARATOR)[0] : role).trim()
+  const wanted = (fromAi ? roleOnly(role) : role).trim()
   if (!wanted || at < 0 || (!fromAi && wanted.includes(PLACE_SEPARATOR))) return wanted
   return `${wanted}${have.slice(at)}`
 }
@@ -69,12 +77,13 @@ export function roleTitleRows(input: {
     if (!block || !version || block.section !== 'EXPERIENCE') return []
     const key = reviewBlockKey(block)
     const have = version.title
-    const ai = titleWithPlace(input.roleTitles?.find((r) => r.block === key)?.title ?? input.jobRole, have, true)
+    const aiRole = roleOnly(input.roleTitles?.find((r) => r.block === key)?.title ?? input.jobRole)
+    const ai = titleWithPlace(aiRole, have, true)
     const choice = (input.titles && Object.hasOwn(input.titles, key) ? input.titles[key] : null) ?? DEFAULT_TITLE_CHOICE
     const chosen = chosenTitle(choice, have, ai)
     const draft = input.drafts.find((d) => draftVersionId(d.key) === row.versionId)
     const updatesVersion = draft?.saveAs === 'update' && draft.fromVersionId ? (draft.fromVersionName ?? 'its version') : null
-    return [{ key, blockId: block.id, versionId: version.id, blockName: block.name, have, ai, choice, chosen, changed: chosen !== have, updatesVersion }]
+    return [{ key, blockId: block.id, versionId: version.id, blockName: block.name, have, aiRole, ai, choice, chosen, changed: chosen !== have, updatesVersion }]
   })
 }
 

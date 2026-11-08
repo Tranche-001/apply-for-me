@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import type { ReusedVersion } from '../ai/types'
 import type { LibBlock, LibVersion } from '../blocks/types'
 import { compositionForReview, libraryWithDrafts } from './cv-draft'
-import { libraryWithTitles, roleTitleRows, setTitleChoice, titlesForSave, titleWithPlace, type RoleTitleRow } from './role-titles'
+import { libraryWithTitles, roleOnly, roleTitleRows, setTitleChoice, titlesForSave, titleWithPlace, type RoleTitleRow } from './role-titles'
 import { SESSION_VERSION, type AnalysisSession, type SessionDraft, type TitleChoice } from './types'
 
 const version = (id: string, blockId: string, title: string): LibVersion => ({
@@ -126,6 +126,24 @@ describe('titleWithPlace (an experience title is "Role — Place")', () => {
   test('the AI never rewrites the place; a title you write with its own place is yours', () => {
     expect(titleWithPlace('AI Builder — iFood', 'Software Engineer Intern — Visio AI', true)).toBe('AI Builder — Visio AI')
     expect(titleWithPlace('AI Builder — Visio AI (part-time)', 'Software Engineer Intern — Visio AI')).toBe('AI Builder — Visio AI (part-time)')
+  })
+
+  test('from the AI only the role counts, whatever separator it put before a place', () => {
+    expect(roleOnly('AI Builder — IAAS! Fintech')).toBe('AI Builder')
+    expect(roleOnly('AI Builder – IAAS!')).toBe('AI Builder')
+    expect(roleOnly('AI Builder - IAAS!')).toBe('AI Builder')
+    expect(roleOnly('AI Builder | IAAS!')).toBe('AI Builder')
+    expect(roleOnly('AI Builder at IAAS!')).toBe('AI Builder')
+    expect(roleOnly('AI Builder @ IAAS!')).toBe('AI Builder')
+    expect(roleOnly('Back-End Developer')).toBe('Back-End Developer')
+    expect(titleWithPlace('AI Builder – iFood', 'Full-Stack Engineer Intern — IAAS! Fintech', true)).toBe('AI Builder — IAAS! Fintech')
+  })
+
+  test('the AI option shows the role alone; picking it keeps the place of the title you have', () => {
+    const lib = [block('iaas', 'IAAS!', 'EXPERIENCE', 0, 'Full-Stack Engineer Intern — IAAS! Fintech')]
+    const comp = compositionForReview({ library: lib, drafts: [], reused: [reused('iaas-base', 'iaas')], asIsOut: [], pages: 1 })
+    const [row] = roleTitleRows({ comp, library: lib, drafts: [], roleTitles: [{ block: 'iaas', title: 'AI Builder — IAAS! Fintech' }], titles: { iaas: { pick: 'ai', own: '' } }, jobRole: 'AI Builder' })
+    expect(row).toMatchObject({ aiRole: 'AI Builder', ai: 'AI Builder — IAAS! Fintech', chosen: 'AI Builder — IAAS! Fintech' })
   })
 
   test('a title with no place, or an empty role, stays as given', () => {
