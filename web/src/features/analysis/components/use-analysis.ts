@@ -12,7 +12,8 @@ import type { LoadedAnalysisJob } from '../queries'
 import { applyRedraft, markSaved, markSent, newSession, setStep, type DraftUndo } from '../session-state'
 import type { OverlapLinks, SplitCandidate, StartedJob, StartResult, StartSource } from '../start-types'
 import type { Retitle } from '../role-titles'
-import type { AnalysisSession, ExperienceOption, JobSummary, SentAnswer, SessionDraft } from '../types'
+import type { AnalysisSession, ExperienceOption, JobSummary, SessionDraft } from '../types'
+import { answersFor, dontSent, draftsBrief, toSend, type SendItem } from './analysis-requests'
 import type { Destination, PlacementItem } from './placement-popover'
 import { splitNotice, typedLinks, unreadNotice } from './start-links'
 import { askNumber, topicFor } from './view-model'
@@ -33,7 +34,6 @@ export type Problem = { message: string; retry: (() => void) | null }
 export type NotMetState = { busy: boolean; done: { place: string; isNew: boolean } | null; error: string | null }
 export type UndoState = { undo: DraftUndo | null; asIsVersion: string | null; label: string }
 
-type SendItem = { askId: string; question: string; answer: string }
 /** What Save sends besides the job: kept drafts (with their role titles), versions that take another title, the CV. */
 export type SavePlan = { drafts: SessionDraft[]; retitled: Retitle[]; cv: Parameters<typeof saveAnalysisCv>[0]['cv'] }
 
@@ -48,24 +48,6 @@ const reloadNeeded = (err: unknown): boolean => err instanceof Error && /server 
 // save the whole session on every keystroke.
 const saveSession = (v: { jobId: string; session: AnalysisSession }) => saveAnalysisSession(v)
 const sameJob = (a: { jobId: string }, b: { jobId: string }) => a.jobId === b.jobId
-
-/** Every question's answer for the AI: "I don't have this" is null, unanswered is ''. */
-const answersFor = (s: AnalysisSession) =>
-  s.analysis.asks.map((a) => ({ id: a.id, question: a.text, answer: s.dont[a.id] ? null : (s.answers[a.id] ?? '') }))
-
-/** Drafts you edited by hand go back to the AI, so a redraft builds on them instead of replacing them (P2). */
-const draftsBrief = (s: AnalysisSession, all: boolean) =>
-  s.drafts
-    .filter((d) => all || d.editedByHand)
-    .map((d) => ({ blockName: d.blockName, title: d.title, bullets: d.bullets.filter((b) => b.kind !== 'MISSING').map((b) => b.text) }))
-
-const dontSent = (question: string): SentAnswer => ({ question, answer: null, entry: null, experienceId: null, experienceTitle: '', isNewExperience: false, resent: false })
-
-/** Written answers not sent yet. */
-const toSend = (s: AnalysisSession): SendItem[] =>
-  s.analysis.asks
-    .filter((a) => !s.dont[a.id] && !s.sent[a.id] && (s.answers[a.id] ?? '').trim())
-    .map((a) => ({ askId: a.id, question: a.text, answer: (s.answers[a.id] ?? '').trim() }))
 
 export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experiences: ExperienceOption[] }) {
   const [job, setJob] = useState<JobSummary | null>(init.loaded?.job ?? null)

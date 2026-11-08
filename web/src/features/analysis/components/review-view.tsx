@@ -42,7 +42,12 @@ export type Props = {
   retitledBlockIds: string[]
   /** "Role titles for this job", above the CV. */
   titles: ReactNode
+  /** "Experience & projects" (order, Swap, Move to), above the CV. */
+  order: ReactNode
   pages: 1 | 2
+  /** One "Experience & Projects" section on this CV. */
+  oneSection: boolean
+  onOneSection: (one: boolean) => void
   saved: boolean
   busy: boolean
   /** "Save 3 versions and the CV", from saveLabel(). */
@@ -146,10 +151,19 @@ function BlockList({ blocks, onOpenBlock }: Pick<Props, 'blocks' | 'onOpenBlock'
   )
 }
 
-function StageBar({ pages, saved, busy, saveLabel, onPages, onBack, onSave, onOpenCompose }: Pick<Props, 'pages' | 'saved' | 'busy' | 'saveLabel' | 'onPages' | 'onBack' | 'onSave' | 'onOpenCompose'>) {
+type BarProps = Pick<Props, 'pages' | 'oneSection' | 'saved' | 'busy' | 'saveLabel' | 'onPages' | 'onOneSection' | 'onBack' | 'onSave' | 'onOpenCompose'>
+
+function StageBar({ pages, oneSection, saved, busy, saveLabel, onPages, onOneSection, onBack, onSave, onOpenCompose }: BarProps) {
   return (
     <div className={c('a-stage-bar')}>
       <span className={c('sp')}>{saved ? 'Saved. Double-click a block to edit it again.' : 'Double-click a block to edit it.'}</span>
+      <span className={c('a-seg')} role="group" aria-label="Sections">
+        {([false, true] as const).map((one) => (
+          <button key={String(one)} type="button" className={c(oneSection === one && 'on')} aria-pressed={oneSection === one} disabled={saved || busy} onClick={() => onOneSection(one)}>
+            {one ? 'One section' : 'Two sections'}
+          </button>
+        ))}
+      </span>
       <span className={c('a-seg')} role="group" aria-label="CV length">
         {([1, 2] as const).map((p) => (
           <button key={p} type="button" className={c(pages === p && 'on')} aria-pressed={pages === p} onClick={() => onPages(p)}>
@@ -176,7 +190,7 @@ function StageBar({ pages, saved, busy, saveLabel, onPages, onBack, onSave, onOp
 }
 
 export function ReviewView(props: Props) {
-  const { met, notMet, total, blocks, layout, profile, labels, newBlockIds, retitledBlockIds, titles, onOpenRequirement, onOpenBlock, onEditBlock } = props
+  const { met, notMet, total, blocks, layout, profile, labels, newBlockIds, retitledBlockIds, titles, order, onOpenRequirement, onOpenBlock, onEditBlock } = props
   const fresh = new Set(newBlockIds)
   const retitled = new Set(retitledBlockIds)
   const entryUi = (e: LayoutEntry): EntryUi => ({
@@ -201,6 +215,7 @@ export function ReviewView(props: Props) {
       <div className={c('a-stage')}>
         <StageBar {...props} />
         {titles}
+        {order}
         <CvPreview layout={layout} profile={profile} labels={labels} entryUi={entryUi} />
       </div>
     </div>

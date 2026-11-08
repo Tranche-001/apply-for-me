@@ -12,7 +12,8 @@ import { printCv } from '../../cv/print'
 import type { JobData } from '../../jobs/types'
 import type { ProfileData } from '../../profile/types'
 import { blockRequirements, cvRequirements } from '../coverage'
-import { compositionForReview, draftVersionId, libraryWithDrafts } from '../cv-draft'
+import { arrangementChanged, swapChoices } from '../arrangement'
+import { compositionOfRows, draftVersionId, libraryWithDrafts, reviewInput, reviewRows } from '../cv-draft'
 import { postingLines, postingListItems } from '../highlight'
 import type { LoadedAnalysisJob } from '../queries'
 import { blocksSummary, discardedLabel, improvesLabel, metBlocksLine, reviewBlockSub, reviewBlockTag, saveLabel } from '../review-labels'
@@ -27,6 +28,9 @@ import { JobSplit } from './job-split'
 import { LinksOverlap } from './links-overlap'
 import { QuestionsPanel } from './questions-panel'
 import { RequirementsPanel } from './requirements-panel'
+import { reviewOrderActions } from './review-order-actions'
+import { ReviewOrderCard } from './review-order-card'
+import { orderGroups, orderStatus, swapItems } from './review-order-view'
 import { ReviewView } from './review-view'
 import { RoleTitlesCard } from './role-titles-card'
 import { SavedBanner } from './saved-banner'
@@ -35,7 +39,7 @@ import { StatusLine } from './status-line'
 import { Steps } from './steps'
 import { c } from './ui/cx'
 import { useAnalysis, type Phase } from './use-analysis'
-import { askNumber, blockViews, chipItems, editTargetForCvBlock, nameLookup, topicFor, type EditTarget } from './view-model'
+import { askNumber, blockViews, chipItems, cvViews, editTargetForCvBlock, nameLookup, topicFor, type EditTarget } from './view-model'
 
 type Props = {
   loaded: LoadedAnalysisJob | null
@@ -72,11 +76,14 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
   // The review CV is only laid out on the review steps (layout is the costly part).
   const printed = useMemo(() => {
     if (!s || (s.step !== 'review' && s.step !== 'saved')) return null
-    const comp = compositionForReview({ library, drafts: s.drafts, reused: s.analysis.reused, asIsOut: s.asIsOut, pages: s.pages, order: s.analysis.order })
+    const { rows, out } = reviewRows(reviewInput(library, s))
+    const comp = compositionOfRows(rows, s.pages, s.arrangement?.oneSection)
     const withDrafts = libraryWithDrafts(library, s.drafts)
     const titles = roleTitleRows({ comp, library: withDrafts, drafts: s.drafts, roleTitles: s.analysis.roleTitles, titles: s.titles, jobRole: a.job?.role ?? '' })
-    return { comp, titles, print: printCv(comp, libraryWithTitles(withDrafts, titles), profile) }
+    return { rows, out, comp, titles, print: printCv(comp, libraryWithTitles(withDrafts, titles), profile) }
   }, [s, library, profile, a.job?.role])
+  // Drag, ↑/↓, Swap, Move to and One section on review: each reads the latest session (a.change).
+  const arrange = useMemo(() => reviewOrderActions(a.change, (x) => reviewInput(library, x)), [a.change, library])
   const busy = a.phase !== 'idle'
   const reqs = s?.analysis.requirements ?? []
 
@@ -218,14 +225,26 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
   const review = () => {
     if (!s || !views || !a.job || !printed) return null
     const job = a.job
-    const keptDrafts = views.drafts.filter((v) => v.keep)
-    const kept = [...keptDrafts, ...views.asIs]
+    // What is on the CV after drags and swaps (a swapped-in block brings its matches; one swapped out goes to Left out).
+    const placed = cvViews(views, printed.rows, printed.out)
+    const kept = placed.onCv
+    const keptDrafts = kept.filter((v) => v.kind === 'draft')
+    const onCv = new Set(keptDrafts.map((v) => v.key))
     const comp = printed.comp
-    const forSave = titlesForSave(s.drafts.filter((d) => d.keep), printed.titles)
+    const forSave = titlesForSave(s.drafts.filter((d) => d.keep && onCv.has(d.key)), printed.titles)
     const { met, notMet } = cvRequirements(s.analysis, kept.map((v) => ({ id: v.ref, blockName: v.blockName, matches: v.matches })))
     const group = (g: 'new' | 'asis' | 'out', list: typeof kept) =>
-      list.map((v) => ({ group: g, id: v.ref, name: v.blockName, tag: reviewBlockTag(g, v.isNewBlock), sub: reviewBlockSub({ group: g, matches: blockRequirements(v.matches, reqs), versionName: v.versionName }), matched: v.matches.length > 0 }))
+      list.map((v) => ({
+        group: g,
+        id: v.ref,
+        name: v.blockName,
+        tag: g === 'asis' && v.kind === 'left-out' ? 'Swapped in' : reviewBlockTag(g, v.isNewBlock),
+        sub: reviewBlockSub({ group: g, matches: blockRequirements(v.matches, reqs), versionName: v.versionName }),
+        matched: v.matches.length > 0,
+      }))
     const saved = s.step === 'saved'
+    const oneSection = s.arrangement?.oneSection ?? false
+    const swaps = swapItems(swapChoices({ rows: printed.rows, out: printed.out, leftOut: s.analysis.leftOut, arrangement: s.arrangement }), printed.out, views, reqs)
     return (
       <>
         {saved && <SavedBanner savedCount={keptDrafts.length + forSave.retitled.length} jobLabel={job.label} onAnalyzeAnother={a.reset} />}
@@ -233,13 +252,29 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
           met={met.map((x) => ({ id: x.requirement.id, name: x.requirement.text, blocks: metBlocksLine(x.hits), partly: x.partly }))}
           notMet={notMet.map((r) => ({ id: r.id, name: r.text }))}
           total={reqs.length}
-          blocks={[...group('new', keptDrafts), ...group('asis', views.asIs), ...group('out', [...views.leftOut, ...views.asIsOut])]}
+          blocks={[...group('new', keptDrafts), ...group('asis', kept.filter((v) => v.kind !== 'draft')), ...group('out', placed.out)]}
           layout={printed.print.layout}
           profile={profile}
           labels={printed.print.labels}
           newBlockIds={keptDrafts.map((v) => v.blockId)}
           retitledBlockIds={printed.titles.filter((r) => r.changed).map((r) => r.blockId)}
           titles={<RoleTitlesCard jobRole={job.role} rows={printed.titles} disabled={saved || busy} onPick={(key, choice) => a.change((x) => setTitleChoice(x, key, choice))} />}
+          order={
+            <ReviewOrderCard
+              groups={orderGroups({ rows: printed.rows, views, requirements: reqs, oneSection })}
+              status={orderStatus(s)}
+              canReset={arrangementChanged(s.arrangement)}
+              disabled={saved || busy}
+              choicesFor={() => swaps}
+              onMoveBy={arrange.moveBy}
+              onMoveTo={arrange.moveTo}
+              onSwap={arrange.swap}
+              onSection={arrange.toSection}
+              onReset={arrange.reset}
+            />
+          }
+          oneSection={oneSection}
+          onOneSection={arrange.setOneSection}
           pages={s.pages}
           saved={saved}
           busy={busy}
@@ -247,7 +282,7 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
           onPages={(p) => a.change((x) => setPages(x, p))}
           onBack={() => a.change((x) => setStep(x, 'drafts'))}
           onSave={() =>
-            void a.save({ ...forSave, cv: { pages: comp.pages, sectionOrder: comp.order, showEducation: comp.edu, showSkills: comp.skills, showAchievements: comp.ach, items: toSavedItems(comp) } })
+            void a.save({ ...forSave, cv: { pages: comp.pages, sectionOrder: comp.order, oneSection, showEducation: comp.edu, showSkills: comp.skills, showAchievements: comp.ach, items: toSavedItems(comp) } })
           }
           onOpenCompose={() => router.push(`/compose?job=${encodeURIComponent(job.id)}`)}
           onOpenRequirement={(id) => (met.some((x) => x.requirement.id === id) ? a.setModal({ kind: 'met', reqId: id, backBlock: null }) : a.openNotMet(id))}

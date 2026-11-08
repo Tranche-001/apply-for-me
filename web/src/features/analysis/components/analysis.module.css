@@ -589,3 +589,30 @@ a.a-chip:hover { border-color: var(--indigo-line); }
 /* A role title that is not the one you had, on the review page only: never on paper. */
 mark.tt-mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1px; }
 @media print { mark.tt-mark { background: none; padding: 0; } }
+
+/* "Experience & projects" on review (prototype next-ideas.html #order / #move): the whole row drags. */
+.ord-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ord-state { font-size: 11.5px; color: var(--muted); }
+.ord-groups { display: grid; gap: 8px; }
+.ord-cap { margin: 0 0 4px; font: 500 10px var(--font-geist-mono), ui-monospace, monospace; letter-spacing: 0.07em; text-transform: uppercase; color: var(--faint); }
+.ord { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ord-it { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto; gap: 8px 10px; align-items: center; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; background: var(--surface); cursor: grab; touch-action: none; user-select: none; }
+.ord-it:hover { border-color: var(--indigo-line); }
+.ord-it:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+.ord-it.moved { border-color: var(--indigo-line); background: var(--indigo-soft); }
+.ord-it.drag { border-color: var(--indigo); box-shadow: 0 8px 24px rgb(20 22 27 / 0.12); opacity: 0.92; cursor: grabbing; }
+.ord-it.off { cursor: default; }
+.ord-it > button { cursor: pointer; }
+.ord-n { font: 400 11px var(--font-geist-mono), ui-monospace, monospace; color: var(--faint); text-align: right; }
+.ord-t { min-width: 0; font-size: 12.5px; font-weight: 500; color: var(--text); overflow-wrap: anywhere; }
+.ord-t small { display: block; color: var(--muted); font-size: 11.5px; font-weight: 400; }
+.ord-tag { margin-left: 6px; font: 500 9.5px var(--font-geist-mono), ui-monospace, monospace; letter-spacing: 0.05em; text-transform: uppercase; color: var(--indigo); background: var(--indigo-soft); border: 1px solid var(--indigo-line); border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+.ord-menu { grid-column: 1 / -1; border: 1px solid var(--border-strong); border-radius: 10px; box-shadow: 0 8px 24px rgb(20 22 27 / 0.12); background: var(--surface); padding: 6px; display: grid; gap: 2px; cursor: default; }
+.ord-menu p { margin: 0; padding: 4px 8px; font: 500 10px var(--font-geist-mono), ui-monospace, monospace; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.ord-menu button { display: grid; text-align: left; border: 0; border-radius: 6px; background: none; padding: 6px 8px; font: 500 12.5px var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; color: var(--text); cursor: pointer; }
+.ord-menu button small { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+.ord-menu button:hover, .ord-menu button:focus-visible { background: var(--indigo-soft); outline: none; }
+.ord-reset { justify-self: start; border: 0; background: none; padding: 4px 6px; font: 500 12.5px var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; color: var(--indigo); cursor: pointer; }
+.ord-reset[disabled] { opacity: 0.45; cursor: default; }
+@media (prefers-reduced-motion: no-preference) { .ord-it { transition: background 0.2s, border-color 0.2s; } }
+@media (max-width: 560px) { .ord-it { grid-template-columns: 22px minmax(0, 1fr); } .ord-it > button { grid-column: 2; justify-self: start; } }

@@ -6,7 +6,7 @@ import type { LibBlock, LibVersion } from '../blocks/types'
 import { emptyComposition, SECTIONS, toSavedItems, type Composition, type CvRow } from '../cv/composition'
 import type { SavedCvItem } from '../jobs/types'
 import { inOrder, newBlockKey } from './block-key'
-import type { Arrangement, SessionDraft } from './types'
+import type { AnalysisSession, Arrangement, SessionDraft } from './types'
 
 const DRAFT_PREFIX = 'draft:'
 
@@ -77,6 +77,18 @@ export type ReviewInput = {
   /** How you arranged the CV; missing = as the AI gave it. */
   arrangement?: Arrangement
 }
+
+/** What reviewRows needs from a session and the library. */
+export const reviewInput = (library: readonly LibBlock[], s: AnalysisSession): ReviewInput => ({
+  library,
+  drafts: s.drafts,
+  reused: s.analysis.reused,
+  asIsOut: s.asIsOut,
+  pages: s.pages,
+  order: s.analysis.order,
+  leftOut: s.analysis.leftOut,
+  arrangement: s.arrangement,
+})
 
 /**
  * The blocks of the review CV, as one list in print order (`rows`), and the ones you swapped out (`out`). A block
