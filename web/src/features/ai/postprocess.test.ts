@@ -435,6 +435,11 @@ describe('finalizeBlockDraft', () => {
     expect(d.newBlock).toMatchObject({ org: 'Visio AI · São Carlos, SP', dates: 'June 2026 – Present' })
   })
 
+  test('a new block the model named after its version ("Base") takes the experience title', () => {
+    const newBlock = { name: 'Base', section: 'PROJECT' as const, org: '', location: '', dates: '', stack: '' }
+    expect(finalizeBlockDraft(blockOutput({ newBlock }), LIBRARY, EXPERIENCE).newBlock?.name).toBe('Visio AI')
+  })
+
   test('a block id that is not linked to the experience becomes a new block from the experience fields', () => {
     const d = finalizeBlockDraft(blockOutput({ blockId: 'b-bi' }), LIBRARY, EXPERIENCE)
     expect(d.blockId).toBeNull()

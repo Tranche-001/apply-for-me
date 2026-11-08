@@ -389,11 +389,13 @@ export function finalizeBlockDraft(raw: BlockDraftOutput, library: LibraryBlock[
     }
   }
   // A new block: what the model read from the notes, else the experience's own fields (never invented).
+  // "Base" is the version's name, not the block's: a model that puts it here gets the experience title instead.
   const nb = raw.newBlock
+  const blockName = nb?.name.trim() ?? ''
   return {
     blockId: null,
     newBlock: {
-      name: nb?.name.trim() || experience.title.trim() || 'Untitled block',
+      name: (blockName.toLowerCase() === 'base' ? '' : blockName) || experience.title.trim() || 'Untitled block',
       section: nb?.section ?? 'EXPERIENCE',
       org: nb?.org.trim() || experience.where.trim(),
       location: nb?.location.trim() ?? '',

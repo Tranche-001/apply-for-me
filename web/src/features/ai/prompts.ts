@@ -289,7 +289,7 @@ export type BlockDraftPromptInput = {
 export function buildBlockDraftPrompt(input: BlockDraftPromptInput): Prompt {
   const task = `Task: turn his Experiences notes about one place into a CV entry.
 - If the experience is linked to a block (shown below), write a new version of that block: blockId set, newBlock null. Use facts from the notes that its versions do not show yet. name: 2 to 4 words saying the angle, such as "AI focus"; not "Base" and not a name the block already uses.
-- If no block is linked, write a new block: blockId null, newBlock with name, section (EXPERIENCE for a job or internship, PROJECT for a project), org, location, dates and stack taken from the notes (an empty string when unknown), and name "Base".
+- If no block is linked, write a new block: blockId null, newBlock with name, section (EXPERIENCE for a job or internship, PROJECT for a project), org, location, dates and stack taken from the notes (an empty string when unknown). newBlock.name is the block's own name as it prints on the CV: the company or project (usually the experience title), never "Base". The version's name (the top-level name) is "Base".
 - title: for an experience, the role as he would print it, such as "Software Engineer Intern"; for a project, a one-line description of it.
 - bullets: 3, one PROJECT, one STACK, one IMPACT, each one sentence starting with a strong past-tense verb. When the notes have no facts for a kind, return MISSING with want set to that kind, instead of inventing.
 - When his notes disagree with each other or are marked as something to check, do not pick a side: write a [bracket] naming the open point.`
