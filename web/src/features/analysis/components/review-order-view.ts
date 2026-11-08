@@ -48,7 +48,7 @@ export function swapItems(choices: readonly SwapChoice[], out: readonly ReviewRo
     const view = row ? cvViews(views, [row], []).onCv[0] : [...views.leftOut, ...views.asIsOut].find((v) => v.versionId === choice.versionId)
     if (!view) return []
     const count = requirementCountLabel(blockRequirements(view.matches, requirements), { wouldMatch: true })
-    return [{ key: choice.id, name: view.blockName, sub: `${KIND[choice.home]} · ${view.versionName} · left out · ${lowerFirst(count)}` }]
+    return [{ key: choice.id, blockKey: choice.key, name: view.blockName, sub: `${KIND[choice.home]} · ${view.versionName} · left out · ${lowerFirst(count)}` }]
   })
 }
 

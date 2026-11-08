@@ -6,7 +6,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { c } from './ui/cx'
 
-export type SwapItem = { key: string; name: string; sub: string }
+/** `key` names the menu item; `blockKey` is the block it puts on the CV (two versions of one block share it). */
+export type SwapItem = { key: string; blockKey: string; name: string; sub: string }
 
 type Props = {
   /** The block on this row ("Use instead of Termo"). */

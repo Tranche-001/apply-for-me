@@ -88,11 +88,13 @@ export function ReviewOrderCard({ groups, status, canReset, disabled, choicesFor
     onMoveBy(row.blockId, delta)
   }
 
-  const swap = (row: OrderRow, choiceKey: string) => {
-    const name = choicesFor(row.key).find((x) => x.key === choiceKey)?.name ?? ''
-    setMoved(choiceKey)
-    after.current = { key: choiceKey, say: (pos) => `${name} is in place of ${row.name}, at ${pos}. ${row.name} is left out.` }
-    onSwap(row.key, choiceKey)
+  const swap = (row: OrderRow, itemKey: string) => {
+    const item = choicesFor(row.key).find((x) => x.key === itemKey)
+    if (!item) return
+    const left = item.blockKey === row.key ? 'The version it had is left out.' : `${row.name} is left out.`
+    setMoved(item.blockKey)
+    after.current = { key: item.blockKey, say: (pos) => `${item.name} is in place of ${row.name}, at ${pos}. ${left}` }
+    onSwap(row.key, itemKey)
   }
 
   const toSection = (row: OrderRow, section: Section) => {

@@ -102,7 +102,7 @@ describe('the card’s rows', () => {
     const { rows, out } = reviewRows(inputOf(s))
     const termo = rows.find((r) => r.key === 'termo')!
     expect(swapItems(swapChoices({ rows, out, leftOut, reused, asIsOut: [] }, termo), out, views, requirements)).toEqual([
-      { key: 'iaas-v', name: 'IAAS!', sub: 'Project · Base · left out · would match 2 requirements' },
+      { key: 'iaas-v', blockKey: 'iaas', name: 'IAAS!', sub: 'Project · Base · left out · would match 2 requirements' },
     ])
   })
 
