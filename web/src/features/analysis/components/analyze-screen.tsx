@@ -44,7 +44,7 @@ type Props = {
 }
 
 const WORKING: Record<Exclude<Phase, 'idle'>, string> = {
-  reading: 'Reading the posting (up to 10 seconds per link)…',
+  reading: 'Reading the posting (up to 20 seconds per link)…',
   comparing: 'The AI is comparing the posting with your blocks. This takes a minute or two.',
   placing: 'The AI is reading your answers to add each one to the experience it is about…',
   redrafting: 'The AI is updating the drafts with your answers…',

@@ -110,7 +110,7 @@ describe('fetchPosting', () => {
     expect(await fetchPosting(url('/pdf'), deps())).toMatchObject({ ok: false, reason: 'not-text' })
     expect(await fetchPosting(url('/forbidden'), deps())).toMatchObject({ ok: false, reason: 'blocked' })
     expect(await fetchPosting(url('/gone'), deps())).toMatchObject({ ok: false, reason: 'not-found' })
-    expect(await fetchPosting(url('/wall'), deps())).toMatchObject({ ok: false, reason: 'blocked' })
+    expect(await fetchPosting(url('/wall'), deps())).toMatchObject({ ok: false, reason: 'no-text' })
   })
 
   test('gives up after the timeout', async () => {

@@ -19,7 +19,7 @@ export const FETCH_TIMEOUT_MS = 10_000
 export const MAX_BYTES = 1024 * 1024
 export const MAX_REDIRECTS = 3
 
-export type FetchFailure = 'not-allowed' | 'blocked' | 'not-found' | 'timeout' | 'too-large' | 'not-text' | 'network'
+export type FetchFailure = 'not-allowed' | 'blocked' | 'not-found' | 'timeout' | 'too-large' | 'not-text' | 'network' | 'no-text'
 
 export type FetchResult =
   | { ok: true; url: string; title: string | null; text: string; truncated: boolean }
@@ -217,7 +217,7 @@ export async function fetchPosting(rawUrl: string, deps: FetchDeps = DEFAULT_DEP
       if (looksBlocked(extracted.text, url.toString())) {
         return {
           ok: false,
-          reason: 'blocked',
+          reason: 'no-text',
           message: `${url.hostname} didn’t show the job text to the app (it may need a login or JavaScript). Paste the job text instead.`,
         }
       }
