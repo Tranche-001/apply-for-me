@@ -64,6 +64,20 @@ function rowsFor(titles: Record<string, TitleChoice> | undefined, drafts: Sessio
   return roleTitleRows({ comp, library, drafts, roleTitles: [{ block: 'visio', title: 'AI Builder' }], titles, jobRole: 'AI Builder (Estágio)' })
 }
 
+describe('roleTitleRows with the CV arranged', () => {
+  const base = { library: LIBRARY, drafts: [] as SessionDraft[], reused: [reused('visio-base', 'visio'), reused('rats-base', 'rats'), reused('termo-base', 'termo')], asIsOut: [], pages: 1 as const }
+  const names = (arrangement: AnalysisSession['arrangement']) =>
+    roleTitleRows({ comp: compositionForReview({ ...base, arrangement }), library: LIBRARY, drafts: [], jobRole: 'AI Builder' }).map((r) => r.blockName)
+
+  test('one section: only experiences get a row, in the CV’s order', () => {
+    expect(names({ oneSection: true, order: ['termo', 'rats', 'visio'] })).toEqual(['Study Rats', 'Visio AI'])
+  })
+
+  test('an experience moved to Projects keeps its row; a project moved to Experience gets none', () => {
+    expect(names({ sections: { rats: 'PROJECT', termo: 'EXPERIENCE' } })).toEqual(['Visio AI', 'Study Rats'])
+  })
+})
+
 describe('roleTitleRows', () => {
   test('one row per experience in the CV, none for projects; "You have" is the title on the CV now', () => {
     const rows = rowsFor(undefined)

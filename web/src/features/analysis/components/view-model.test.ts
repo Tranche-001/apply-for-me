@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest'
 import type { AnalysisDraft, JobAnalysis, LeftOutVersion, ReusedVersion } from '../../ai/types'
 import type { LibBlock } from '../../blocks/types'
 import { newSession, toggleAsIsOut } from '../session-state'
-import { blockViews, chipItems, editTargetForCvBlock, findView, hitsFor, nameLookup, topicFor } from './view-model'
+import { blockViews, chipItems, cvViews, editTargetForCvBlock, findView, hitsFor, nameLookup, topicFor } from './view-model'
 
 const NOW = '2026-11-07T10:42:00.000Z'
 
@@ -85,6 +85,33 @@ describe('blockViews', () => {
     const all = [...v.drafts, ...v.asIs, ...v.leftOut]
     for (const one of all) expect(findView(v, one.ref)).toBe(one)
     expect(findView(v, 'draft:nope')).toBeNull()
+  })
+})
+
+describe('cvViews (what the review CV holds after drags and swaps)', () => {
+  const v = blockViews(newSession(analysis, NOW), library)
+  const row = (blockId: string, versionId: string) => ({ blockId, versionId })
+
+  test('each row of the CV is its draft, its as-is version or the left-out version swapped in, in print order', () => {
+    const r = cvViews(v, [row('b-termo', 'v-termo'), row('b-rats', 'v-rats'), row('b-visio', 'draft:d1')], [])
+    expect(r.onCv.map((x) => [x.blockName, x.kind])).toEqual([
+      ['Termo', 'left-out'],
+      ['Study Rats', 'asis'],
+      ['Visio AI', 'draft'],
+    ])
+    // Termo is on the CV now, so it is not in Left out.
+    expect(r.out).toEqual([])
+  })
+
+  test('a block swapped out is in Left out, with the blocks the AI left out', () => {
+    const r = cvViews(v, [row('b-visio', 'draft:d1')], [row('b-rats', 'v-rats')])
+    expect(r.out.map((x) => x.blockName)).toEqual(['Study Rats', 'Termo'])
+  })
+
+  test('a draft you did not keep is never on the CV', () => {
+    const s = newSession(analysis, NOW)
+    const unkept = blockViews({ ...s, drafts: s.drafts.map((d) => ({ ...d, keep: false })) }, library)
+    expect(cvViews(unkept, [row('b-visio', 'draft:d1')], []).onCv).toEqual([])
   })
 })
 

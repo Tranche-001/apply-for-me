@@ -108,6 +108,26 @@ describe('parseSession: block order, role titles and the titles you picked', () 
   })
 })
 
+describe('parseSession: the CV as you arranged it on review', () => {
+  test('a session saved before (no arrangement) still loads', () => {
+    const old = session()
+    expect('arrangement' in old).toBe(false)
+    expect(parseSession(old)).toEqual(old)
+  })
+
+  test('order, swaps, moved sections and one section are kept', () => {
+    const s = session({ arrangement: { order: ['b2', 'b1', 'new:kafka pipeline'], swappedIn: ['v9'], swappedOut: ['b3'], sections: { b2: 'EXPERIENCE' }, oneSection: true } })
+    expect(parseSession(s)).toEqual(s)
+    expect(parseSession(JSON.parse(JSON.stringify(s)))).toEqual(s)
+  })
+
+  test('an unknown section, or too many blocks, is refused', () => {
+    expect(parseSession(session({ arrangement: { sections: { b1: 'HOBBY' as 'PROJECT' } } }))).toBeNull()
+    expect(parseSession(session({ arrangement: { order: Array.from({ length: SESSION_LIMITS.cvBlocks + 1 }, (_, i) => `b${i}`) } }))).toBeNull()
+    expect(parseSession(session({ arrangement: { oneSection: 'yes' as unknown as boolean } }))).toBeNull()
+  })
+})
+
 describe('parseSession', () => {
   test('accepts a valid session and returns it unchanged', () => {
     expect(parseSession(session())).toEqual(session())

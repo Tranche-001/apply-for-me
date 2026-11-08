@@ -1,5 +1,5 @@
 // What Job analysis works with (serializable), plus pure helpers (unit-tested).
-import type { LinkKind } from '@prisma/client'
+import type { LinkKind, Section } from '@prisma/client'
 import type { AnalysisDraft, JobAnalysis } from '../ai/types'
 
 export type JobLinkItem = { id: string; kind: LinkKind; url: string }
@@ -65,6 +65,25 @@ export type AnalysisSession = {
    * title it has (no title changes without you choosing). Missing in sessions saved before role titles.
    */
   titles?: Record<string, TitleChoice>
+  /** How you arranged the CV on review (order, swaps, sections). Missing = as the AI gave it, in two sections. */
+  arrangement?: Arrangement
+}
+
+/**
+ * The review CV as you arranged it; nothing here changes the library (a block's own section stays). Block keys as in
+ * `block-key.ts`. Every field is optional: what is missing follows the AI.
+ */
+export type Arrangement = {
+  /** Every block of the CV in your order, as one list (two sections split it, keeping it). Missing = the AI's order. */
+  order?: string[]
+  /** Versions the AI left out (`analysis.leftOut`) that you swapped into this CV, by version id. */
+  swappedIn?: string[]
+  /** Blocks you swapped out of this CV, by block key. */
+  swappedOut?: string[]
+  /** The section a block is in on this CV, when you moved it (block key → section). */
+  sections?: Record<string, Section>
+  /** Experience and Projects printed as one "Experience & Projects" section. */
+  oneSection?: boolean
 }
 
 /** "AI recommends" (the job's title), "You have" (the version's title) or "Write my own" (`own`). */

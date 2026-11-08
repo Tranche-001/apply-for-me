@@ -4,6 +4,7 @@ import type { Section } from '@prisma/client'
 import type { DraftBullet, JobRequirement, LeftOutVersion, RequirementMatch, ReusedVersion } from '../../ai/types'
 import type { LibBlock } from '../../blocks/types'
 import { blockRequirements } from '../coverage'
+import { draftVersionId } from '../cv-draft'
 import type { AnalysisSession, SessionDraft } from '../types'
 import type { BlockTagKind } from './ui/hit-card'
 import type { ChipItem } from './ui/match-chip'
@@ -93,6 +94,24 @@ export function blockViews(s: AnalysisSession, library: readonly LibBlock[]): Bl
     asIsOut: reused.filter((r) => out.has(r.versionId)).map((r) => versionView(r, 'asis-out')),
     leftOut: s.analysis.leftOut.map((v) => versionView(v, 'left-out')),
   }
+}
+
+type RowRef = { blockId: string; versionId: string }
+
+const isRow = (view: BlockView, row: RowRef): boolean =>
+  view.blockId === row.blockId && (view.kind === 'draft' ? view.keep && draftVersionId(view.key ?? '') === row.versionId : view.versionId === row.versionId)
+
+/**
+ * Review: the blocks on the CV (`rows`, in print order) as views, and Left out: the blocks you swapped out (`out`), the
+ * AI's left-out versions not on the CV, and the versions you took out with ×. A swapped-in block brings its matches.
+ */
+export function cvViews(v: BlockViews, rows: readonly RowRef[], out: readonly RowRef[]): { onCv: BlockView[]; out: BlockView[] } {
+  const candidates = [...v.drafts, ...v.asIs, ...v.leftOut]
+  const viewsOf = (list: readonly RowRef[]) => list.flatMap((row) => candidates.find((view) => isRow(view, row)) ?? [])
+  const onCv = viewsOf(rows)
+  const taken = new Set(onCv.map((x) => x.ref))
+  const left = [...viewsOf(out), ...v.leftOut.filter((x) => !taken.has(x.ref)), ...v.asIsOut]
+  return { onCv, out: left.filter((x, i) => left.findIndex((y) => y.ref === x.ref) === i) }
 }
 
 export function findView(v: BlockViews, ref: string): BlockView | null {

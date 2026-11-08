@@ -62,10 +62,11 @@ export function roleTitleRows(input: {
   jobRole: string
 }): RoleTitleRow[] {
   const blocks = new Map(input.library.map((b) => [b.id, b]))
-  return input.comp.items.EXPERIENCE.flatMap((row) => {
+  // Experiences by what they are (their own section), wherever they sit on this CV, in print order.
+  return input.comp.order.flatMap((section) => input.comp.items[section]).flatMap((row) => {
     const block = blocks.get(row.blockId)
     const version = block?.versions.find((v) => v.id === row.versionId)
-    if (!block || !version) return []
+    if (!block || !version || block.section !== 'EXPERIENCE') return []
     const key = reviewBlockKey(block)
     const have = version.title
     const ai = titleWithPlace(input.roleTitles?.find((r) => r.block === key)?.title ?? input.jobRole, have, true)

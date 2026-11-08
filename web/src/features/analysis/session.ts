@@ -147,6 +147,18 @@ const sessionDraftSchema = z.object({
   saveAs: z.enum(['new', 'update']),
 })
 
+const blockKeys = z.array(str(L.blockKey)).max(L.cvBlocks)
+const arrangementSchema = z.object({
+  order: blockKeys.optional(),
+  swappedIn: z.array(id).max(MAX_VERSIONS).optional(),
+  swappedOut: blockKeys.optional(),
+  sections: z
+    .record(str(L.blockKey), z.enum(SECTIONS))
+    .refine((r) => Object.keys(r).length <= L.cvBlocks, { message: 'too many entries' })
+    .optional(),
+  oneSection: z.boolean().optional(),
+})
+
 const record = <T extends z.ZodType>(value: T) =>
   z.record(id, value).refine((r) => Object.keys(r).length <= MAX_MAP_KEYS, { message: 'too many entries' })
 
@@ -167,6 +179,8 @@ export const analysisSessionSchema = z.object({
     .record(str(L.blockKey), titleChoiceSchema)
     .refine((r) => Object.keys(r).length <= L.cvBlocks, { message: 'too many entries' })
     .optional(),
+  // Optional: how you arranged the CV on review (order, swaps, sections); none = as the AI gave it.
+  arrangement: arrangementSchema.optional(),
 })
 
 /** The session when `value` is a valid current-version session; otherwise null. Never throws. */

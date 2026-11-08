@@ -1,11 +1,12 @@
 // The CV of the review step: the library plus the drafts you kept, as a composition printCv can lay out.
 // Drafts live only in the session until Save, so they get temporary ids (`draft:<key>`, `draftblock:<key>`).
-import type { ReusedVersion } from '../ai/types'
+import type { Section } from '@prisma/client'
+import type { ReusedVersion, VersionView } from '../ai/types'
 import type { LibBlock, LibVersion } from '../blocks/types'
 import { emptyComposition, SECTIONS, toSavedItems, type Composition, type CvRow } from '../cv/composition'
 import type { SavedCvItem } from '../jobs/types'
 import { inOrder, newBlockKey } from './block-key'
-import type { SessionDraft } from './types'
+import type { Arrangement, SessionDraft } from './types'
 
 const DRAFT_PREFIX = 'draft:'
 
@@ -59,31 +60,68 @@ export function libraryWithDrafts(library: readonly LibBlock[], drafts: readonly
 export const reviewBlockKey = (block: Pick<LibBlock, 'id' | 'name'>): string => (block.id.startsWith(DRAFT_BLOCK_PREFIX) ? newBlockKey(block.name) : block.id)
 
 /**
- * The CV as the review shows it: EXPERIENCE then PROJECT, blocks in the AI's `order` (only blocks of this CV, each
- * once; the ones it does not name follow in library order). Without an order (sessions saved before the AI gave one)
- * blocks are in library order. A block with a kept draft uses the draft; otherwise its as-is version, unless you took
- * it out (`asIsOut`). Other toggles follow `emptyComposition` (education and skills on, achievements off).
+ * A block of the review CV. `section` is where it sits on this CV, `home` its own section in the library (moving it
+ * on the CV never changes that). `swappedIn`: a version the AI left out that you swapped in.
  */
-export function compositionForReview(input: {
+export type ReviewRow = CvRow & { key: string; section: Section; home: Section; swappedIn: boolean }
+
+export type ReviewInput = {
   library: readonly LibBlock[]
   drafts: readonly SessionDraft[]
   reused: readonly ReusedVersion[]
   asIsOut: readonly string[]
   pages: 1 | 2
+  /** The AI's order (block keys). */
   order?: readonly string[]
-}): Composition {
+  leftOut?: readonly Pick<VersionView, 'versionId' | 'blockId'>[]
+  /** How you arranged the CV; missing = as the AI gave it. */
+  arrangement?: Arrangement
+}
+
+/**
+ * The blocks of the review CV, as one list in print order (`rows`), and the ones you swapped out (`out`). A block
+ * with a kept draft uses the draft; otherwise its as-is version unless you took it out (`asIsOut`); otherwise a
+ * left-out version you swapped in. The order is yours, else the AI's (only blocks of this CV, each once; the ones it
+ * does not name follow in library order); without either (older sessions) the library order.
+ */
+export function reviewRows(input: ReviewInput): { rows: ReviewRow[]; out: ReviewRow[] } {
+  const arrangement = input.arrangement ?? {}
   const library = libraryWithDrafts(input.library, input.drafts)
-  const out = new Set(input.asIsOut)
-  const asIs = new Map(input.reused.filter((r) => !out.has(r.versionId)).map((r) => [r.blockId, r.versionId]))
-  const rows: Record<string, (CvRow & { key: string })[]> = { EXPERIENCE: [], PROJECT: [] }
-  for (const block of [...library].sort((a, b) => a.position - b.position)) {
-    if (!SECTIONS.includes(block.section)) continue
-    const draftVersion = block.versions.find((v) => isDraftVersionId(v.id))
-    const versionId = draftVersion?.id ?? asIs.get(block.id)
-    if (versionId) rows[block.section] = [...rows[block.section], { blockId: block.id, versionId, key: reviewBlockKey(block) }]
-  }
-  const ordered = (list: (CvRow & { key: string })[]): CvRow[] => inOrder(list, (r) => r.key, input.order).map(({ blockId, versionId }) => ({ blockId, versionId }))
-  return { ...emptyComposition(input.pages), items: { EXPERIENCE: ordered(rows.EXPERIENCE), PROJECT: ordered(rows.PROJECT) } }
+  const asIsOut = new Set(input.asIsOut)
+  const asIs = new Map(input.reused.filter((r) => !asIsOut.has(r.versionId)).map((r) => [r.blockId, r.versionId]))
+  const wanted = new Set(arrangement.swappedIn ?? [])
+  const swapped = new Map((input.leftOut ?? []).filter((v) => wanted.has(v.versionId)).map((v) => [v.blockId, v.versionId]))
+  const all = [...library]
+    .sort((a, b) => a.position - b.position)
+    .flatMap((block): ReviewRow[] => {
+      if (!SECTIONS.includes(block.section)) return []
+      const own = block.versions.find((v) => isDraftVersionId(v.id))?.id ?? asIs.get(block.id)
+      const versionId = own ?? swapped.get(block.id)
+      if (!versionId) return []
+      const key = reviewBlockKey(block)
+      const section = arrangement.sections?.[key] ?? block.section
+      return [{ blockId: block.id, versionId, key, section, home: block.section, swappedIn: !own }]
+    })
+  const outKeys = new Set(arrangement.swappedOut ?? [])
+  const rows = all.filter((r) => !outKeys.has(r.key))
+  return { rows: inOrder(rows, (r) => r.key, arrangement.order ?? input.order), out: all.filter((r) => outKeys.has(r.key)) }
+}
+
+/** Rows as a composition: two sections (each keeps the rows' order), or one list in the first section. */
+export function compositionOfRows(rows: readonly ReviewRow[], pages: 1 | 2, oneSection = false): Composition {
+  const base = emptyComposition(pages)
+  const cvRow = ({ blockId, versionId }: ReviewRow): CvRow => ({ blockId, versionId })
+  if (oneSection) return { ...base, oneSection: true, items: { EXPERIENCE: rows.map(cvRow), PROJECT: [] } }
+  const inSection = (section: Section) => rows.filter((r) => r.section === section).map(cvRow)
+  return { ...base, items: { EXPERIENCE: inSection('EXPERIENCE'), PROJECT: inSection('PROJECT') } }
+}
+
+/**
+ * The CV as the review shows it (reviewRows as a composition): EXPERIENCE then PROJECT, or one section when you chose
+ * it. Other toggles follow `emptyComposition` (education and skills on, achievements off).
+ */
+export function compositionForReview(input: ReviewInput): Composition {
+  return compositionOfRows(reviewRows(input).rows, input.pages, input.arrangement?.oneSection)
 }
 
 /**
