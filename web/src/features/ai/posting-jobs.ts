@@ -58,9 +58,13 @@ const validLines = (lines: string[], text: string): string[] => {
   return unique(found).slice(0, MAX_LINES)
 }
 
+/** "Trilha AI Builder", "Trilha de AI Builder", "Track: AI Builder" → "AI Builder" (a track's role is its short title). */
+const TRACK_WORD = /^(?:trilha(?:\s+de)?|track)\b\s*[:\-–—]?\s*/i
+const trackRole = (role: string): string => role.replace(TRACK_WORD, '').trim() || role
+
 const describe = (raw: InputJob) => ({
   company: tidy(raw.company, MAX_COMPANY),
-  role: tidy(raw.role, MAX_ROLE),
+  role: raw.isTrack === true ? trackRole(tidy(raw.role, MAX_ROLE)) : tidy(raw.role, MAX_ROLE),
   location: tidy(raw.location, MAX_META),
   kind: tidy(raw.kind, MAX_META),
   requirementCount: count(raw.requirementCount),

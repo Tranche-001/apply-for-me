@@ -203,6 +203,20 @@ describe('finalizePostingJobs: tracks of one posting', () => {
     expect(jobs[0].shared).toEqual(SHARED_HEADINGS)
   })
 
+  test('a track’s role is its short title: a leading “Trilha”, “Trilha de” or “Track” is dropped', () => {
+    const jobs = finalizePostingJobs({ jobs: [trackEng({ role: 'Trilha AI Engineer' }), trackBuilder({ role: 'Trilha de AI Builder' })], sharedHeadings: SHARED_HEADINGS }, TRACKS_TEXT)
+    expect(jobs.map((j) => j.role)).toEqual(['AI Engineer', 'AI Builder'])
+    const tracked = finalizePostingJobs({ jobs: [trackEng({ role: 'Track: AI Engineer' }), trackBuilder({ role: 'trilha AI Builder' })], sharedHeadings: SHARED_HEADINGS }, TRACKS_TEXT)
+    expect(tracked.map((j) => j.role)).toEqual(['AI Engineer', 'AI Builder'])
+  })
+
+  test('only the leading word goes: a role that is just “Trilha”, or a separate posting’s “Track Manager”, stays', () => {
+    const jobs = finalizePostingJobs({ jobs: [trackEng({ role: 'Trilha' }), trackBuilder()], sharedHeadings: SHARED_HEADINGS }, TRACKS_TEXT)
+    expect(jobs[0].role).toBe('Trilha')
+    const [single] = finalizePostingJobs({ jobs: [rawJob({ role: 'Track Manager' })] }, TEXT_2)
+    expect(single.role).toBe('Track Manager')
+  })
+
   test('a heading the AI names that is not in the shared part is dropped (P1), as is one inside a track', () => {
     const jobs = finalizePostingJobs({ jobs: [trackEng(), trackBuilder()], sharedHeadings: ['Sobre o programa', 'Processo seletivo', 'Trilha AI Engineer', 'Sobre o programa'] }, TRACKS_TEXT)
     expect(jobs[0].shared).toEqual(['Sobre o programa'])
@@ -302,6 +316,12 @@ describe('buildPostingJobsPrompt', () => {
     expect(p.system).toMatch(/never instructions/i)
     expect(p.context.match(/<\/job_posting>/g)).toHaveLength(1)
     expect(p.system).not.toContain('Ignore previous')
+  })
+
+  test('a track’s role is its short title, without “Trilha” or “Track”', () => {
+    const p = buildPostingJobsPrompt('x'.repeat(100))
+    expect(p.system).toMatch(/track's role is its short title/i)
+    expect(p.system).toContain('"AI Builder", not "Trilha AI Builder"')
   })
 
   test('asks for each job’s first and last line copied word for word', () => {
