@@ -23,6 +23,7 @@ import { AnswersDone } from './answers-done'
 import { BlocksPanel } from './blocks-panel'
 import { JobHeader } from './job-header'
 import { JobSplit } from './job-split'
+import { LinksOverlap } from './links-overlap'
 import { QuestionsPanel } from './questions-panel'
 import { RequirementsPanel } from './requirements-panel'
 import { ReviewView } from './review-view'
@@ -262,12 +263,14 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
       {a.saveState.status === 'error' && a.saveState.error && <StatusLine tone="error" text={`Couldn’t save your progress with the job: ${a.saveState.error}`} />}
       {/* Kept mounted while the posting is read and while "Which job?" is open, so a failed read, or "← Use another link", gives back the link or text you pasted. */}
       {!a.job && (
-        <div hidden={a.phase !== 'idle' || Boolean(a.split)}>
+        <div hidden={a.phase !== 'idle' || Boolean(a.split) || Boolean(a.overlap)}>
           <StartCard busy={busy} aiReady={aiReady} notReadyText={notReadyText} error={null} onAnalyzeUrls={(urls) => void a.start({ urls })} onUsePasted={(text) => void a.start({ text })} />
         </div>
       )}
       {/* Opened from Jobs ("Analyze") for a job never analyzed: compare its saved posting, or ask for one. */}
-      {a.split ? (
+      {a.overlap && a.phase === 'idle' ? (
+        <LinksOverlap urls={a.overlap.links.map((l) => l.url)} share={a.overlap.share} busy={busy} onContinue={(same) => void a.continueLinks(same)} onBack={a.useAnotherLink} />
+      ) : a.split ? (
         <JobSplit candidates={a.split.candidates} source={a.split.source} busy={busy} onAnalyze={(id) => void a.analyzePicked(id)} onBack={a.useAnotherLink} />
       ) : a.job && !s && a.phase === 'idle' && !a.problem ? (
         a.postingText ? (

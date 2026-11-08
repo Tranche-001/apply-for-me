@@ -7,10 +7,10 @@ import { analyzeJob, placeAnswers } from '../../ai/actions'
 import type { AnswerPlacement } from '../../ai/types'
 import { useAutosave } from '../../ai/ui/use-autosave'
 import { addAnswersToExperiences, resendAnswer } from '../../experiences/actions'
-import { addExperienceForRequirement, saveAnalysisCv, saveAnalysisSession, startFromPosting, startPickedJob, type SplitCandidate, type StartedJob } from '../actions'
+import { addExperienceForRequirement, continueFromLinks, saveAnalysisCv, saveAnalysisSession, startFromPosting, startPickedJob } from '../actions'
 import type { LoadedAnalysisJob } from '../queries'
 import { applyRedraft, markSaved, markSent, newSession, setStep, type DraftUndo } from '../session-state'
-import type { StartSource } from '../start-types'
+import type { OverlapLinks, SplitCandidate, StartedJob, StartResult, StartSource } from '../start-types'
 import type { AnalysisSession, ExperienceOption, JobSummary, SentAnswer } from '../types'
 import type { Destination, PlacementItem } from './placement-popover'
 import { splitNotice, typedLinks, unreadNotice } from './start-links'
@@ -78,6 +78,8 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
   const [notMet, setNotMet] = useState<NotMetState>(NO_NOT_MET)
   /** The jobs found in what was read, while the user picks one (nothing is created yet). */
   const [split, setSplit] = useState<{ candidates: SplitCandidate[]; urls: string[]; source: StartSource } | null>(null)
+  /** Links that look like the same job, while the user says whether they are (nothing is asked of the AI yet). */
+  const [overlap, setOverlap] = useState<OverlapLinks | null>(null)
   /** The "Which job?" step pill: 'cur' while choosing, 'done' after a pick for the rest of that pipeline (not saved). */
   const [whichJob, setWhichJob] = useState<'cur' | 'done' | null>(null)
   const sessionRef = useRef(session)
@@ -158,19 +160,42 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     setNotice(null)
     const res = await startFromPosting(input)
     if (!res.ok) return fail(res.error, null)
-    const typedCount = 'urls' in input ? typedLinks(input.urls).length : 0
-    if (res.data.kind === 'split') {
+    await started(res.data, 'urls' in input ? typedLinks(input.urls).length : 0)
+  }
+
+  /** What the start returned: the links' overlap question, "Which job?", or the job itself. */
+  async function started(data: StartResult, typedCount: number): Promise<void> {
+    if (data.kind === 'overlap') {
+      // The links repeat each other: you say whether they are the same job before the AI is asked.
+      setOverlap(data)
+      setNotice(unreadNotice(data.unread, typedCount))
+      setPhase('idle')
+      return
+    }
+    if (data.kind === 'split') {
       // More than one job (or track) in what was read: nothing is created until one is picked.
-      const { candidates, urls, unread, source } = res.data
+      const { candidates, urls, unread, source } = data
       setSplit({ candidates, urls, source })
       setWhichJob('cur')
       setNotice([splitNotice(candidates.length, source, candidates.every((x) => x.track)), unreadNotice(unread, typedCount)].filter(Boolean).join(' '))
       setPhase('idle')
       return
     }
-    if (res.data.kind !== 'job') return fail('Unexpected answer from the app. Reload the page, then try again.', null)
     setWhichJob(null)
-    await open(res.data, typedCount, [])
+    await open(data, typedCount, [])
+  }
+
+  /** "Continue" on the overlap card: the texts already read go back (no page is read again). */
+  async function continueLinks(same: boolean): Promise<void> {
+    const o = overlap
+    if (!o) return
+    setPhase('reading')
+    setProblem(null)
+    setNotice(null)
+    const res = await continueFromLinks({ same, links: o.links, urls: o.urls, title: o.title })
+    if (!res.ok) return fail(res.error, () => void guard(continueLinks)(same))
+    setOverlap(null)
+    await started(res.data, 0)
   }
 
   /** "Analyze this job": the picked job is created (or found) with its own text and the links, then compared. */
@@ -189,6 +214,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
 
   /** "← Use another link": back to the start card, with the links or text that were typed still there. */
   function useAnotherLink(): void {
+    setOverlap(null)
     setSplit(null)
     setWhichJob(null)
     setProblem(null)
@@ -341,6 +367,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     setSession(null)
     setPostingText('')
     setResumed(false)
+    setOverlap(null)
     setSplit(null)
     setWhichJob(null)
     setModal(null)
@@ -356,11 +383,12 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
   }
 
   return {
-    job, postingText, session, resumed, phase, problem, notice, experiences, modal, undo, notMet, split, whichJob, saveState: autosave,
+    job, postingText, session, resumed, phase, problem, notice, experiences, modal, undo, notMet, split, overlap, whichJob, saveState: autosave,
     setModal, setUndo, setProblem, change, openNotMet, confirmPlacement, addExperience, reset, useAnotherLink,
     // Wrapped when called (from an event), never during render.
     start: (input: { urls: string[] } | { text: string }) => guard(start)(input),
     analyzePicked: (candidateId: string) => guard(analyzePicked)(candidateId),
+    continueLinks: (same: boolean) => guard(continueLinks)(same),
     analyzeAgain: () => guard(analyzeAgain)(),
     redraft: (instruction: string | null = null) => guard(redraft)(instruction),
     updateDrafts: () => guard(updateDrafts)(),

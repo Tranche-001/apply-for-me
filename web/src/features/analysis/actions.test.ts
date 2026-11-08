@@ -39,7 +39,7 @@ vi.mock('@/lib/db', () => {
   }
 })
 
-const { startFromPosting, startPickedJob, saveAnalysisSession, saveAnalysisCv, addExperienceForRequirement } = await import('./actions')
+const { startFromPosting, continueFromLinks, startPickedJob, saveAnalysisSession, saveAnalysisCv, addExperienceForRequirement } = await import('./actions')
 const { loadAnalysisJob } = await import('./queries')
 const { UserError } = await import('../cv/action-result')
 
@@ -415,6 +415,84 @@ describe('startPickedJob', () => {
   test('a database failure is a plain message', async () => {
     m.job.findUnique.mockRejectedValue(Object.assign(new Error('x'), { code: 'P1001' }))
     expect(await startPickedJob(pick())).toEqual({ ok: false, error: expect.stringContaining('database') })
+  })
+})
+
+describe('links that look like the same job', () => {
+  const URL_A = 'https://carreiras.example.com/gen-ai/'
+  const URL_B = 'https://carreiras.example.com/job/1/'
+  const SHARED = [
+    'Programa de Estágio - GenAI com duas trilhas',
+    'Construir agentes com LLMs em produção para milhões de pedidos.',
+    'Criar soluções de IA para as áreas de negócio da empresa.',
+    'Estar regularmente matriculado em curso superior de tecnologia.',
+  ].join('\n')
+  const TEXT_A = `${SHARED}\nProcesso seletivo em quatro etapas ao longo do semestre.`
+  const TEXT_B = SHARED
+  const readBoth = () => m.fetchPosting.mockImplementation(async (url: string) => fetched({ url, text: url === URL_A ? TEXT_A : TEXT_B }))
+
+  test('two links that repeat each other: the question comes back, the AI is not asked and nothing is saved', async () => {
+    readBoth()
+    const r = await startFromPosting({ urls: [URL_A, URL_B] })
+    expect(r).toEqual({
+      ok: true,
+      data: {
+        kind: 'overlap',
+        links: [
+          { url: URL_A, text: TEXT_A },
+          { url: URL_B, text: TEXT_B },
+        ],
+        share: 1,
+        urls: [URL_A, URL_B],
+        unread: [],
+        title: 'Backend Engineer at Acme',
+      },
+    })
+    expect(m.readPostingJobs).not.toHaveBeenCalled()
+    expect(m.job.create).not.toHaveBeenCalled()
+  })
+
+  const answer = (same: boolean, over: Record<string, unknown> = {}) => ({
+    same,
+    links: [
+      { url: URL_A, text: TEXT_A },
+      { url: URL_B, text: TEXT_B },
+    ],
+    urls: [URL_A, URL_B],
+    title: null,
+    ...over,
+  })
+
+  test('Same job: one copy of the text (the longest) goes to the AI; both links are saved on the job; nothing is read again', async () => {
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
+    m.job.findUnique.mockResolvedValue(null)
+    m.job.create.mockResolvedValue(jobRow())
+    const r = await continueFromLinks(answer(true))
+    expect(m.fetchPosting).not.toHaveBeenCalled()
+    expect(m.readPostingJobs).toHaveBeenCalledWith({ postingText: TEXT_A })
+    expect(m.job.create.mock.calls[0][0].data.links.create.map((l: { url: string }) => l.url)).toEqual([URL_A, URL_B])
+    expect(started(r).postingText).toBe(TEXT_A)
+  })
+
+  test('Different jobs: the texts stay apart, each after its link, and may go on to "Which job?"', async () => {
+    m.readPostingJobs.mockResolvedValue({ ok: true, data: [aJob(), aJob({ role: 'ML Platform Engineer' })] })
+    const r = await continueFromLinks(answer(false))
+    expect(m.readPostingJobs).toHaveBeenCalledWith({ postingText: `From ${URL_A}:\n${TEXT_A}\n\nFrom ${URL_B}:\n${TEXT_B}` })
+    expect(r.ok && r.data.kind === 'split' && r.data.source).toBe('links')
+    expect(r.ok && r.data.kind === 'split' && r.data.urls).toEqual([URL_A, URL_B])
+  })
+
+  test('the texts sent back are validated: sizes, links that are not public, a link not among the job’s links', async () => {
+    expect((await continueFromLinks(answer(true, { links: [{ url: URL_A, text: 'x'.repeat(40_001) }, { url: URL_B, text: TEXT_B }] }))).ok).toBe(false)
+    expect((await continueFromLinks(answer(true, { links: [{ url: URL_A, text: TEXT_A }] }))).ok).toBe(false)
+    expect((await continueFromLinks(answer(true, { urls: ['http://localhost/x', URL_B] }))).ok).toBe(false)
+    expect((await continueFromLinks(answer(true, { links: [{ url: 'https://evil.example/x', text: TEXT_A }, { url: URL_B, text: TEXT_B }] }))).ok).toBe(false)
+    expect((await continueFromLinks(answer(true, { urls: Array.from({ length: 6 }, (_, i) => `https://a.example/${i}`) }))).ok).toBe(false)
+    expect(m.readPostingJobs).not.toHaveBeenCalled()
+  })
+
+  test.each([null, undefined, 'text', 42, {}, { same: 'yes' }])('input %j is refused without throwing', async (input) => {
+    await expect(continueFromLinks(input as unknown as Parameters<typeof continueFromLinks>[0])).resolves.toMatchObject({ ok: false })
   })
 })
 

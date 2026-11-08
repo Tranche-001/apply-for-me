@@ -28,7 +28,8 @@ import { toJobSummary } from './job-summary'
 import { readPostingUrls } from './read-posting'
 import { analysisDraftForRequirement } from './requirement-draft'
 import { analysisSessionSchema, MAX_SESSION_CHARS } from './session'
-import { toCandidate, type StartedJob, type StartResult, type StartSource, type UnreadLink } from './start-types'
+import { keepOneCopy, sameJobShare } from './overlap'
+import { joinLinkTexts, toCandidate, type StartedJob, type StartResult, type StartSource, type UnreadLink } from './start-types'
 import { guessLinkKind, type JobSummary, type ReadResult } from './types'
 import { checkUrl } from './url-guard'
 
@@ -237,8 +238,53 @@ export async function startFromPosting(input: { urls: string[] } | { url: string
   if (!parsedUrls.success) return fail(invalidInput(parsedUrls.error))
   const read = await readPostingUrls(parsedUrls.data)
   if (!read.ok) return fail(read.error)
-  const { text: postingText, urls, unread, title } = read
-  return startFromText({ postingText, urls, unread, title, source: read.reads.length > 1 ? 'links' : 'link' })
+  const { text: postingText, urls, unread, title, reads } = read
+  // Links whose texts repeat each other: the user says whether they are the same job before the AI is asked.
+  const share = sameJobShare(reads)
+  if (share !== null) return ok<StartResult>({ kind: 'overlap', links: reads, share, urls, unread, title })
+  return startFromText({ postingText, urls, unread, title, source: reads.length > 1 ? 'links' : 'link' })
+}
+
+const readLinkInput = z.object({
+  url: urlInput,
+  text: z.string().trim().min(1, 'A link came back with no text. Read the links again.').max(MAX_POSTING_CHARS, 'A link’s text is too long. Read the links again.'),
+})
+const continueInput = z.object({
+  same: z.boolean(),
+  links: z.array(readLinkInput).min(2, 'Read at least two links first.').max(MAX_START_LINKS, `Up to ${MAX_START_LINKS} links per job.`),
+  urls: z.array(urlInput).max(MAX_START_LINKS, `Up to ${MAX_START_LINKS} links per job.`),
+  title: z.string().trim().max(300).nullable(),
+})
+
+/** Each link checked again (public http/https only) and normalized; null when one is refused. */
+function checkedUrls(raws: string[]): { ok: true; urls: string[] } | { ok: false; error: string } {
+  const urls: string[] = []
+  for (const raw of raws) {
+    const check = checkUrl(raw)
+    if (!check.ok) return { ok: false, error: `${raw}: ${check.error}` }
+    const url = check.url.toString()
+    if (!urls.includes(url)) urls.push(url)
+  }
+  return { ok: true, urls }
+}
+
+/**
+ * The answer to "These links look like the same job": the texts already read come back from the screen (no page is
+ * read again), checked for size, and every link must be one of the job's links. Same job: one copy of the text (the
+ * longest). Different jobs: the texts stay apart. Then the AI says which jobs or tracks it holds, as in startFromPosting.
+ */
+export async function continueFromLinks(input: { same: boolean; links: { url: string; text: string }[]; urls: string[]; title: string | null }): Promise<ActionResult<StartResult>> {
+  const parsed = continueInput.safeParse(input)
+  if (!parsed.success) return fail(invalidInput(parsed.error))
+  const { same, title } = parsed.data
+  const all = checkedUrls(parsed.data.urls)
+  if (!all.ok) return fail(all.error)
+  const read = checkedUrls(parsed.data.links.map((l) => l.url))
+  if (!read.ok) return fail(read.error)
+  if (read.urls.some((u) => !all.urls.includes(u))) return fail('A link is not one of the links typed. Read the links again.')
+  const links = parsed.data.links.map((l, i) => ({ url: read.urls[i] ?? l.url, text: l.text }))
+  const postingText = (same ? keepOneCopy(links) : joinLinkTexts(links)).slice(0, MAX_POSTING_CHARS)
+  return startFromText({ postingText, urls: all.urls, unread: [], title, source: same ? 'link' : 'links' })
 }
 
 type TextStart = { postingText: string; urls: string[]; unread: UnreadLink[]; title: string | null; source: StartSource }

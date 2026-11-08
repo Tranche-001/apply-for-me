@@ -1,4 +1,6 @@
 // Pure helpers of the start card and the start flow: the links typed, and the notice for links that could not be read.
+import { linkLabel } from '../overlap'
+
 export const MAX_LINKS = 5
 
 /** The links typed: trimmed, in order, empty rows ignored. */
@@ -11,6 +13,22 @@ const hostOf = (url: string): string => {
     return url
   }
 }
+
+// ---- "These links look like the same job" (next-ideas mockup, #same-job) ----
+
+const listOf = (items: string[]): string => (items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`)
+
+export const overlapHeading = (count: number): string => `These ${count} links look like the same job.`
+
+/** Which links, and how much of their text repeats (the shorter page's lines found in the other). */
+export const overlapReason = (urls: string[], share: number): string =>
+  `${listOf(urls.map(linkLabel))} share most of their text (${Math.round(share * 100)}% of the lines are the same).`
+
+/** The line under "Same job / Different jobs", following the choice. */
+export const sameJobNote = (same: boolean, count: number): string =>
+  same
+    ? `The app keeps one copy of the text and continues. ${count === 2 ? 'Both links are' : `All ${count} links are`} saved on the job.`
+    : `The app keeps ${count === 2 ? 'both texts' : 'the texts'} apart and shows “Which job?” so you pick one.`
 
 /** Where the text came from (same as StartSource in ../start-types). */
 type Source = 'link' | 'links' | 'text'

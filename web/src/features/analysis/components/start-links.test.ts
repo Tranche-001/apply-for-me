@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { MAX_LINKS, splitHeading, splitNotice, typedLinks, unreadNotice } from './start-links'
+import { MAX_LINKS, overlapHeading, overlapReason, sameJobNote, splitHeading, splitNotice, typedLinks, unreadNotice } from './start-links'
 
 describe('splitNotice', () => {
   test('says how many postings there are and that only the picked one is compared', () => {
@@ -11,6 +11,28 @@ describe('splitNotice', () => {
     expect(splitNotice(2, 'text')).toContain('This text has 2 job postings.')
     expect(splitNotice(3, 'links')).toContain('These links have 3 job postings.')
     expect(splitNotice(2, 'link', true)).toBe('This posting has 2 tracks. Pick the one to analyze; the AI compares only that one with your blocks.')
+  })
+})
+
+describe('overlap card', () => {
+  const A = 'https://carreiras.ifood.com.br/gen-ai/'
+  const B = 'https://carreiras.ifood.com.br/job/8901054002/'
+
+  test('the heading counts the links', () => {
+    expect(overlapHeading(2)).toBe('These 2 links look like the same job.')
+    expect(overlapHeading(3)).toBe('These 3 links look like the same job.')
+  })
+
+  test('the reason names each link by host and path and says how much repeats', () => {
+    expect(overlapReason([A, B], 0.83)).toBe('carreiras.ifood.com.br/gen-ai/ and carreiras.ifood.com.br/job/8901054002/ share most of their text (83% of the lines are the same).')
+    expect(overlapReason(['https://a.example/1', 'https://b.example/2', 'https://c.example/3'], 1)).toMatch(/^a\.example\/1, b\.example\/2 and c\.example\/3 share/)
+  })
+
+  test('the line under the choice follows it', () => {
+    expect(sameJobNote(true, 2)).toBe('The app keeps one copy of the text and continues. Both links are saved on the job.')
+    expect(sameJobNote(true, 3)).toBe('The app keeps one copy of the text and continues. All 3 links are saved on the job.')
+    expect(sameJobNote(false, 2)).toBe('The app keeps both texts apart and shows “Which job?” so you pick one.')
+    expect(sameJobNote(false, 3)).toBe('The app keeps the texts apart and shows “Which job?” so you pick one.')
   })
 })
 
