@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest'
-import { MAX_LINKS, typedLinks, unreadNotice } from './start-links'
+import { MAX_LINKS, splitNotice, typedLinks, unreadNotice } from './start-links'
+
+describe('splitNotice', () => {
+  test('says how many postings there are and that only the picked one is compared', () => {
+    expect(splitNotice(2)).toBe('This link has 2 job postings. Pick the one to analyze; the AI compares only that one with your blocks.')
+    expect(splitNotice(4)).toContain('This link has 4 job postings.')
+  })
+})
 
 describe('typedLinks', () => {
   test('keeps the links typed, trimmed, in order; empty rows are ignored', () => {

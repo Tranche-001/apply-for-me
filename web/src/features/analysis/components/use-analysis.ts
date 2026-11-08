@@ -7,12 +7,12 @@ import { analyzeJob, placeAnswers } from '../../ai/actions'
 import type { AnswerPlacement } from '../../ai/types'
 import { useAutosave } from '../../ai/ui/use-autosave'
 import { addAnswersToExperiences, resendAnswer } from '../../experiences/actions'
-import { addExperienceForRequirement, saveAnalysisCv, saveAnalysisSession, startFromPosting } from '../actions'
+import { addExperienceForRequirement, saveAnalysisCv, saveAnalysisSession, startFromPosting, startPickedJob, type SplitCandidate, type StartedJob } from '../actions'
 import type { LoadedAnalysisJob } from '../queries'
 import { applyRedraft, markSaved, markSent, newSession, setStep, type DraftUndo } from '../session-state'
 import type { AnalysisSession, ExperienceOption, JobSummary, SentAnswer } from '../types'
 import type { Destination, PlacementItem } from './placement-popover'
-import { typedLinks, unreadNotice } from './start-links'
+import { splitNotice, typedLinks, unreadNotice } from './start-links'
 import { askNumber, topicFor } from './view-model'
 
 export type Phase = 'idle' | 'reading' | 'comparing' | 'placing' | 'redrafting' | 'saving'
@@ -72,6 +72,10 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
   const [modal, setModal] = useState<ModalState>(null)
   const [undo, setUndo] = useState<UndoState | null>(null)
   const [notMet, setNotMet] = useState<NotMetState>(NO_NOT_MET)
+  /** The jobs found in what was read, while the user picks one (nothing is created yet). */
+  const [split, setSplit] = useState<{ candidates: SplitCandidate[]; urls: string[] } | null>(null)
+  /** The "Which job?" step pill: 'cur' while choosing, 'done' after a pick for the rest of that pipeline (not saved). */
+  const [whichJob, setWhichJob] = useState<'cur' | 'done' | null>(null)
   const sessionRef = useRef(session)
   const jobRef = useRef(job)
 
@@ -128,24 +132,61 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     setPhase('idle')
   }
 
-  async function start(input: { urls: string[] } | { text: string }): Promise<void> {
-    setPhase('reading')
-    setProblem(null)
-    setNotice(null)
-    const res = await startFromPosting(input)
-    if (!res.ok) return fail(res.error, null)
-    const { job: j, existed, postingText: text, unread } = res.data
+  /** A started job (new or found): it becomes the open job, then the AI compares it with your blocks. */
+  async function open(started: StartedJob, typedCount: number, notices: (string | null)[]): Promise<void> {
+    const { job: j, existed, postingText: text, unread } = started
     jobRef.current = j
     setJob(j)
     setPostingText(text)
     setResumed(false)
     commit(null)
     window.history.replaceState(null, '', `?job=${encodeURIComponent(j.id)}`)
-    const unreadText = unreadNotice(unread, 'urls' in input ? typedLinks(input.urls).length : 0)
     const already = existed ? `You already had ${j.label}. The AI is analyzing it again.` : null
-    const notice = [unreadText, already].filter(Boolean).join(' ')
-    if (notice) setNotice(notice)
+    const notice = [...notices, unreadNotice(unread, typedCount), already].filter(Boolean).join(' ')
+    setNotice(notice || null)
     await compare(j, null)
+  }
+
+  async function start(input: { urls: string[] } | { text: string }): Promise<void> {
+    setPhase('reading')
+    setProblem(null)
+    setNotice(null)
+    const res = await startFromPosting(input)
+    if (!res.ok) return fail(res.error, null)
+    const typedCount = 'urls' in input ? typedLinks(input.urls).length : 0
+    if (res.data.kind === 'split') {
+      // More than one job in what was read: nothing is created until one is picked.
+      const { candidates, urls, unread } = res.data
+      setSplit({ candidates, urls })
+      setWhichJob('cur')
+      setNotice([splitNotice(candidates.length), unreadNotice(unread, typedCount)].filter(Boolean).join(' '))
+      setPhase('idle')
+      return
+    }
+    setWhichJob(null)
+    await open(res.data, typedCount, [])
+  }
+
+  /** "Analyze this job": the picked job is created (or found) with its own text and the links, then compared. */
+  async function analyzePicked(candidateId: string): Promise<void> {
+    const picked = split?.candidates.find((x) => x.id === candidateId)
+    if (!split || !picked) return
+    setPhase('comparing')
+    setProblem(null)
+    setNotice(null)
+    const res = await startPickedJob({ company: picked.company, role: picked.role, text: picked.text, urls: split.urls })
+    if (!res.ok) return fail(res.error, () => void guard(analyzePicked)(candidateId))
+    setSplit(null)
+    setWhichJob('done')
+    await open(res.data, 0, [])
+  }
+
+  /** "← Use another link": back to the start card, with the links or text that were typed still there. */
+  function useAnotherLink(): void {
+    setSplit(null)
+    setWhichJob(null)
+    setProblem(null)
+    setNotice(null)
   }
 
   /** "Analyze again": compare the saved posting again; answers, sent answers and your edits stay. */
@@ -294,6 +335,8 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     setSession(null)
     setPostingText('')
     setResumed(false)
+    setSplit(null)
+    setWhichJob(null)
     setModal(null)
     setUndo(null)
     setProblem(null)
@@ -307,10 +350,11 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
   }
 
   return {
-    job, postingText, session, resumed, phase, problem, notice, experiences, modal, undo, notMet, saveState: autosave,
-    setModal, setUndo, setProblem, change, openNotMet, confirmPlacement, addExperience, reset,
+    job, postingText, session, resumed, phase, problem, notice, experiences, modal, undo, notMet, split, whichJob, saveState: autosave,
+    setModal, setUndo, setProblem, change, openNotMet, confirmPlacement, addExperience, reset, useAnotherLink,
     // Wrapped when called (from an event), never during render.
     start: (input: { urls: string[] } | { text: string }) => guard(start)(input),
+    analyzePicked: (candidateId: string) => guard(analyzePicked)(candidateId),
     analyzeAgain: () => guard(analyzeAgain)(),
     redraft: (instruction: string | null = null) => guard(redraft)(instruction),
     updateDrafts: () => guard(updateDrafts)(),

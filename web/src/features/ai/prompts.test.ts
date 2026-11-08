@@ -6,8 +6,8 @@ import {
   buildAnswerPrompt,
   buildBlockDraftPrompt,
   buildCvPlanPrompt,
-  buildJobInfoPrompt,
   buildPlacementPrompt,
+  buildPostingJobsPrompt,
   fenceData,
   formatExperiences,
   formatJob,
@@ -27,7 +27,7 @@ describe('data fences', () => {
   test('a posting can never close the job_posting fence in the analysis or job-info prompt', () => {
     const job = formatJob({ ...JOB, postingText: hostile })
     expect(job.match(/<\/job_posting>/g)).toHaveLength(1)
-    expect(buildJobInfoPrompt(hostile).context.match(/<\/job_posting>/g)).toHaveLength(1)
+    expect(buildPostingJobsPrompt(hostile).context.match(/<\/job_posting>/g)).toHaveLength(1)
   })
 
   test('answers to place sit inside an <answers> fence they cannot close', () => {

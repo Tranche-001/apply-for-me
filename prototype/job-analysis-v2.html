@@ -582,6 +582,27 @@
   .a-urls .rm:hover { background: #f1f2f4; color: var(--app-text); }
   .a-start .a-add { justify-self: start; border: 0; background: none; padding: 0; color: var(--app-indigo); font: 500 12.5px var(--sans); cursor: pointer; }
   .a-start .a-add:hover { text-decoration: underline; text-underline-offset: 2px; }
+  /* "Which job?": only when the AI finds more than one job in what it read */
+  .a-step.extra { border-style: dashed; border-color: var(--app-indigo); color: var(--app-text); }
+  .a-step.extra i { background: var(--app-indigo-soft); color: var(--app-indigo); border: 1px solid var(--app-indigo); }
+  .a-split { margin: 18px auto 0; width: min(860px, 100%); box-sizing: border-box; background: var(--app-surface); border: 1px solid var(--app-border); border-radius: 14px; padding: 20px 22px 18px; display: grid; gap: 12px; box-shadow: 0 1px 2px rgb(20 22 27 / 0.05); }
+  .a-split h3 { margin: 0; font: 600 16px/1.3 var(--sans); }
+  .jp-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .a-split .jp { display: grid; gap: 7px; align-content: start; text-align: left; border: 1px solid var(--app-border); border-radius: 12px; padding: 12px 14px; background: var(--app-surface); cursor: pointer; font: 400 13px/1.45 var(--sans); color: var(--app-text); }
+  .a-split .jp:hover { border-color: var(--app-indigo-line); background: #fbfbff; }
+  .a-split .jp.on { border: 2px solid var(--app-indigo); background: var(--app-indigo-soft); padding: 11px 13px; }
+  .jp-top { display: flex; align-items: center; gap: 9px; }
+  .jp-dot { width: 15px; height: 15px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--app-border-strong); flex: none; background: var(--app-surface); }
+  .jp.on .jp-dot { box-shadow: inset 0 0 0 4.5px var(--app-indigo); }
+  .jp-top b { font: 600 14px/1.3 var(--sans); }
+  .jp .meta { font-size: 12px; color: var(--app-muted); }
+  .jp .lines { display: grid; gap: 4px; border-left: 3px solid var(--app-indigo-line); padding: 2px 0 2px 10px; }
+  .jp .lines q { font: 400 12.5px/1.45 var(--serif); color: var(--app-text-2); }
+  .jp .count { font: 500 10.5px/1 var(--mono); letter-spacing: 0.05em; color: var(--app-muted); text-transform: uppercase; }
+  .a-split .keep { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--app-text-2); cursor: pointer; }
+  .a-split .keep input { accent-color: var(--app-indigo); margin: 0; }
+  .a-split .foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .a-split .foot .sp { flex: 1; }
 
   dialog.live { border: 0; padding: 0; background: transparent; max-width: 96vw; overflow: visible; }
   dialog.live::backdrop { background: var(--app-scrim); }
@@ -655,6 +676,15 @@
       <div class="step-head"><span class="pill"><b>1</b>Read posting</span><h2>A IA lê a vaga e cria o job</h2></div>
       <p class="note">Enquanto lê o link, a IA preenche a empresa, o cargo e o link do job. O cabeçalho mostra o job sendo criado.</p>
       <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/analyze</span></div><div class="scroll"><div data-frame="reading"></div></div></div>
+    </section>
+
+    <section class="step" id="t-split">
+      <div class="step-head"><span class="pill"><b>?</b>Which job?</span><h2>Quando o link tem mais de uma vaga</h2></div>
+      <p class="note">Esta etapa só aparece quando a IA encontra mais de uma vaga no que leu: um link com duas vagas, ou links de vagas diferentes. Ela entra entre “Read posting” e “Compare with blocks”, com a pílula tracejada “Which job?”. A IA separa o texto em vagas; cada cartão mostra o cargo, a empresa e o local, as primeiras frases da própria vaga e quantos requisitos ela achou. Você escolhe uma, e só ela é comparada com os seus blocos.</p>
+      <p class="note">Só a vaga escolhida vira job, com o próprio texto; nada é criado antes da escolha. Para analisar a outra, use o mesmo link de novo e escolha a outra vaga. Com três vagas ou mais, os cartões continuam lado a lado, em linhas de dois.</p>
+      <div class="tags"><span class="tag new">só com mais de uma vaga</span><span class="tag new">cada vaga com o próprio texto</span><span class="tag gone">Also add the other job to Jobs</span></div>
+      <p class="try">Experimente: clique numa vaga; o botão “Analyze this job” só libera depois da escolha.</p>
+      <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/analyze</span></div><div class="scroll"><div data-frame="split"></div></div></div>
     </section>
 
     <section class="step" id="t-compare">
@@ -1270,6 +1300,24 @@
       <button class="a-link-btn" type="button">Paste the job text instead</button></div>`
   }
 
+  // ── "Which job?": what was read holds more than one job; you pick one before the AI compares it ──
+  const SPLIT_UI = { pick: null, keepOther: true }
+  const SPLIT_JOBS = [
+    { role: 'Senior GenAI Engineer', meta: 'ExampleCo · São Paulo (hybrid) · Full-time', count: 9, lines: ['Design, build and run retrieval-augmented generation (RAG) pipelines in production, from document ingestion to answer quality.', 'Own our vector search layer (we use pgvector on PostgreSQL) and keep retrieval fast and accurate.'] },
+    { role: 'ML Platform Engineer', meta: 'ExampleCo · Remote (Brazil) · Full-time', count: 7, lines: ['Build and run the platform our models are trained, evaluated and served on.', 'Own our Kubernetes clusters and the CI/CD that ships models to production.'] },
+  ]
+  const splitSteps = () => `<div class="a-steps"><span class="a-step done"><i>✓</i>Read posting</span><span class="a-step cur extra"><i>?</i>Which job?</span>${STEP_NAMES.slice(1).map((s, i) => `<span class="a-step"><i>${i + 2}</i>${esc(s)}</span>`).join('')}</div>`
+  const splitFrame = () => {
+    const cards = SPLIT_JOBS.map((j, i) => `<button class="jp${SPLIT_UI.pick === i ? ' on' : ''}" type="button" data-split-pick="${i}" aria-pressed="${SPLIT_UI.pick === i}">
+      <span class="jp-top"><span class="jp-dot"></span><b>${esc(j.role)}</b></span><span class="meta">${esc(j.meta)}</span>
+      <span class="lines">${j.lines.map((l) => `<q>${esc(l)}</q>`).join('')}</span><span class="count">${j.count} requirements found</span></button>`).join('')
+    return app(`${head('none')}${splitSteps()}<p class="a-status">This link has 2 job postings. Pick the one to analyze; the AI compares only that one with your blocks.</p>
+      <div class="a-split"><h3>This link has 2 jobs</h3><p class="a-sub">The AI split what it read into the jobs it found, each with its own text. Pick the one to analyze now.</p>
+        <div class="jp-list">${cards}</div>
+        <div class="foot"><button class="a-link-btn" type="button">← Use another link</button><span class="sp"></span>${SPLIT_UI.pick === null ? '<span class="a-hint">Pick a job first</span>' : ''}<span class="a-btn p${SPLIT_UI.pick === null ? ' dis' : ''}">${svg('spark')}Analyze this job</span></div>
+      </div>`)
+  }
+
   // ── The Jobs screen (proposal): "Analyze again" and renaming a job in place ──
   const JOBS_UI = { editing: false, company: 'ExampleCo', role: 'Senior GenAI Engineer', renamed: '' }
   const jobName = (company, role) => (company ? `${company} · ${role}` : role)
@@ -1302,6 +1350,7 @@
     drafts: () => app(`${head('job')}${steps(3)}<div class="a-cols">${reqPanel(REQ_AFTER)}${qPanel('done')}${madePanel('drafts')}</div>`),
     edit: () => app(`${head('job')}${steps(3)}<div class="a-cols">${reqPanel(REQ_AFTER)}${qPanel('done')}${madePanel('drafts')}</div>`, `<div class="a-scrim" inert>${editDialog('visioNew', false)}</div>`),
     review: () => app(`${head('job')}${steps(4)}${review(false)}`),
+    split: () => splitFrame(),
     jobs: () => jobsFrame(),
     resumed: () => app(`${head('resumed')}${steps(3)}<div class="a-cols">${reqPanel(REQ_AFTER)}${qPanel('done')}${madePanel('drafts')}</div>`),
     saved: () => app(`${head('job')}${steps(5)}<div class="a-ok-banner">✓ Saved 3 to your library and the CV for ${esc(JOB)}.<span class="sp"></span><span class="a-btn sm">Analyze another job</span></div>${review(true)}`),
@@ -1561,7 +1610,16 @@
       syncLabel(pk)
     }
   })
+  document.addEventListener('change', (e) => {
+    if (!e.target.closest('[data-split-keep]')) return
+    SPLIT_UI.keepOther = e.target.checked
+  })
   document.addEventListener('click', (e) => {
+    const pick = e.target.closest('[data-split-pick]')
+    if (pick) {
+      SPLIT_UI.pick = Number(pick.dataset.splitPick)
+      return rerender('split', `[data-split-pick="${SPLIT_UI.pick}"]`)
+    }
     if (e.target.closest('[data-start-add]')) {
       START_UI.links.push('')
       return rerender('start', START_UI.links.length < MAX_LINKS ? '[data-start-add]' : null)

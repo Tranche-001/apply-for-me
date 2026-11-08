@@ -7,10 +7,10 @@ import { Prisma } from '@prisma/client'
 import { refresh } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { draftBlockFromExperience, readJobInfo } from '../ai/actions'
+import { draftBlockFromExperience, readPostingJobs } from '../ai/actions'
 import { dbLogContext, plainDbError } from '../ai/db-errors'
 import { draftVersionInput } from '../ai/draft-schema'
-import { jobNamesFrom } from '../ai/job-info'
+import { jobNamesFrom, type JobNames } from '../ai/job-info'
 import { jobLabel } from '../ai/labels'
 import { saveDraftToLibrary, updateVersionFromDraft, type SavedDraft } from '../ai/library-writes'
 import { fail, invalidInput, ok, type ActionResult } from '../ai/result'
@@ -209,7 +209,12 @@ const pastedInput = z
   .max(MAX_POSTING_CHARS, `That is too long (${MAX_POSTING_CHARS.toLocaleString('en')} characters at most). Paste only the posting.`)
 
 export type UnreadLink = { url: string; error: string }
-export type StartedJob = { job: JobSummary; existed: boolean; postingText: string; unread: UnreadLink[] }
+export type StartedJob = { kind: 'job'; job: JobSummary; existed: boolean; postingText: string; unread: UnreadLink[] }
+/** One job of a split, as the "Which job?" card shows it. `text` is that job's own text (saved only once picked). */
+export type SplitCandidate = { id: string; company: string; role: string; meta: string; lines: string[]; requirementCount: number; text: string }
+/** What was read holds more than one job: nothing is created; the user picks one (startPickedJob). */
+export type SplitJobs = { kind: 'split'; candidates: SplitCandidate[]; urls: string[]; unread: UnreadLink[] }
+export type StartResult = StartedJob | SplitJobs
 
 const MAX_START_LINKS = 5
 const startUrls = z
@@ -224,7 +229,7 @@ const startInput = z.union([z.object({ urls: z.array(z.string()) }), z.object({ 
  * on the job; every valid link typed is added to it (read or not) unless the job already has it. Links that could
  * not be read come back in `unread`.
  */
-export async function startFromPosting(input: { urls: string[] } | { url: string } | { text: string }): Promise<ActionResult<StartedJob>> {
+export async function startFromPosting(input: { urls: string[] } | { url: string } | { text: string }): Promise<ActionResult<StartResult>> {
   const parsedInput = startInput.safeParse(input)
   if (!parsedInput.success) return fail('Paste a link to the job posting, or the job text.')
   const data = parsedInput.data
@@ -244,12 +249,34 @@ export async function startFromPosting(input: { urls: string[] } | { url: string
     ;({ text: postingText, urls, unread, title } = read)
   }
 
-  const info = await readJobInfo({ postingText })
-  if (!info.ok) return fail(info.error)
-  const names = jobNamesFrom(info.data, title)
+  const found = await readPostingJobs({ postingText })
+  if (!found.ok) return fail(found.error)
+  const [only, ...others] = found.data
+  if (others.length) return ok<StartResult>({ kind: 'split', candidates: found.data.map(toCandidate), urls, unread })
+  const names = jobNamesFrom(only, title)
   if (!names) return fail('Couldn’t tell which job this is. Check that it is the whole posting, or paste the job text.')
+  return saveStartedJob('startFromPosting', { names, postingText, urls, unread })
+}
 
-  return attempt<StartedJob>('startFromPosting', async () => {
+type CandidateSource = { company: string; role: string; location: string; kind: string; text: string; lines: string[]; requirementCount: number }
+
+/** The card of one job in "Which job?": nothing about it is saved yet. */
+const toCandidate = (job: CandidateSource, index: number): SplitCandidate => ({
+  id: `c${index + 1}`,
+  company: job.company,
+  role: job.role,
+  meta: [job.company, job.location, job.kind].filter(Boolean).join(' · '),
+  lines: job.lines,
+  requirementCount: job.requirementCount,
+  text: job.text,
+})
+
+/**
+ * Find the job with this exact company and role (`existed: true`) or create it, save the posting text, and add the
+ * links it does not have yet. A different posting text clears the saved session: it quotes the old text.
+ */
+function saveStartedJob(what: string, { names, postingText, urls, unread }: { names: JobNames; postingText: string; urls: string[]; unread: UnreadLink[] }): Promise<ActionResult<StartedJob>> {
+  return attempt<StartedJob>(what, async () => {
     const include = { links: { orderBy: { position: 'asc' as const } } }
     const newLinks = (known: { url: string; position: number }[]) => {
       const first = known.reduce((max, l) => Math.max(max, l.position), -1) + 1
@@ -265,7 +292,7 @@ export async function startFromPosting(input: { urls: string[] } | { url: string
         include,
       })
     }
-    const started = (job: Parameters<typeof toJobSummary>[0], existed: boolean) => ok({ job: toJobSummary(job), existed, postingText, unread })
+    const started = (job: Parameters<typeof toJobSummary>[0], existed: boolean) => ok<StartedJob>({ kind: 'job', job: toJobSummary(job), existed, postingText, unread })
     const existing = await db.job.findUnique({ where: { company_role: names }, include })
     if (existing) return started(await reuse(existing), true)
     const links = newLinks([])
@@ -280,6 +307,29 @@ export async function startFromPosting(input: { urls: string[] } | { url: string
       return started(await reuse(raced), true)
     }
   })
+}
+
+const pickedInput = names.extend({
+  text: pastedInput,
+  urls: z.array(z.string().trim().max(2048, 'That link is too long.')).max(MAX_START_LINKS, `Up to ${MAX_START_LINKS} links per job.`),
+})
+
+/**
+ * "Which job?" → "Analyze this job": the job the user picked from a split. Same write as startFromPosting (find the
+ * job by company and role or create it, save the picked text, add the links); nothing is read or asked of the AI.
+ */
+export async function startPickedJob(input: { company: string; role: string; text: string; urls: string[] }): Promise<ActionResult<StartedJob>> {
+  const parsed = pickedInput.safeParse(input)
+  if (!parsed.success) return fail(invalidInput(parsed.error))
+  const { company, role, text, urls: typed } = parsed.data
+  const urls: string[] = []
+  for (const raw of typed.filter(Boolean)) {
+    const check = checkUrl(raw)
+    if (!check.ok) return fail(`${raw}: ${check.error}`)
+    const url = check.url.toString()
+    if (!urls.includes(url)) urls.push(url)
+  }
+  return saveStartedJob('startPickedJob', { names: { company, role }, postingText: text, urls, unread: [] })
 }
 
 const sessionInput = z.object({ jobId: id, session: z.unknown() })

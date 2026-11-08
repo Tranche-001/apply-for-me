@@ -22,6 +22,7 @@ import { AnalysisPopovers } from './analysis-popovers'
 import { AnswersDone } from './answers-done'
 import { BlocksPanel } from './blocks-panel'
 import { JobHeader } from './job-header'
+import { JobSplit } from './job-split'
 import { QuestionsPanel } from './questions-panel'
 import { RequirementsPanel } from './requirements-panel'
 import { ReviewView } from './review-view'
@@ -74,8 +75,9 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
   const busy = a.phase !== 'idle'
   const reqs = s?.analysis.requirements ?? []
 
-  const step = a.phase === 'reading' ? 0 : a.phase === 'comparing' && !s ? 1 : a.phase === 'placing' || a.phase === 'redrafting' ? 3 : s ? pipelineStep(s) : 0
-  const headMode = !a.job ? (a.phase === 'reading' ? 'creating' : 'none') : a.resumed ? 'resumed' : 'job'
+  // Choosing a job: "Read posting" is done and the dashed "Which job?" pill is the current one (see Steps).
+  const step = a.split ? 1 : a.phase === 'reading' ? 0 : a.phase === 'comparing' && !s ? 1 : a.phase === 'placing' || a.phase === 'redrafting' ? 3 : s ? pipelineStep(s) : 0
+  const headMode = a.split ? 'none' : !a.job ? (a.phase === 'reading' ? 'creating' : 'none') : a.resumed ? 'resumed' : 'job'
 
   // ── Edit popover: the same one as Compose CV (decision log); Done keeps the edit with this job's CV ──
   function openEdit(target: EditTarget) {
@@ -253,19 +255,21 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
   return (
     <div className={c('screen')}>
       <JobHeader mode={headMode} job={a.job ? { label: a.job.label, url: a.job.links[0]?.url ?? null } : null} analyzedAt={s?.analyzedAt ?? null} busy={busy} onAnalyzeAgain={() => void a.analyzeAgain()} />
-      <Steps current={step} />
+      <Steps current={step} extra={a.whichJob} />
       {busy && <StatusLine text={WORKING[a.phase as Exclude<Phase, 'idle'>]} />}
       {a.problem && <StatusLine tone="error" text={a.problem.message} onRetry={a.problem.retry ?? undefined} />}
       {a.notice && !busy && <StatusLine text={a.notice} />}
       {a.saveState.status === 'error' && a.saveState.error && <StatusLine tone="error" text={`Couldn’t save your progress with the job: ${a.saveState.error}`} />}
-      {/* Kept mounted while the posting is read, so a failed read gives back the link or text you pasted. */}
+      {/* Kept mounted while the posting is read and while "Which job?" is open, so a failed read, or "← Use another link", gives back the link or text you pasted. */}
       {!a.job && (
-        <div hidden={a.phase !== 'idle'}>
+        <div hidden={a.phase !== 'idle' || Boolean(a.split)}>
           <StartCard busy={busy} aiReady={aiReady} notReadyText={notReadyText} error={null} onAnalyzeUrls={(urls) => void a.start({ urls })} onUsePasted={(text) => void a.start({ text })} />
         </div>
       )}
       {/* Opened from Jobs ("Analyze") for a job never analyzed: compare its saved posting, or ask for one. */}
-      {a.job && !s && a.phase === 'idle' && !a.problem ? (
+      {a.split ? (
+        <JobSplit candidates={a.split.candidates} busy={busy} onAnalyze={(id) => void a.analyzePicked(id)} onBack={a.useAnotherLink} />
+      ) : a.job && !s && a.phase === 'idle' && !a.problem ? (
         a.postingText ? (
           <div className={c('a-start')}>
             <h3>No analysis saved for this job yet</h3>

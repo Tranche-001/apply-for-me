@@ -1,18 +1,9 @@
-// The company and role the AI read from a posting, made safe to use as a Job's names.
-// Pure and server-agnostic.
-import type { JobInfoOutput } from './schemas'
-
-const MAX_COMPANY = 120
+// The names a Job is stored under, from what the AI read (see posting-jobs.ts). Pure and server-agnostic.
 const MAX_ROLE = 160
 
 const tidy = (value: string, max: number) => value.replace(/\s+/g, ' ').trim().slice(0, max).trim()
 
 export type JobNames = { company: string; role: string }
-
-/** White space collapsed, lengths capped to what a job accepts. */
-export function finalizeJobInfo(raw: JobInfoOutput): JobNames {
-  return { company: tidy(raw.company, MAX_COMPANY), role: tidy(raw.role, MAX_ROLE) }
-}
 
 /**
  * The names the job is stored under. A job needs a role: when the AI found none, the page title stands in

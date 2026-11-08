@@ -101,11 +101,23 @@ export const blockDraftOutputSchema = z.object({
 })
 export type BlockDraftOutput = z.infer<typeof blockDraftOutputSchema>
 
-export const jobInfoOutputSchema = z.object({
-  company: z.string().describe('The hiring company, as the posting names it. Empty when the posting does not say.'),
-  role: z.string().describe('The job title, as the posting names it. Empty when the posting does not say.'),
+export const postingJobsOutputSchema = z.object({
+  jobs: z
+    .array(
+      z.object({
+        company: z.string().describe('The hiring company, as the posting names it. Empty when the posting does not say.'),
+        role: z.string().describe('The job title, as the posting names it (a short title such as "Backend Engineer"). Empty when the posting does not say.'),
+        location: z.string().describe('Where the job is, as the posting says it (city, "Remote"…). Empty when it does not say.'),
+        kind: z.string().describe('Full-time, Part-time, Contract, Internship… as the posting says it. Empty when it does not say.'),
+        firstLine: z.string().describe('The first line of this job\'s own text in the posting, copied word for word.'),
+        lastLine: z.string().describe('The last line of this job\'s own text in the posting, copied word for word.'),
+        lines: z.array(z.string()).describe('Two sentences that describe this job, copied word for word from its text.'),
+        requirementCount: z.number().describe('How many requirements this job lists.'),
+      }),
+    )
+    .describe('One entry per job in the posting, in the order they appear. One entry when the text holds a single job.'),
 })
-export type JobInfoOutput = z.infer<typeof jobInfoOutputSchema>
+export type PostingJobsOutput = z.infer<typeof postingJobsOutputSchema>
 
 export const placementOutputSchema = z.object({
   placements: z.array(

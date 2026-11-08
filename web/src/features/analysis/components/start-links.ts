@@ -12,6 +12,9 @@ const hostOf = (url: string): string => {
   }
 }
 
+/** The status line while "Which job?" is open. */
+export const splitNotice = (count: number): string => `This link has ${count} job postings. Pick the one to analyze; the AI compares only that one with your blocks.`
+
 /** One sentence per link that could not be read, then what the analysis uses. `total` is the number of links typed. */
 export function unreadNotice(unread: { url: string; error: string }[], total: number): string | null {
   if (!unread.length) return null

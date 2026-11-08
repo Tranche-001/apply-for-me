@@ -8,7 +8,7 @@ import { guessLinkKind, SESSION_VERSION, type AnalysisSession } from './types'
 const m = vi.hoisted(() => ({
   refresh: vi.fn(),
   fetchPosting: vi.fn(),
-  readJobInfo: vi.fn(),
+  readPostingJobs: vi.fn(),
   draftBlockFromExperience: vi.fn(),
   appendAnswerToExperience: vi.fn(),
   saveDraftToLibrary: vi.fn(),
@@ -22,7 +22,7 @@ const m = vi.hoisted(() => ({
 vi.mock('server-only', () => ({}))
 vi.mock('next/cache', () => ({ refresh: m.refresh }))
 vi.mock('./fetch-posting', () => ({ fetchPosting: m.fetchPosting }))
-vi.mock('../ai/actions', () => ({ readJobInfo: m.readJobInfo, draftBlockFromExperience: m.draftBlockFromExperience }))
+vi.mock('../ai/actions', () => ({ readPostingJobs: m.readPostingJobs, draftBlockFromExperience: m.draftBlockFromExperience }))
 vi.mock('../experiences/answers', () => ({ appendAnswerToExperience: m.appendAnswerToExperience }))
 vi.mock('../ai/library-writes', () => ({ saveDraftToLibrary: m.saveDraftToLibrary, updateVersionFromDraft: m.updateVersionFromDraft }))
 vi.mock('../cv/write-cv', () => ({ saveCvSchema: {}, writeCv: m.writeCv }))
@@ -39,13 +39,22 @@ vi.mock('@/lib/db', () => {
   }
 })
 
-const { startFromPosting, saveAnalysisSession, saveAnalysisCv, addExperienceForRequirement } = await import('./actions')
+const { startFromPosting, startPickedJob, saveAnalysisSession, saveAnalysisCv, addExperienceForRequirement } = await import('./actions')
 const { loadAnalysisJob } = await import('./queries')
 const { UserError } = await import('../cv/action-result')
 
 const POSTING = 'We are hiring a Backend Engineer at Acme. '.repeat(5)
 const fetched = (over: Partial<Extract<FetchResult, { ok: true }>> = {}): FetchResult => ({ ok: true, url: 'https://boards.greenhouse.io/acme/jobs/1', title: 'Backend Engineer at Acme', text: POSTING, truncated: false, ...over })
 const jobRow = (over = {}) => ({ id: 'j1', company: 'Acme', role: 'Backend Engineer', postingText: POSTING, links: [{ id: 'l1', kind: 'APPLICATION', url: 'https://boards.greenhouse.io/acme/jobs/1' }], ...over })
+
+/** What readPostingJobs returns when the text holds one job. */
+const oneJob = (company: string, role: string) => ({ ok: true, data: [{ company, role, location: '', kind: '', text: POSTING, lines: [], requirementCount: 0 }] })
+const aJob = (over: Partial<Record<string, unknown>> = {}) => ({ company: 'ExampleCo', role: 'Senior GenAI Engineer', location: 'São Paulo (hybrid)', kind: 'Full-time', text: 'JOB A TEXT. '.repeat(10), lines: ['Design RAG pipelines.', 'Own vector search.'], requirementCount: 9, ...over })
+/** The started job, failing the test when the result is an error or a split. */
+function started(r: Awaited<ReturnType<typeof startFromPosting>>) {
+  if (!r.ok || r.data.kind !== 'job') throw new Error(`expected a started job, got ${JSON.stringify(r)}`)
+  return r.data
+}
 
 beforeEach(() => {
   vi.resetAllMocks()
@@ -58,7 +67,7 @@ describe('startFromPosting', () => {
     expect(short.ok).toBe(false)
     expect((await startFromPosting({ text: 'x'.repeat(40_001) })).ok).toBe(false)
     expect((await startFromPosting({} as { url: string })).ok).toBe(false)
-    expect(m.readJobInfo).not.toHaveBeenCalled()
+    expect(m.readPostingJobs).not.toHaveBeenCalled()
     expect(m.fetchPosting).not.toHaveBeenCalled()
   })
 
@@ -72,17 +81,17 @@ describe('startFromPosting', () => {
     m.fetchPosting.mockResolvedValue({ ok: false, reason: 'blocked', message: 'linkedin.com does not let apps read it. Paste the job text instead.' })
     const r = await startFromPosting({ url: 'https://www.linkedin.com/jobs/view/1' })
     expect(r).toEqual({ ok: false, error: expect.stringMatching(/paste the job text/i) })
-    expect(m.readJobInfo).not.toHaveBeenCalled()
+    expect(m.readPostingJobs).not.toHaveBeenCalled()
     expect(m.job.create).not.toHaveBeenCalled()
   })
 
   test('creates the job from a link: names from the AI, posting saved, link added with its kind', async () => {
     m.fetchPosting.mockResolvedValue(fetched())
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
     m.job.findUnique.mockResolvedValue(null)
     m.job.create.mockResolvedValue(jobRow())
     const r = await startFromPosting({ url: 'https://boards.greenhouse.io/acme/jobs/1' })
-    expect(m.readJobInfo).toHaveBeenCalledWith({ postingText: POSTING })
+    expect(m.readPostingJobs).toHaveBeenCalledWith({ postingText: POSTING })
     expect(m.job.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { company: 'Acme', role: 'Backend Engineer', postingText: POSTING, links: { create: [{ url: 'https://boards.greenhouse.io/acme/jobs/1', kind: 'APPLICATION', position: 0 }] } },
@@ -91,6 +100,7 @@ describe('startFromPosting', () => {
     expect(r).toEqual({
       ok: true,
       data: {
+        kind: 'job',
         existed: false,
         postingText: POSTING,
         unread: [],
@@ -101,19 +111,19 @@ describe('startFromPosting', () => {
   })
 
   test('pasted text makes a job with no link', async () => {
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
     m.job.findUnique.mockResolvedValue(null)
     m.job.create.mockResolvedValue(jobRow({ links: [] }))
     const text = POSTING.padEnd(100, '.')
     const r = await startFromPosting({ text })
     expect(m.fetchPosting).not.toHaveBeenCalled()
     expect(m.job.create.mock.calls[0][0].data.links).toBeUndefined()
-    expect(r.ok && r.data.existed).toBe(false)
+    expect(started(r).existed).toBe(false)
   })
 
   test('the same company and role reuses the job and says it existed; the link is not added twice', async () => {
     m.fetchPosting.mockResolvedValue(fetched())
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
     m.job.findUnique.mockResolvedValue(jobRow({ postingText: 'old' }))
     m.job.update.mockResolvedValue(jobRow())
     const r = await startFromPosting({ url: 'https://boards.greenhouse.io/acme/jobs/1' })
@@ -121,12 +131,12 @@ describe('startFromPosting', () => {
     const data = m.job.update.mock.calls[0][0].data
     expect(data.postingText).toBe(POSTING)
     expect(data.links).toBeUndefined()
-    expect(r.ok && r.data.existed).toBe(true)
+    expect(started(r).existed).toBe(true)
   })
 
   test('a new link on an existing job is added after the others', async () => {
     m.fetchPosting.mockResolvedValue(fetched())
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
     m.job.findUnique.mockResolvedValue(jobRow({ links: [{ id: 'l0', kind: 'POSTING', url: 'https://other.example/job', position: 4 }] }))
     m.job.update.mockResolvedValue(jobRow())
     await startFromPosting({ url: 'https://boards.greenhouse.io/acme/jobs/1' })
@@ -142,12 +152,12 @@ describe('startFromPosting', () => {
 
   test('two links: both saved on a new job, the combined text goes to the AI', async () => {
     twoLinks()
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
     m.job.findUnique.mockResolvedValue(null)
     m.job.create.mockResolvedValue(jobRow())
     const r = await startFromPosting({ urls: [URL_A, URL_B] })
     const combined = `From ${URL_A}:\ntext A\n\nFrom ${URL_B}:\ntext B`
-    expect(m.readJobInfo).toHaveBeenCalledWith({ postingText: combined })
+    expect(m.readPostingJobs).toHaveBeenCalledWith({ postingText: combined })
     expect(m.job.create.mock.calls[0][0].data.links).toEqual({
       create: [
         { url: URL_A, kind: 'APPLICATION', position: 0 },
@@ -159,7 +169,7 @@ describe('startFromPosting', () => {
 
   test('{ url } still works as one link', async () => {
     m.fetchPosting.mockResolvedValue(fetched())
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
     m.job.findUnique.mockResolvedValue(null)
     m.job.create.mockResolvedValue(jobRow())
     await startFromPosting({ url: URL_A })
@@ -168,18 +178,18 @@ describe('startFromPosting', () => {
 
   test('one link that cannot be read: still starts from the other, saves both, returns unread', async () => {
     twoLinks(true)
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
     m.job.findUnique.mockResolvedValue(null)
     m.job.create.mockResolvedValue(jobRow())
     const r = await startFromPosting({ urls: [URL_A, URL_B] })
-    expect(m.readJobInfo).toHaveBeenCalledWith({ postingText: 'text A' })
+    expect(m.readPostingJobs).toHaveBeenCalledWith({ postingText: 'text A' })
     expect(m.job.create.mock.calls[0][0].data.links.create).toHaveLength(2)
     expect(r.ok && r.data.unread).toEqual([{ url: URL_B, error: 'Blocked. You can paste the job text instead.' }])
   })
 
   test('an existing job gets only the typed links it does not have, after its own', async () => {
     twoLinks()
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
     m.job.findUnique.mockResolvedValue(jobRow({ links: [{ id: 'l0', kind: 'APPLICATION', url: URL_A, position: 2 }] }))
     m.job.update.mockResolvedValue(jobRow())
     await startFromPosting({ urls: [URL_A, URL_B] })
@@ -200,7 +210,7 @@ describe('startFromPosting', () => {
   })
 
   test('pasted text returns no unread links', async () => {
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
     m.job.findUnique.mockResolvedValue(null)
     m.job.create.mockResolvedValue(jobRow({ links: [] }))
     const r = await startFromPosting({ text: POSTING })
@@ -209,24 +219,24 @@ describe('startFromPosting', () => {
 
   test('the AI not being ready is passed on and nothing is written', async () => {
     m.fetchPosting.mockResolvedValue(fetched())
-    m.readJobInfo.mockResolvedValue({ ok: false, error: 'The AI is not set up yet.' })
+    m.readPostingJobs.mockResolvedValue({ ok: false, error: 'The AI is not set up yet.' })
     expect(await startFromPosting({ url: 'https://boards.greenhouse.io/acme/jobs/1' })).toEqual({ ok: false, error: 'The AI is not set up yet.' })
     expect(m.job.create).not.toHaveBeenCalled()
     expect(m.job.update).not.toHaveBeenCalled()
   })
 
   test('no company: the job is stored under the role alone', async () => {
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: '', role: 'SRE' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('', 'SRE'))
     m.job.findUnique.mockResolvedValue(null)
     m.job.create.mockResolvedValue(jobRow({ company: '', role: 'SRE', links: [] }))
     const r = await startFromPosting({ text: POSTING })
     expect(m.job.create.mock.calls[0][0].data).toMatchObject({ company: '', role: 'SRE' })
-    expect(r.ok && r.data.job.label).toBe('SRE')
+    expect(started(r).job.label).toBe('SRE')
   })
 
   test('no role: the page title stands in; with no title either, it says so', async () => {
     m.fetchPosting.mockResolvedValue(fetched({ title: 'Platform Engineer' }))
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: '' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', ''))
     m.job.findUnique.mockResolvedValue(null)
     m.job.create.mockResolvedValue(jobRow({ role: 'Platform Engineer' }))
     await startFromPosting({ url: 'https://boards.greenhouse.io/acme/jobs/1' })
@@ -238,11 +248,11 @@ describe('startFromPosting', () => {
 
   test.each([null, undefined, 'text', 42, []])('input %j is refused without throwing', async (input) => {
     await expect(startFromPosting(input as unknown as { url: string })).resolves.toMatchObject({ ok: false })
-    expect(m.readJobInfo).not.toHaveBeenCalled()
+    expect(m.readPostingJobs).not.toHaveBeenCalled()
   })
 
   test('a new posting text on an existing job clears its saved session, so old quotes never point at text that is gone', async () => {
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
     m.job.findUnique.mockResolvedValue(jobRow({ postingText: 'the old posting' }))
     m.job.update.mockResolvedValue(jobRow())
     await startFromPosting({ text: POSTING })
@@ -251,7 +261,7 @@ describe('startFromPosting', () => {
   })
 
   test('the same posting text keeps the saved session', async () => {
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
     m.job.findUnique.mockResolvedValue(jobRow({ postingText: POSTING.trim() }))
     m.job.update.mockResolvedValue(jobRow())
     await startFromPosting({ text: POSTING })
@@ -261,27 +271,148 @@ describe('startFromPosting', () => {
   })
 
   test('losing a create race (P2002) reads the job the other request made and uses it', async () => {
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
     m.job.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(jobRow({ postingText: 'other' }))
     m.job.create.mockRejectedValue(Object.assign(new Error('unique'), { code: 'P2002' }))
     m.job.update.mockResolvedValue(jobRow())
     const r = await startFromPosting({ text: POSTING })
-    expect(r.ok && r.data.existed).toBe(true)
+    expect(started(r).existed).toBe(true)
     expect(m.job.update).toHaveBeenCalledOnce()
   })
 
   test('a P2002 with no job to be found is still a plain error', async () => {
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
     m.job.findUnique.mockResolvedValue(null)
     m.job.create.mockRejectedValue(Object.assign(new Error('unique'), { code: 'P2002' }))
     expect((await startFromPosting({ text: POSTING })).ok).toBe(false)
   })
 
   test('a database failure is a plain message', async () => {
-    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'SRE' } })
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'SRE'))
     m.job.findUnique.mockRejectedValue(Object.assign(new Error('x'), { code: 'P1001' }))
     const r = await startFromPosting({ text: POSTING })
     expect(r).toEqual({ ok: false, error: expect.stringContaining('database') })
+  })
+})
+
+describe('startFromPosting: more than one job in what was read', () => {
+  const twoJobs = () =>
+    m.readPostingJobs.mockResolvedValue({ ok: true, data: [aJob(), aJob({ role: 'ML Platform Engineer', location: 'Remote (Brazil)', kind: '', text: 'JOB B TEXT. '.repeat(10), lines: ['Run the platform.'], requirementCount: 7 })] })
+
+  test('creates nothing and returns the candidates with the typed links and the unread ones', async () => {
+    const URL_A = 'https://boards.greenhouse.io/acme/jobs/1'
+    const URL_B = 'https://jobs.acme.com/apply/1'
+    m.fetchPosting.mockImplementation(async (url: string) => (url === URL_B ? { ok: false, message: 'Blocked. You can paste the job text instead.' } : fetched({ url })))
+    twoJobs()
+    const r = await startFromPosting({ urls: [URL_A, URL_B] })
+    expect(r).toEqual({
+      ok: true,
+      data: {
+        kind: 'split',
+        urls: [URL_A, URL_B],
+        unread: [{ url: URL_B, error: 'Blocked. You can paste the job text instead.' }],
+        candidates: [
+          { id: 'c1', company: 'ExampleCo', role: 'Senior GenAI Engineer', meta: 'ExampleCo · São Paulo (hybrid) · Full-time', lines: ['Design RAG pipelines.', 'Own vector search.'], requirementCount: 9, text: 'JOB A TEXT. '.repeat(10) },
+          { id: 'c2', company: 'ExampleCo', role: 'ML Platform Engineer', meta: 'ExampleCo · Remote (Brazil)', lines: ['Run the platform.'], requirementCount: 7, text: 'JOB B TEXT. '.repeat(10) },
+        ],
+      },
+    })
+    expect(m.job.findUnique).not.toHaveBeenCalled()
+    expect(m.job.create).not.toHaveBeenCalled()
+    expect(m.job.update).not.toHaveBeenCalled()
+    expect(m.refresh).not.toHaveBeenCalled()
+  })
+
+  test('pasted text: split with no links; a missing company or place is left out of the meta', async () => {
+    m.readPostingJobs.mockResolvedValue({ ok: true, data: [aJob({ company: '', location: '', kind: '' }), aJob({ role: 'SRE', company: 'Acme', kind: 'Contract', location: '' })] })
+    const r = await startFromPosting({ text: POSTING })
+    expect(r.ok && r.data.kind === 'split' && r.data.urls).toEqual([])
+    expect(r.ok && r.data.kind === 'split' && r.data.candidates.map((c) => c.meta)).toEqual(['', 'Acme · Contract'])
+    expect(m.job.create).not.toHaveBeenCalled()
+  })
+
+  test('the job is still named from the single entry when there is only one', async () => {
+    m.readPostingJobs.mockResolvedValue({ ok: true, data: [aJob({ text: POSTING })] })
+    m.job.findUnique.mockResolvedValue(null)
+    m.job.create.mockResolvedValue(jobRow({ company: 'ExampleCo', role: 'Senior GenAI Engineer', links: [] }))
+    const r = await startFromPosting({ text: POSTING })
+    expect(started(r).existed).toBe(false)
+    expect(m.job.create.mock.calls[0][0].data).toMatchObject({ company: 'ExampleCo', role: 'Senior GenAI Engineer', postingText: POSTING.trim() })
+  })
+})
+
+describe('startPickedJob', () => {
+  const URL_A = 'https://boards.greenhouse.io/acme/jobs/1'
+  const TEXT = 'JOB A TEXT. '.repeat(10)
+  const pick = (over = {}) => ({ company: 'ExampleCo', role: 'Senior GenAI Engineer', text: TEXT, urls: [URL_A], ...over })
+
+  test('creates the job with the picked text and every link', async () => {
+    m.job.findUnique.mockResolvedValue(null)
+    m.job.create.mockResolvedValue(jobRow({ company: 'ExampleCo', role: 'Senior GenAI Engineer', postingText: TEXT.trim() }))
+    const r = await startPickedJob(pick())
+    expect(m.readPostingJobs).not.toHaveBeenCalled()
+    expect(m.job.create.mock.calls[0][0].data).toEqual({ company: 'ExampleCo', role: 'Senior GenAI Engineer', postingText: TEXT.trim(), links: { create: [{ url: URL_A, kind: 'APPLICATION', position: 0 }] } })
+    expect(r).toMatchObject({ ok: true, data: { kind: 'job', existed: false, postingText: TEXT.trim(), unread: [] } })
+    expect(m.refresh).toHaveBeenCalled()
+  })
+
+  test('the same company and role reuses the job, adds only the new links and clears a session that quoted another text', async () => {
+    m.job.findUnique.mockResolvedValue(jobRow({ postingText: 'old text', links: [{ id: 'l0', kind: 'APPLICATION', url: URL_A, position: 0 }] }))
+    m.job.update.mockResolvedValue(jobRow())
+    const URL_B = 'https://jobs.acme.com/apply/1'
+    const r = await startPickedJob(pick({ urls: [URL_A, URL_B] }))
+    expect(m.job.create).not.toHaveBeenCalled()
+    const data = m.job.update.mock.calls[0][0].data
+    expect(data).toMatchObject({ postingText: TEXT.trim(), analysis: Prisma.DbNull, analyzedAt: null })
+    expect(data.links).toEqual({ create: [{ url: URL_B, kind: guessLinkKind(URL_B), position: 1 }] })
+    expect(started(r).existed).toBe(true)
+  })
+
+  test('the same posting text keeps the saved session', async () => {
+    m.job.findUnique.mockResolvedValue(jobRow({ postingText: TEXT.trim() }))
+    m.job.update.mockResolvedValue(jobRow())
+    await startPickedJob(pick({ urls: [] }))
+    expect('analysis' in m.job.update.mock.calls[0][0].data).toBe(false)
+  })
+
+  test('no links is fine (the text was pasted)', async () => {
+    m.job.findUnique.mockResolvedValue(null)
+    m.job.create.mockResolvedValue(jobRow({ links: [] }))
+    await startPickedJob(pick({ urls: [] }))
+    expect(m.job.create.mock.calls[0][0].data.links).toBeUndefined()
+  })
+
+  test('losing a create race (P2002) uses the job the other request made', async () => {
+    m.job.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(jobRow({ postingText: 'other' }))
+    m.job.create.mockRejectedValue(Object.assign(new Error('unique'), { code: 'P2002' }))
+    m.job.update.mockResolvedValue(jobRow())
+    expect(started(await startPickedJob(pick())).existed).toBe(true)
+  })
+
+  test.each([
+    ['company over 120', { company: 'c'.repeat(121) }],
+    ['no role', { role: '  ' }],
+    ['role over 160', { role: 'r'.repeat(161) }],
+    ['text under 80', { text: 'too short' }],
+    ['text over 40,000', { text: 'x'.repeat(40_001) }],
+    ['more than 5 links', { urls: Array.from({ length: 6 }, (_, i) => `https://jobs.example.com/${i}`) }],
+    ['a link that is not allowed', { urls: ['http://localhost/job'] }],
+    ['a link that is not a link', { urls: ['not a link'] }],
+    ['urls not a list', { urls: 'https://a.example.com' }],
+  ])('invalid input (%s) is a plain error and nothing is written', async (_name, over) => {
+    const r = await startPickedJob(pick(over) as Parameters<typeof startPickedJob>[0])
+    expect(r).toEqual({ ok: false, error: expect.any(String) })
+    expect(m.job.findUnique).not.toHaveBeenCalled()
+    expect(m.job.create).not.toHaveBeenCalled()
+  })
+
+  test.each([null, undefined, 'text', 42, []])('input %j is refused without throwing', async (input) => {
+    await expect(startPickedJob(input as unknown as Parameters<typeof startPickedJob>[0])).resolves.toMatchObject({ ok: false })
+  })
+
+  test('a database failure is a plain message', async () => {
+    m.job.findUnique.mockRejectedValue(Object.assign(new Error('x'), { code: 'P1001' }))
+    expect(await startPickedJob(pick())).toEqual({ ok: false, error: expect.stringContaining('database') })
   })
 })
 

@@ -10,13 +10,13 @@ import { getAi, type AiRunner } from './client'
 import { loadExperiences, loadJob, loadLibrary, loadProfile, loadQuestion, loadRules } from './context'
 import { errorLogContext, plainAiError } from './errors'
 import { TASKS } from './model'
-import { finalizeJobInfo, type JobNames } from './job-info'
 import { finalizePlacement } from './placement'
+import { finalizePostingJobs, type PostingJob } from './posting-jobs'
 import { finalizeAnalysis, finalizeBlockDraft, finalizeCvPlan, toPostingSummary } from './postprocess'
 import { NOT_READY } from './provider'
-import { buildAnalysisPrompt, buildAnswerPrompt, buildBlockDraftPrompt, buildCvPlanPrompt, buildJobInfoPrompt, buildPlacementPrompt } from './prompts'
+import { buildAnalysisPrompt, buildAnswerPrompt, buildBlockDraftPrompt, buildCvPlanPrompt, buildPlacementPrompt, buildPostingJobsPrompt } from './prompts'
 import { fail, invalidInput, ok } from './result'
-import { analysisOutputSchema, answerOutputSchema, blockDraftOutputSchema, cvPlanOutputSchema, jobInfoOutputSchema, placementOutputSchema } from './schemas'
+import { analysisOutputSchema, answerOutputSchema, blockDraftOutputSchema, cvPlanOutputSchema, placementOutputSchema, postingJobsOutputSchema } from './schemas'
 import type { AiAsk, AiReportLine, AiResult, AnalyzeJobInput, AnswerDraft, AnswerPlacement, CvPlan, DraftVersion, JobAnalysis } from './types'
 
 const id = z.string().trim().min(1, 'is missing').max(64, 'is not a valid id')
@@ -162,19 +162,24 @@ export async function draftBlockFromExperience(input: { experienceId: string }):
   })
 }
 
-const jobInfoInput = z.object({
+const postingJobsInput = z.object({
   postingText: z.string().trim().min(20, 'There is no job text to read.').max(40_000, 'The job text is too long (40,000 characters at most).'),
 })
 
-/** Job analysis v2 → "Analyze": which company and role a posting is for. Writes nothing; either name may come back empty. */
-export async function readJobInfo(input: { postingText: string }): Promise<AiResult<JobNames>> {
-  const parsed = jobInfoInput.safeParse(input)
+/**
+ * Job analysis v2 → "Analyze": the jobs a posting holds. One entry when it holds one job (the whole text, either name
+ * may be empty); several when the AI found more than one and the lines that begin and end each really are in the text.
+ * Writes nothing.
+ */
+export async function readPostingJobs(input: { postingText: string }): Promise<AiResult<PostingJob[]>> {
+  const parsed = postingJobsInput.safeParse(input)
   if (!parsed.success) return fail(invalidInput(parsed.error))
   const ai = getAi()
   if (!ai) return fail(NOT_READY)
-  return guarded('readJobInfo', ai, async () => {
-    const raw = await ai.run(buildJobInfoPrompt(parsed.data.postingText), jobInfoOutputSchema, TASKS.jobInfo)
-    return ok(finalizeJobInfo(raw))
+  const { postingText } = parsed.data
+  return guarded('readPostingJobs', ai, async () => {
+    const raw = await ai.run(buildPostingJobsPrompt(postingText), postingJobsOutputSchema, TASKS.postingJobs)
+    return ok(finalizePostingJobs(raw, postingText))
   })
 }
 

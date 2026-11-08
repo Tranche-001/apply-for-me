@@ -1,4 +1,4 @@
-// readJobInfo and placeAnswers with the database and the AI client mocked: never calls the real API.
+// readPostingJobs and placeAnswers with the database and the AI client mocked: never calls the real API.
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { EXPERIENCE, JOB } from './test-fixtures'
 import { NOT_READY } from './provider'
@@ -30,7 +30,7 @@ vi.mock('./context', () => ({
   loadQuestion: async () => null,
 }))
 
-const { readJobInfo, placeAnswers } = await import('./actions')
+const { readPostingJobs, placeAnswers } = await import('./actions')
 
 function replyWith(json: unknown) {
   stream.mockReturnValueOnce({ finalMessage: async () => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(json) }] }) })
@@ -45,29 +45,46 @@ beforeEach(() => {
 
 const ITEMS = [{ askId: 'q1', question: 'Did you use Kafka?', answer: 'Yes, at Visio AI.' }]
 
-describe('readJobInfo', () => {
-  test('returns the tidy company and role, asking with low effort and a small budget', async () => {
-    replyWith({ company: '  Acme  ', role: 'Backend\nEngineer' })
-    const r = await readJobInfo({ postingText: 'Acme is hiring a Backend Engineer to build things.' })
-    expect(r).toEqual({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+const SINGLE = 'Acme is hiring a Backend Engineer to build things.'
+const entry = (over = {}) => ({ company: '  Acme  ', role: 'Backend\nEngineer', location: '', kind: '', firstLine: 'Acme is hiring', lastLine: 'to build things.', lines: [], requirementCount: 3, ...over })
+
+describe('readPostingJobs', () => {
+  test('one job: the tidy names and the whole text, asking with low effort and a small budget', async () => {
+    replyWith({ jobs: [entry()] })
+    const r = await readPostingJobs({ postingText: SINGLE })
+    expect(r).toEqual({ ok: true, data: [{ company: 'Acme', role: 'Backend Engineer', location: '', kind: '', text: SINGLE, lines: [], requirementCount: 3 }] })
     expect(stream.mock.calls[0][0].max_tokens).toBeLessThanOrEqual(4_000)
+  })
+
+  test('several jobs: each one with its own text, checked against the real posting', async () => {
+    const text = 'Intro of Acme.\n\nBackend Engineer\nBuild APIs.\nRequirements: Go.\n\nSRE\nKeep it up.\nRequirements: Linux.'
+    replyWith({
+      jobs: [
+        entry({ firstLine: 'Backend Engineer', lastLine: 'Requirements: Go.', lines: ['Build APIs.'] }),
+        entry({ role: 'SRE', firstLine: 'SRE', lastLine: 'Requirements: Linux.', lines: ['Not in the text at all.'] }),
+      ],
+    })
+    const r = await readPostingJobs({ postingText: text })
+    expect(r.ok && r.data.map((j) => j.role)).toEqual(['Backend Engineer', 'SRE'])
+    expect(r.ok && r.data[1].text).toBe('Intro of Acme.\n\nSRE\nKeep it up.\nRequirements: Linux.')
+    expect(r.ok && r.data[1].lines).toEqual([])
   })
 
   test('without a key it says the AI is not ready and calls nothing', async () => {
     getClient.mockReturnValue(null)
-    expect(await readJobInfo({ postingText: 'Acme is hiring a Backend Engineer.' })).toEqual({ ok: false, error: NOT_READY })
+    expect(await readPostingJobs({ postingText: SINGLE })).toEqual({ ok: false, error: NOT_READY })
     expect(stream).not.toHaveBeenCalled()
   })
 
   test('refuses an empty or huge posting before calling the AI', async () => {
-    expect((await readJobInfo({ postingText: '  ' })).ok).toBe(false)
-    expect((await readJobInfo({ postingText: 'x'.repeat(40_001) })).ok).toBe(false)
+    expect((await readPostingJobs({ postingText: '  ' })).ok).toBe(false)
+    expect((await readPostingJobs({ postingText: 'x'.repeat(40_001) })).ok).toBe(false)
     expect(stream).not.toHaveBeenCalled()
   })
 
   test('an unusable reply is a plain error', async () => {
     replyWith({ nope: true })
-    expect((await readJobInfo({ postingText: 'Acme is hiring a Backend Engineer.' })).ok).toBe(false)
+    expect((await readPostingJobs({ postingText: SINGLE })).ok).toBe(false)
   })
 })
 
