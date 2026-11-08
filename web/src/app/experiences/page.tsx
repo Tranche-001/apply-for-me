@@ -2,6 +2,7 @@ import { connection } from 'next/server'
 import { aiProvider } from '@/features/ai/provider'
 import { Suspense } from 'react'
 import { ExperiencesScreen } from '@/features/experiences/components/experiences-screen'
+import { readPairingNeeds } from '@/features/experiences/pairing'
 import { listExperiences } from '@/features/experiences/queries'
 
 export const metadata = { title: 'Everything you did, in your own words' }
@@ -18,12 +19,12 @@ export default function Page({ searchParams }: Props) {
 
 async function Experiences({ searchParams }: Props) {
   await connection() // request time only: the build never queries the database
-  const [items, params] = await Promise.all([listExperiences(), searchParams])
+  const [items, needs, params] = await Promise.all([listExperiences(), readPairingNeeds(), searchParams])
   // ?open=<id>: the experience to show first (Job analysis links here after adding an answer).
   const open = typeof params.open === 'string' && items.some((e) => e.id === params.open) ? params.open : null
   // The key stays on the server; the screen only learns whether the AI can run.
   const aiReady = aiProvider() !== null
-  return <ExperiencesScreen initialItems={items} initialSelectedId={open} aiReady={aiReady} />
+  return <ExperiencesScreen initialItems={items} initialSelectedId={open} aiReady={aiReady} initialNeeds={needs} />
 }
 
 function Loading() {

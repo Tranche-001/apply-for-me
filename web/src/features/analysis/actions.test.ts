@@ -18,6 +18,8 @@ const m = vi.hoisted(() => ({
   txOptions: vi.fn(),
   job: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
   block: { findUnique: vi.fn() },
+  pairLibraryQuietly: vi.fn(),
+  getAi: vi.fn(),
 }))
 
 vi.mock('server-only', () => ({}))
@@ -27,6 +29,8 @@ vi.mock('../ai/actions', () => ({ readPostingJobs: m.readPostingJobs, draftBlock
 vi.mock('../experiences/answers', () => ({ appendAnswerToExperience: m.appendAnswerToExperience }))
 vi.mock('../ai/library-writes', () => ({ saveDraftToLibrary: m.saveDraftToLibrary, updateVersionFromDraft: m.updateVersionFromDraft, saveTitleForJob: m.saveTitleForJob }))
 vi.mock('../cv/write-cv', () => ({ saveCvSchema: {}, writeCv: m.writeCv }))
+vi.mock('../experiences/pairing', () => ({ pairLibraryQuietly: m.pairLibraryQuietly }))
+vi.mock('../ai/client', () => ({ getAi: m.getAi }))
 vi.mock('@/lib/db', () => {
   const tx = { job: m.job, block: m.block }
   return {
@@ -109,6 +113,28 @@ describe('startFromPosting', () => {
       },
     })
     expect(m.refresh).toHaveBeenCalled()
+  })
+
+  test('Analyze first pairs experiences and blocks in the background, with the AI in use', async () => {
+    const ai = { provider: 'gemini' }
+    m.getAi.mockReturnValue(ai)
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
+    m.job.findUnique.mockResolvedValue(null)
+    m.job.create.mockResolvedValue(jobRow({ links: [] }))
+    started(await startFromPosting({ text: POSTING.padEnd(100, '.') }))
+    expect(m.pairLibraryQuietly).toHaveBeenCalledWith(ai)
+  })
+
+  test('the job still starts while pairing is slow: both run side by side', async () => {
+    let release = () => {}
+    m.pairLibraryQuietly.mockReturnValue(new Promise<void>((resolve) => (release = resolve)))
+    m.readPostingJobs.mockResolvedValue(oneJob('Acme', 'Backend Engineer'))
+    m.job.findUnique.mockResolvedValue(null)
+    m.job.create.mockResolvedValue(jobRow({ links: [] }))
+    const pending = startFromPosting({ text: POSTING.padEnd(100, '.') })
+    await vi.waitFor(() => expect(m.readPostingJobs).toHaveBeenCalled())
+    release()
+    expect(started(await pending).existed).toBe(false)
   })
 
   test('pasted text makes a job with no link', async () => {

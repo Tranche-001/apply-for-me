@@ -9,7 +9,10 @@ import { draftVersionInput } from '../ai/draft-schema'
 import { saveDraftToLibrary } from '../ai/library-writes'
 import { jobLabel } from '../ai/labels'
 import { fail, invalidInput, ok, type ActionResult } from '../ai/result'
+import { getAi } from '../ai/client'
 import { appendAnswerToExperience, resendAnswerInExperience, type PlacedAnswer, type ResentAnswer } from './answers'
+import { pairLibrary, readPairingNeeds, type PairingNeeds, type PairingResult } from './pairing'
+import { listExperiences } from './queries'
 import { answerEntry, type ExperienceFields, type ExperienceItem } from './types'
 
 const id = z.string().trim().min(1, 'is missing').max(64, 'is not a valid id')
@@ -44,6 +47,17 @@ const TX_OPTIONS = { timeout: 30_000, maxWait: 5_000 } as const
 
 /** What answerEntry writes: "For <job>", the question, then the answer. A resend only replaces text of this shape. */
 const ANSWER_ENTRY_SHAPE = /^For .+\nThe AI asked: [\s\S]+\nMy answer: /
+
+export type PairingOutcome = PairingResult & { items: ExperienceItem[]; needs: PairingNeeds }
+
+/** Experiences → "Make them": a block for each experience with notes and none, an experience for each block with none. */
+export async function pairExperiencesAndBlocks(): Promise<ActionResult<PairingOutcome>> {
+  return attempt('pair', async () => {
+    const result = await pairLibrary(getAi())
+    const [items, needs] = await Promise.all([listExperiences(), readPairingNeeds()])
+    return { ...result, items, needs }
+  })
+}
 
 /** New experience at the top of the list, empty. */
 export async function createExperience(): Promise<ActionResult<ExperienceItem>> {

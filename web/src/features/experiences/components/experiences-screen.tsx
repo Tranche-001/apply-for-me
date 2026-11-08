@@ -6,9 +6,11 @@ import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { Icon } from '@/features/ai/ui/icon'
 import { useAutosave } from '@/features/ai/ui/use-autosave'
-import { createExperience, deleteExperience, updateExperience } from '../actions'
+import { createExperience, deleteExperience, pairExperiencesAndBlocks, updateExperience } from '../actions'
+import { pairingDoneMessage, type PairingNeeds } from '../pairing-plan'
 import type { ExperienceFields, ExperienceItem } from '../types'
 import { BlockDraftPanel } from './block-draft-panel'
+import { PairingBanner } from './pairing-banner'
 import { ExperienceEditor } from './experience-editor'
 import { ExperienceList } from './experience-list'
 
@@ -18,9 +20,17 @@ function focusSoon(id: string) {
   setTimeout(() => document.getElementById(id)?.focus(), 40)
 }
 
-type Props = { initialItems: ExperienceItem[]; initialSelectedId?: string | null; aiReady: boolean }
+type Props = { initialItems: ExperienceItem[]; initialSelectedId?: string | null; aiReady: boolean; initialNeeds: PairingNeeds }
 
-export function ExperiencesScreen({ initialItems, initialSelectedId = null, aiReady }: Props) {
+/** The list after "Make them": what you typed stays (it wins), each experience takes its blocks from the server, new ones join at the end. */
+function mergeItems(local: ExperienceItem[], fresh: ExperienceItem[]): ExperienceItem[] {
+  const byId = new Map(fresh.map((x) => [x.id, x]))
+  const kept = local.map((x) => ({ ...x, blocks: byId.get(x.id)?.blocks ?? x.blocks }))
+  const known = new Set(local.map((x) => x.id))
+  return [...kept, ...fresh.filter((x) => !known.has(x.id))]
+}
+
+export function ExperiencesScreen({ initialItems, initialSelectedId = null, aiReady, initialNeeds }: Props) {
   const [items, setItems] = useState(initialItems)
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? initialItems[0]?.id ?? null)
   const [query, setQuery] = useState('')
@@ -28,6 +38,26 @@ export function ExperiencesScreen({ initialItems, initialSelectedId = null, aiRe
   const [creating, startCreating] = useTransition()
   const autosave = useAutosave(updateExperience, { sameTarget: sameExperience })
   const selected = items.find((x) => x.id === selectedId) ?? null
+  const [needs, setNeeds] = useState(initialNeeds)
+  const [pairDone, setPairDone] = useState<string | null>(null)
+  const [pairError, setPairError] = useState<string | null>(null)
+  const [pairing, startPairing] = useTransition()
+
+  const makePairs = () => {
+    autosave.flush()
+    setPairDone(null)
+    setPairError(null)
+    startPairing(async () => {
+      const res = await pairExperiencesAndBlocks()
+      if (!res.ok) {
+        setPairError(res.error)
+        return
+      }
+      setItems((all) => mergeItems(all, res.data.items))
+      setNeeds(res.data.needs)
+      setPairDone(pairingDoneMessage(res.data))
+    })
+  }
 
   const change = (patch: Partial<ExperienceFields>) => {
     if (!selected) return
@@ -101,6 +131,8 @@ export function ExperiencesScreen({ initialItems, initialSelectedId = null, aiRe
           </button>
         </div>
       </header>
+
+      <PairingBanner needs={needs} aiReady={aiReady} running={pairing} done={pairDone} error={pairError} onMake={makePairs} />
 
       <div className="flex min-h-0 flex-auto flex-wrap items-start gap-3">
         <ExperienceList items={items} selectedId={selectedId} query={query} onQuery={setQuery} onSelect={select} />

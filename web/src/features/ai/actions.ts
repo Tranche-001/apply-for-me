@@ -12,11 +12,12 @@ import { errorLogContext, plainAiError } from './errors'
 import { TASKS } from './model'
 import { finalizePlacement } from './placement'
 import { finalizePostingJobs, type PostingJob } from './posting-jobs'
-import { finalizeAnalysis, finalizeBlockDraft, finalizeCvPlan, toPostingSummary } from './postprocess'
+import { draftBlockWith } from './block-draft'
+import { finalizeAnalysis, finalizeCvPlan, toPostingSummary } from './postprocess'
 import { NOT_READY } from './provider'
-import { buildAnalysisPrompt, buildAnswerPrompt, buildBlockDraftPrompt, buildCvPlanPrompt, buildPlacementPrompt, buildPostingJobsPrompt } from './prompts'
+import { buildAnalysisPrompt, buildAnswerPrompt, buildCvPlanPrompt, buildPlacementPrompt, buildPostingJobsPrompt } from './prompts'
 import { fail, invalidInput, ok } from './result'
-import { analysisOutputSchema, answerOutputSchema, blockDraftOutputSchema, cvPlanOutputSchema, placementOutputSchema, postingJobsOutputSchema } from './schemas'
+import { analysisOutputSchema, answerOutputSchema, cvPlanOutputSchema, placementOutputSchema, postingJobsOutputSchema } from './schemas'
 import type { AiAsk, AiReportLine, AiResult, AnalyzeJobInput, AnswerDraft, AnswerPlacement, CvPlan, DraftVersion, JobAnalysis } from './types'
 
 const id = z.string().trim().min(1, 'is missing').max(64, 'is not a valid id')
@@ -154,11 +155,7 @@ export async function draftBlockFromExperience(input: { experienceId: string }):
     const experience = experiences.find((e) => e.id === parsed.data.experienceId)
     if (!experience) return fail('This experience no longer exists. Reload the page.')
     if (!experience.notes.trim()) return fail('Write something about this experience first. The AI only uses what is written here.')
-    const linkedBlocks = library.filter((b) => experience.blockIds.includes(b.id))
-    const otherBlockNames = library.filter((b) => !experience.blockIds.includes(b.id)).map((b) => b.name)
-    const prompt = buildBlockDraftPrompt({ experience, linkedBlocks, otherBlockNames, rules })
-    const raw = await ai.run(prompt, blockDraftOutputSchema, TASKS.blockDraft)
-    return ok(finalizeBlockDraft(raw, library, experience))
+    return ok(await draftBlockWith(ai, experience, library, rules))
   })
 }
 

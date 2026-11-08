@@ -8,6 +8,8 @@ import { refresh } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { draftBlockFromExperience, readPostingJobs } from '../ai/actions'
+import { getAi } from '../ai/client'
+import { pairLibraryQuietly } from '../experiences/pairing'
 import { dbLogContext, plainDbError } from '../ai/db-errors'
 import { jobNamesFrom, type JobNames } from '../ai/job-info'
 import { jobLabel } from '../ai/labels'
@@ -117,8 +119,15 @@ const startInput = z.union([z.object({ urls: z.array(z.string()) }), z.object({ 
  * company and role, then find the job with that exact pair (`existed: true`) or create it. The posting text is saved
  * on the job; every valid link typed is added to it (read or not) unless the job already has it. Links that could
  * not be read come back in `unread`.
+ * First step, in the background and never shown: every experience gets a block and every block an experience
+ * (decision log), so the analysis that follows sees the whole library. It never fails the start.
  */
 export async function startFromPosting(input: { urls: string[] } | { url: string } | { text: string }): Promise<ActionResult<StartResult>> {
+  const [result] = await Promise.all([startFrom(input), pairLibraryQuietly(getAi())])
+  return result
+}
+
+async function startFrom(input: { urls: string[] } | { url: string } | { text: string }): Promise<ActionResult<StartResult>> {
   const parsedInput = startInput.safeParse(input)
   if (!parsedInput.success) return fail('Paste a link to the job posting, or the job text.')
   const data = parsedInput.data
