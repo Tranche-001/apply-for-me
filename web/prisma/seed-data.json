@@ -819,6 +819,46 @@
           ]
         }
       ]
+    },
+    {
+      "slug": "viravoto",
+      "name": "Projeto Vira Voto",
+      "section": "EXPERIENCE",
+      "org": "Projeto Vira Voto",
+      "location": "São Carlos, SP",
+      "dates": "October 2026",
+      "stack": "Next.js 16, React 19, TypeScript, Supabase (Postgres, Edge Functions, pg_cron), Google Apps Script, Vercel",
+      "position": 7,
+      "versions": [
+        {
+          "key": "viravoto-director",
+          "name": "Director & Full-Stack",
+          "title": "Director & Full-Stack Developer — Projeto Vira Voto",
+          "isBase": true,
+          "themes": [
+            "Full-stack",
+            "Leadership"
+          ],
+          "jobs": [],
+          "bullets": [
+            {
+              "kind": "PROJECT_IMPACT",
+              "text": "Directed a volunteer canvassing movement, organizing 100+ volunteers into 34+ groups that helped turn 1,000+ votes.",
+              "want": null
+            },
+            {
+              "kind": "PROJECT_STACK",
+              "text": "Built the platform that ran it: Google Form sign-ups flow through Apps Script into Supabase, where a unit-tested TypeScript algorithm forms teams of up to 4 per shift every 5 minutes, matching carpools, one meeting point and one area per group.",
+              "want": null
+            },
+            {
+              "kind": "PROJECT_STACK",
+              "text": "Shipped a Next.js site on Vercel where volunteers sign in by phone to see their shift, map and address, and the coordination team (admin) manages people, zones and groups, with server-only database access, rate-limited login and a nonce CSP.",
+              "want": null
+            }
+          ]
+        }
+      ]
     }
   ],
   "jobs": [
@@ -1501,6 +1541,16 @@
       "position": 6,
       "blockSlugs": [
         "Termo"
+      ]
+    },
+    {
+      "title": "Projeto Vira Voto",
+      "where": "São Carlos, SP",
+      "when": "October 2026",
+      "notes": "O Projeto Vira Voto Santa Felicia\n\nEsse projeto foi feito em 4 dias.\n\nO contexto é de que um grupo de 6 pessoas queria incentivar as pessoas de Santa Felicia a votar. O Grupo se separou em diversas atividades, como reunir voluntários, imprimir panfletos, organização de como os voluntários passariam nos bairros. E eu fiquei responsável por fazer um pipeline onde\n\nDado 4 horários de panfletagem, 2 lugares da saida (Usp São carlos e ufscar), se a pessoa tem carro ou não, organizar automaticamente as pessoas para que fiquem nos melhores grupos possíveis. Isto é, grupos onde a maioria das pessoas saem do mesmo horário do mesmo local e possuem pelo menos uma carona que está disponível no mesmo horário e local.(Além de outras regras)\n\nO Pipeline foi Google Forms → Planilha gerada pelo google forms → Appscript enviando dados para um banco no Supabase → cron e triggers que realizavam a reorganização automatica dos grupos → Aplicação na versel consumindo o banco do supabase e mostrando os dados\n\nOrganizamos mais de 100 pessoas e 30 grupos. Conseguimos virar mais de 1000 votos.\n\ne o Feedback em relação a aplicação foi super positivo, constantemente chamado como um dos movimentos mais bem organizados que teve em São Carlos.\n\nFiz uma apresentação no Cidade Aracy um dos bairros mais pobres de são carlos sobre o projeto\n\nUpdate of Nov 8, 2026, from the project repository and my own words\nMy role: Director & Full-Stack Developer of the movement. I organized the people and the coordination (admin) through the app.\nNumbers: 100+ volunteers in 34+ groups; 1,000+ votes turned.\nHow it worked: Google Form sign-ups flow through Apps Script into Supabase. Every 5 minutes a unit-tested TypeScript algorithm forms teams of up to 4 per shift, matching carpools, one meeting point and one area per group.\nThe site: Next.js on Vercel. Volunteers sign in by phone to see their shift, map and address; the coordination team (admin) manages people, zones and groups. Server-only database access, rate-limited login and a nonce CSP.\nStack: Next.js 16, React 19, TypeScript, Supabase (Postgres, Edge Functions, pg_cron), Google Apps Script, Vercel.",
+      "position": 7,
+      "blockSlugs": [
+        "Projeto Vira Voto"
       ]
     }
   ]
