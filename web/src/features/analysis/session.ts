@@ -33,6 +33,8 @@ export const SESSION_LIMITS = {
   key: 300,
   bulletText: 1000,
   answer: 5000,
+  /** "How should this CV be better?" on REVIEW. */
+  reviewRequest: 1000,
 } as const
 
 const L = SESSION_LIMITS
@@ -159,6 +161,25 @@ const arrangementSchema = z.object({
   oneSection: z.boolean().optional(),
 })
 
+const reportSchema = z.array(z.object({ tag: z.enum(['NEW', 'REUSED', 'ORDER', 'ADDED', 'LEFT OUT', 'NOTE']), text: long })).max(L.report)
+const titlesSchema = z.record(str(L.blockKey), titleChoiceSchema).refine((r) => Object.keys(r).length <= L.cvBlocks, { message: 'too many entries' })
+const roleTitlesSchema = z.array(z.object({ block: str(L.blockKey), title: short })).max(L.cvBlocks)
+
+/** REVIEW's request and the After CV (optional: sessions saved before REVIEW have none). */
+const reviewSchema = z.object({
+  request: str(L.reviewRequest),
+  remember: z.boolean(),
+  after: z.object({
+    drafts: z.array(sessionDraftSchema).max(MAX_DRAFTS),
+    titles: titlesSchema,
+    arrangement: arrangementSchema,
+    leftOut: z.array(z.object(versionViewShape)).max(MAX_VERSIONS),
+    roleTitles: roleTitlesSchema,
+  }),
+  report: reportSchema,
+  madeAt: str(40),
+})
+
 const record = <T extends z.ZodType>(value: T) =>
   z.record(id, value).refine((r) => Object.keys(r).length <= MAX_MAP_KEYS, { message: 'too many entries' })
 
@@ -181,6 +202,8 @@ export const analysisSessionSchema = z.object({
     .optional(),
   // Optional: how you arranged the CV on review (order, swaps, sections); none = as the AI gave it.
   arrangement: arrangementSchema.optional(),
+  // Optional: REVIEW's request and the After CV, until you keep one of the two.
+  review: reviewSchema.optional(),
 })
 
 /** The session when `value` is a valid current-version session; otherwise null. Never throws. */

@@ -36,4 +36,8 @@ export const TASKS = {
   postingJobs: { maxTokens: 4_000, effort: 'low' },
   /** Which experience each written answer belongs to: short structured output. */
   placement: { maxTokens: 6_000, effort: 'low' },
+  /** REVIEW: a new CV from his request (order, swaps, sections, titles, maybe new wording). */
+  cvReview: { maxTokens: 32_000, effort: 'medium' },
+  /** "Remember this": his request as 1 to 3 short rules. */
+  reviewRules: { maxTokens: 2_000, effort: 'low' },
 } as const satisfies Record<string, { maxTokens: number; effort: Effort }>

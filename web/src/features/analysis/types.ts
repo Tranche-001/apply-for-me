@@ -1,6 +1,6 @@
 // What Job analysis works with (serializable), plus pure helpers (unit-tested).
 import type { LinkKind, Section } from '@prisma/client'
-import type { AnalysisDraft, JobAnalysis } from '../ai/types'
+import type { AiReportLine, AnalysisDraft, JobAnalysis, LeftOutVersion, RoleTitle } from '../ai/types'
 
 export type JobLinkItem = { id: string; kind: LinkKind; url: string }
 
@@ -67,6 +67,30 @@ export type AnalysisSession = {
   titles?: Record<string, TitleChoice>
   /** How you arranged the CV on review (order, swaps, sections). Missing = as the AI gave it, in two sections. */
   arrangement?: Arrangement
+  /** REVIEW: your request and the CV the AI made from it, until you keep Before or After. Missing = none open. */
+  review?: CvReview
+}
+
+/**
+ * REVIEW after the CV appears: what you asked ("How should this CV be better?"), whether to remember it as rules, and
+ * the After CV. The session itself stays the Before CV until you keep After.
+ */
+export type CvReview = {
+  request: string
+  remember: boolean
+  after: ReviewAfter
+  /** What the AI changed, one line each (P2). */
+  report: AiReportLine[]
+  madeAt: string
+}
+
+/** The After CV: the parts of the session it replaces (drafts, title picks, arrangement, left out, role titles). */
+export type ReviewAfter = {
+  drafts: SessionDraft[]
+  titles: Record<string, TitleChoice>
+  arrangement: Arrangement
+  leftOut: LeftOutVersion[]
+  roleTitles: RoleTitle[]
 }
 
 /**

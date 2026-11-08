@@ -34,7 +34,7 @@ export const BLOCK_GLOSSARY = `How his CV is stored: each CV entry is a "block" 
  * neutralised, so the text can never step outside it and pass as instructions (ground rule 5).
  */
 export function fenceData(text: string): string {
-  return text.replace(/<(\/?)(job_posting|job|answers|profile)\b/gi, '<\\$1$2')
+  return text.replace(/<(\/?)(job_posting|job|answers|profile|review_request|current_cv)\b/gi, '<\\$1$2')
 }
 
 /** Escapes a value for an attribute-like `key="value"` pair inside the prompt. */

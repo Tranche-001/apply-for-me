@@ -15,7 +15,7 @@ const MAX_TITLE = 120
 const SENIORITY = /\b(senior|sênior|sr|lead|principal|staff|head|chief|director|manager|vp|pleno|specialist|especialista|architect)\b/giu
 
 /** The block `ref` names: its key, a new block's name, a reused version's id, or a block's name; null when none. */
-function resolve(ref: string, blocks: readonly CvBlockRef[]): CvBlockRef | null {
+export function resolve(ref: string, blocks: readonly CvBlockRef[]): CvBlockRef | null {
   const wanted = ref.trim()
   if (!wanted) return null
   const lower = wanted.toLowerCase()

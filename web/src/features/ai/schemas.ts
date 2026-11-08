@@ -166,6 +166,42 @@ export const placementOutputSchema = z.object({
 })
 export type PlacementOutput = z.infer<typeof placementOutputSchema>
 
+/** REVIEW after the CV appears: a new CV for the same job from his request. Only blocks, versions and titles change. */
+export const cvReviewOutputSchema = z.object({
+  order: z
+    .array(z.string())
+    .describe('Every block of the new CV, in print order: the key of a block of <current_cv>, or the block id of a version you add. Each block once.'),
+  remove: z.array(z.string()).describe('Keys of blocks of <current_cv> to take off this CV. Empty when none.'),
+  add: z
+    .array(z.object({ versionId: z.string().describe('Id of a library version.'), why: z.string().describe('One sentence: why it goes on this CV.') }))
+    .describe('Library versions to put on this CV: a block that is not on it, or another version of a block that is (it takes that block\'s place). Empty when none.'),
+  sections: z
+    .array(z.object({ block: z.string().describe('Key or block id.'), section }))
+    .describe('A block printed in the other section on this CV (an experience among the projects, or the reverse). Empty when every block stays in its own section.'),
+  oneSection: z.boolean().describe('true to print Experience and Projects as one "Experience & Projects" section, in the order above.'),
+  roleTitles: z
+    .array(z.object({ block: z.string().describe('Key of an EXPERIENCE block of the new CV.'), title: z.string().describe('The role only, without the place.') }))
+    .describe('A role title to print for an experience, only when his request asks for one. Empty otherwise.'),
+  drafts: z
+    .array(
+      z.object({
+        block: z.string().describe('Key of a block of <current_cv> that is new for this job (draft="yes").'),
+        title: z.string().describe('For a project: its title line. For an experience: copy the title it has (titles go in roleTitles).'),
+        bullets: z.array(draftBulletSchema),
+        note: z.string().describe('One sentence: what changed in this block, and why.'),
+      }),
+    )
+    .describe('New text for blocks new for this job, only when his request asks for different wording. Facts only from the material. Empty otherwise.'),
+  report: z.array(reportLineSchema).describe('One line per change you made (ORDER, ADDED, LEFT OUT, NOTE), and a NOTE for any part of his request you could not do and why.'),
+})
+export type CvReviewOutput = z.infer<typeof cvReviewOutputSchema>
+
+/** "Remember this for next CVs": his request as 1 to 3 short rules for the next CVs. */
+export const reviewRulesOutputSchema = z.object({
+  rules: z.array(z.string().describe('One short instruction for every future CV, in his words where they work.')).describe('1 to 3 rules.'),
+})
+export type ReviewRulesOutput = z.infer<typeof reviewRulesOutputSchema>
+
 /** Parses the model's text as JSON for `schema`; returns null when it is not valid. */
 export function parseModelJson<T>(schema: z.ZodType<T>, text: string): T | null {
   let raw: unknown
