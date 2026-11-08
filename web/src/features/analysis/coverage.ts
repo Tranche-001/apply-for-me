@@ -1,5 +1,8 @@
 // Which job requirements a block, or the whole CV, shows. Pure; nothing is mutated.
-import type { JobAnalysis, JobRequirement, RequirementMatch, RequirementStatus } from '../ai/types'
+import type { JobAnalysis, JobRequirement, ProfileKind, RequirementMatch, RequirementStatus } from '../ai/types'
+
+/** A profile item is named by its section of the profile (and of the CV). */
+export const PROFILE_SECTION: Record<ProfileKind, string> = { education: 'Education', skills: 'Technical Skills', achievement: 'Leadership & Achievements' }
 
 export type BlockRequirement = { requirement: JobRequirement; phrases: string[]; partly: boolean }
 
@@ -34,15 +37,21 @@ export type MetRequirement = { requirement: JobRequirement; hits: CvHit[]; partl
  * flagged `partly: true` (the screen shows "partly"); it is "not met" only when no kept block matches it at all.
  */
 export function cvRequirements(
-  analysis: Pick<JobAnalysis, 'requirements'>,
+  analysis: Pick<JobAnalysis, 'requirements' | 'profile'>,
   kept: readonly { id: string; blockName: string; matches: readonly RequirementMatch[] }[],
 ): { met: MetRequirement[]; notMet: JobRequirement[] } {
   const met: MetRequirement[] = []
   const notMet: JobRequirement[] = []
+  const profile = analysis.profile ?? []
   for (const requirement of analysis.requirements) {
-    const hits = kept.flatMap((k) =>
+    const blockHits = kept.flatMap((k) =>
       k.matches.filter((m) => m.requirementId === requirement.id).map((m) => ({ id: k.id, blockName: k.blockName, phrases: [...m.phrases], partly: m.partly })),
     )
+    // His profile (Education, skills, achievements) counts too: a requirement only it shows is met.
+    const profileHits = profile.flatMap((p, i) =>
+      p.requirementId === requirement.id ? [{ id: `profile-${i}`, blockName: PROFILE_SECTION[p.kind], phrases: [...p.phrases], partly: p.partly }] : [],
+    )
+    const hits = [...blockHits, ...profileHits]
     if (hits.length) met.push({ requirement, hits, partly: hits.every((h) => h.partly) })
     else notMet.push(requirement)
   }
@@ -56,7 +65,7 @@ export function cvRequirements(
 export function jobReqLine(
   status: RequirementStatus,
   requirementId: string,
-  analysis: Pick<JobAnalysis, 'asks' | 'drafts' | 'reused' | 'leftOut'>,
+  analysis: Pick<JobAnalysis, 'asks' | 'drafts' | 'reused' | 'leftOut' | 'profile'>,
   phase: 'before' | 'after',
   blockNameOf: (id: string) => string,
 ): string {
@@ -68,7 +77,8 @@ export function jobReqLine(
     ...analysis.drafts.filter((d) => shows(d.matches)).map((d) => d.key),
     ...(phase === 'before' ? analysis.leftOut.filter((v) => shows(v.matches)).map((v) => v.versionId) : []),
   ]
-  const names = [...new Set(ids.map(blockNameOf))].join(', ')
+  const fromProfile = (analysis.profile ?? []).filter((p) => p.requirementId === requirementId).map((p) => PROFILE_SECTION[p.kind])
+  const names = [...new Set([...ids.map(blockNameOf), ...fromProfile])].join(', ')
   if (status === 'covered') return names
   if (phase === 'after') return status === 'partial' && names ? `${names} · partly` : 'You don’t have it · add an experience'
   const index = analysis.asks.findIndex((a) => a.requirementId === requirementId)

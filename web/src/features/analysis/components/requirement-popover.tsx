@@ -4,8 +4,9 @@
 // the requirement, or why they don't. A gap shows the AI's question about it, or "+ Add experience" once the
 // answers are in.
 import type { ComponentProps } from 'react'
-import type { JobRequirement, RequirementStatus } from '@/features/ai/types'
+import type { JobRequirement, ProfileEvidence, RequirementStatus } from '@/features/ai/types'
 import { HitCard } from './ui/hit-card'
+import { ProfileCard } from './ui/profile-card'
 import { c } from './ui/cx'
 import { Modal } from './ui/modal'
 import { PostingQuotes } from './ui/posting-quotes'
@@ -18,6 +19,8 @@ export type Props = {
   postingLines: string[]
   /** The blocks that show the requirement, with their matching words. */
   hits: HitCardProps[]
+  /** Profile items (Education, skills, achievements) that show it, with their matching words. */
+  profile?: ProfileEvidence[]
   /** The AI's question about this gap (before the answers are sent). */
   ask: { n: number; text: string } | null
   /** A missing requirement after the answers: offer to add an experience that shows it. */
@@ -56,7 +59,7 @@ function Next({ ask, showAddExperience, onAnswer, onAddExperience }: Pick<Props,
   )
 }
 
-export function RequirementPopover({ requirement, postingLines, hits, ask, showAddExperience, onOpenPosting, onAnswer, onAddExperience, onClose }: Props) {
+export function RequirementPopover({ requirement, postingLines, hits, profile = [], ask, showAddExperience, onOpenPosting, onAnswer, onAddExperience, onClose }: Props) {
   const head = HEAD[requirement.status]
   const covered = requirement.status === 'covered'
   return (
@@ -84,6 +87,9 @@ export function RequirementPopover({ requirement, postingLines, hits, ask, showA
             {requirement.evidence && <p className={c('a-sub')}>{requirement.evidence}</p>}
             {hits.map((hit, i) => (
               <HitCard key={`${i}-${hit.blockName}`} {...hit} />
+            ))}
+            {profile.map((p, i) => (
+              <ProfileCard key={`p${i}-${p.title}`} evidence={p} />
             ))}
             {!covered && <Next ask={ask} showAddExperience={showAddExperience} onAnswer={onAnswer} onAddExperience={onAddExperience} />}
           </div>

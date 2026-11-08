@@ -66,6 +66,21 @@ const session = (over: Partial<AnalysisSession> = {}): AnalysisSession => ({
   ...over,
 })
 
+describe('parseSession: profile evidence', () => {
+  const evidence = { requirementId: 'r1', kind: 'education' as const, title: 'B.S. Information Systems', dates: '2023 – 2027', detail: 'USP', phrases: ['Information Systems'], partly: false }
+
+  test('an old session without profile evidence still loads; a new one keeps it', () => {
+    const old = session()
+    expect('profile' in old.analysis).toBe(false)
+    expect(parseSession(old)).not.toBeNull()
+    expect(parseSession(session({ analysis: { ...old.analysis, profile: [evidence] } }))?.analysis.profile).toEqual([evidence])
+  })
+
+  test('a bad kind is refused', () => {
+    expect(parseSession(session({ analysis: { ...session().analysis, profile: [{ ...evidence, kind: 'hobby' as 'education' }] } }))).toBeNull()
+  })
+})
+
 describe('parseSession', () => {
   test('accepts a valid session and returns it unchanged', () => {
     expect(parseSession(session())).toEqual(session())

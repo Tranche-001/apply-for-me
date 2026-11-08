@@ -87,7 +87,17 @@ describe('cvRequirements', () => {
     expect(result.met).toEqual([])
     expect(result.notMet).toEqual(requirements)
   })
+
+  it('a requirement your profile shows is met, even with no block; the profile is named by its section', () => {
+    const withProfile = { requirements, profile: [edu('kafka', false), edu('rag', true)] } as JobAnalysis
+    const result = cvRequirements(withProfile, [])
+    expect(result.met.map((x) => x.requirement.id)).toEqual(['rag', 'kafka'])
+    expect(result.met[1]).toEqual({ requirement: requirements[2], hits: [{ id: 'profile-0', blockName: 'Education', phrases: ['Information Systems'], partly: false }], partly: false })
+    expect(result.met[0].partly).toBe(true)
+  })
 })
+
+const edu = (requirementId: string, partly: boolean) => ({ requirementId, kind: 'education' as const, title: 'B.S. Information Systems', dates: '', detail: '', phrases: ['Information Systems'], partly })
 
 describe('jobReqLine', () => {
   const reused = { versionId: 'vr1', blockName: 'Visio AI', matches: [m('pyts')] } as unknown as ReusedVersion
@@ -130,6 +140,12 @@ describe('jobReqLine', () => {
   it('omits the question when none asks', () => {
     const a = { ...analysisFull, asks: [] } as JobAnalysis
     expect(jobReqLine('missing', 'kafka', a, 'before', nameOf)).toBe('Nothing in your blocks yet')
+  })
+
+  it('names your profile’s section when it shows the requirement', () => {
+    const a = { ...analysisFull, profile: [edu('kafka', false)] } as JobAnalysis
+    expect(jobReqLine('covered', 'kafka', a, 'after', nameOf)).toBe('Education')
+    expect(jobReqLine('covered', 'pyts', { ...analysisFull, profile: [{ ...edu('pyts', false), kind: 'skills' }] } as JobAnalysis, 'after', nameOf)).toBe('Visio AI, BI Dashboard, Technical Skills')
   })
 
   it('says to add an experience after drafting when still not covered', () => {

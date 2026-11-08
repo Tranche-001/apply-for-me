@@ -83,6 +83,16 @@ export const analysisOutputSchema = z.object({
     .array(z.object({ versionId: z.string(), why: z.string().describe('One sentence: why this version is not used for this job.'), matches: z.array(requirementMatchSchema) }))
     .describe('Relevant library versions you did not use, with why.'),
   report: z.array(reportLineSchema),
+  profileMatches: z
+    .array(
+      z.object({
+        requirementId: z.string().describe('Id of the requirement (r1, r2...) this profile item shows.'),
+        itemId: z.string().describe('Id of the item in <profile> (e1, s1, a1...).'),
+        phrases: z.array(z.string()).describe('Short phrases copied exactly, word for word, from that profile item.'),
+        partly: z.boolean().describe('true when the item only partly shows the requirement.'),
+      }),
+    )
+    .describe('Requirements his profile (Education, Technical Skills, Leadership & Achievements) shows. Empty when none.'),
 })
 export type AnalysisOutput = z.infer<typeof analysisOutputSchema>
 

@@ -558,6 +558,9 @@ a.a-chip:hover { border-color: var(--indigo-line); }
 .a-seg button + button { border-left: 1px solid var(--border-strong); }
 .a-seg button[aria-pressed='true'] { background: var(--indigo-soft); color: var(--indigo); }
 .a-seg button:focus-visible { outline: 2px solid var(--indigo); outline-offset: -2px; }
+/* A profile item as evidence (next-ideas mockup, #education). */
+.a-hl .pf-detail { font-style: italic; color: var(--text-2); }
+.a-hl .src a { text-decoration: none; color: var(--text); }
 .a-split .foot .sp { flex: 1; }
 /* Preflight removes list markers; the prototype's hit cards (and the full posting's lists) show discs. */
 .a-hl ul, .posting ul { list-style: disc; }

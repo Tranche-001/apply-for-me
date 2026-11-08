@@ -98,6 +98,25 @@ export type ReusedVersion = VersionView & { why: string; matches: RequirementMat
 /** A version the AI left out of this CV, what it would match and why it is out. */
 export type LeftOutVersion = VersionView & { why: string; matches: RequirementMatch[] }
 
+export type ProfileKind = 'education' | 'skills' | 'achievement'
+
+/**
+ * A profile item (an Education entry, a Technical Skills line, a Leadership & Achievements entry) that shows a
+ * requirement, copied from the profile when the analysis ran, with the words that show it (each found in it, P1).
+ */
+export type ProfileEvidence = {
+  requirementId: string
+  kind: ProfileKind
+  /** Degree, skills label, or achievement title. */
+  title: string
+  /** Education only: its dates ('' otherwise). */
+  dates: string
+  /** School · location, the skills, or the achievement's description. */
+  detail: string
+  phrases: string[]
+  partly: boolean
+}
+
 /** Everything Job analysis shows after Analyze / Update drafts. Saved with the job as part of the session. */
 export type JobAnalysis = {
   requirements: JobRequirement[]
@@ -106,6 +125,8 @@ export type JobAnalysis = {
   reused: ReusedVersion[]
   leftOut: LeftOutVersion[]
   report: AiReportLine[]
+  /** Profile items that show requirements. Missing in sessions saved before profiles counted as evidence. */
+  profile?: ProfileEvidence[]
 }
 
 /**

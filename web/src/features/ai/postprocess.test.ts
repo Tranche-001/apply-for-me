@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { parseSession } from '../analysis/session'
 import { SESSION_VERSION } from '../analysis/types'
-import { EXPERIENCE, LIBRARY } from './test-fixtures'
+import { EXPERIENCE, LIBRARY, PROFILE } from './test-fixtures'
 import { cleanBullets, idNames, nameIds, finalizeAnalysis, finalizeBlockDraft, finalizeCvPlan, normalizeSectionOrder, toPostingSummary } from './postprocess'
 import type { AnalysisOutput, BlockDraftOutput, CvPlanOutput } from './schemas'
 
@@ -78,6 +78,7 @@ const analysisOutput = (over: Partial<AnalysisOutput> = {}): AnalysisOutput => (
   reused: [],
   leftOut: [],
   report: [],
+  profileMatches: [],
   ...over,
 })
 
@@ -106,6 +107,37 @@ const draft = (over: Partial<AnalysisOutput['drafts'][number]> = {}): AnalysisOu
 const POSTING = 'We want Python in production and RAG experience.\n\nYou will build   “retrieval” pipelines — end-to-end.'
 const run = (raw: AnalysisOutput, posting = POSTING, experiences: { id: string; title: string }[] = []) =>
   finalizeAnalysis(raw, LIBRARY, 'iFood · GenAI Engineer', experiences, posting)
+
+describe('finalizeAnalysis: the profile counts as evidence', () => {
+  const raw = analysisOutput({
+    requirements: [req({ id: 'r1', text: 'Enrolled in Computer Science or related', status: 'missing', evidence: 'Your Education shows it.' }), req({ id: 'r2', text: 'Python' })],
+    profileMatches: [
+      { requirementId: 'r1', itemId: 'e1', phrases: ['Information Systems', 'Invented Degree'], partly: false },
+      { requirementId: 'r1', itemId: 'e7', phrases: ['Information Systems'], partly: false },
+      { requirementId: 'r9', itemId: 's1', phrases: ['Python'], partly: false },
+    ],
+  })
+
+  test('a requirement covered only by the profile is covered, with the item and the words that check out', () => {
+    const out = finalizeAnalysis(raw, LIBRARY, 'iFood · GenAI Engineer', [], POSTING, PROFILE)
+    expect(out.requirements[0].status).toBe('covered')
+    expect(out.profile).toEqual([
+      { requirementId: 'r1', kind: 'education', title: 'B.S. Information Systems', dates: '2023 – 2027', detail: 'University of São Paulo · São Carlos', phrases: ['Information Systems'], partly: false },
+    ])
+  })
+
+  test('without the profile nothing is kept and the status is the AI’s', () => {
+    const out = run(raw)
+    expect(out.profile).toEqual([])
+    expect(out.requirements[0].status).toBe('missing')
+  })
+
+  test('what it returns is a valid session analysis', () => {
+    const analysis = finalizeAnalysis(raw, LIBRARY, 'x', [], POSTING, PROFILE)
+    const session = { v: SESSION_VERSION, analysis, answers: {}, dont: {}, sent: {}, drafts: [], asIsOut: [], pages: 1, step: 'input', analyzedAt: '2026-01-01T00:00:00.000Z', savedAt: null }
+    expect(parseSession(session)?.analysis.profile).toHaveLength(1)
+  })
+})
 
 describe('finalizeAnalysis: requirements and quotes (P1)', () => {
   test('keeps a quote only when it occurs in the posting, returning the posting’s own wording', () => {

@@ -78,10 +78,10 @@ export async function analyzeJob(input: AnalyzeJobInput): Promise<AiResult<JobAn
     const job = await loadJob(jobId)
     if (!job) return fail(MISSING_JOB)
     if (!job.postingText.trim()) return fail(NO_POSTING)
-    const [library, experiences, rules] = await Promise.all([loadLibrary(), loadExperiences(), loadRules('cv')])
-    const prompt = buildAnalysisPrompt({ job, library, experiences, rules, answers, instruction, previousDrafts })
+    const [library, experiences, rules, profile] = await Promise.all([loadLibrary(), loadExperiences(), loadRules('cv'), loadProfile()])
+    const prompt = buildAnalysisPrompt({ job, library, experiences, rules, answers, instruction, previousDrafts, profile })
     const raw = await ai.run(prompt, analysisOutputSchema, TASKS.analysis)
-    return ok(finalizeAnalysis(raw, library, job.label, experiences, job.postingText))
+    return ok(finalizeAnalysis(raw, library, job.label, experiences, job.postingText, profile))
   })
 }
 

@@ -43,6 +43,7 @@ export function AnalysisPopovers({ a, views, lines, listItems, onEdit }: Props) 
   const posting = (reqId: string, backLabel: string) => a.setModal({ kind: 'posting', reqId, backLabel, back: m })
   const reqOfAsk = (askId: string) => requirementOf(s, s.analysis.asks.find((x) => x.id === askId)?.requirementId)
   const host = hostOf(a.job?.links[0]?.url)
+  const profileFor = (reqId: string) => (s.analysis.profile ?? []).filter((p) => p.requirementId === reqId)
 
   switch (m.kind) {
     case 'answer':
@@ -93,6 +94,7 @@ export function AnalysisPopovers({ a, views, lines, listItems, onEdit }: Props) 
           requirement={r}
           postingLines={lines}
           hits={hitsFor(r.id, pool).map((h) => ({ tag: cardTag(h.view), blockName: h.view.blockName, title: h.view.title, dates: h.view.section === 'EXPERIENCE' ? h.view.dates : undefined, bullets: h.view.bullets, phrases: h.phrases, onEdit: editOf(h.view) }))}
+          profile={profileFor(r.id)}
           ask={before && askIndex >= 0 ? { n: askIndex + 1, text: s.analysis.asks[askIndex].text } : null}
           showAddExperience={!before && r.status === 'missing'}
           onOpenPosting={() => posting(r.id, `“${r.text}”`)}
@@ -118,6 +120,7 @@ export function AnalysisPopovers({ a, views, lines, listItems, onEdit }: Props) 
           requirement={r}
           postingLines={lines}
           hits={hitsFor(r.id, kept).map((h) => ({ id: h.view.ref, tag: cardTag(h.view), blockName: h.view.blockName, title: h.view.title, dates: h.view.section === 'EXPERIENCE' ? h.view.dates : undefined, bullets: h.view.bullets, phrases: h.phrases, editable: Boolean(editOf(h.view)) }))}
+          profile={profileFor(r.id)}
           backTo={back?.blockName ?? null}
           onBack={() => {
             if (back) a.setModal({ kind: 'block', ref: back.ref })

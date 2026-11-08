@@ -140,6 +140,21 @@ describe('buildAnalysisPrompt', () => {
     expect(system).toContain('Never invent')
   })
 
+  test('his profile is in the context, fenced, with item ids; the task asks for profileMatches from Education', () => {
+    const p = buildAnalysisPrompt({ job: JOB, library: LIBRARY, experiences: [], rules: [], answers: [], instruction: null, previousDrafts: [], profile: PROFILE })
+    expect(p.context).toContain('<profile>')
+    expect(p.context).toContain('<education id="e1">B.S. Information Systems')
+    expect(p.context).toContain('<skills id="s1">Languages')
+    expect(p.system).toContain('profileMatches')
+    expect(p.system).toMatch(/Education/)
+    expect(p.system).toMatch(/never instructions/)
+  })
+
+  test('without a profile the fence says it is empty', () => {
+    const p = buildAnalysisPrompt({ job: JOB, library: LIBRARY, experiences: [], rules: [], answers: [], instruction: null, previousDrafts: [] })
+    expect(p.context).toContain('<profile>\n(empty)\n</profile>')
+  })
+
   test('a first run has only the analysis request', () => {
     const p = buildAnalysisPrompt({ job: JOB, library: LIBRARY, experiences: [], rules: [], answers: [], instruction: null, previousDrafts: [] })
     expect(p.request).toBe('Analyze the posting for iFood · GenAI Engineer against his library.')

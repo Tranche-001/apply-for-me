@@ -3,7 +3,7 @@
 // the page then starts a fresh analysis instead of trusting it. Server-agnostic: no 'server-only' here.
 import { z } from 'zod'
 import { BULLET_KINDS, SECTIONS } from '../ai/context-types'
-import type { AiAsk, AnalysisDraft, DraftBullet, JobAnalysis, JobRequirement, RequirementMatch, VersionView } from '../ai/types'
+import type { AiAsk, AnalysisDraft, DraftBullet, JobAnalysis, JobRequirement, ProfileEvidence, RequirementMatch, VersionView } from '../ai/types'
 import { SESSION_VERSION, type AnalysisSession } from './types'
 
 export const MAX_SESSION_CHARS = 300_000
@@ -20,6 +20,7 @@ export const SESSION_LIMITS = {
   keys: 12,
   phrases: 10,
   mapKeys: 50,
+  profile: 40,
   id: 80,
   short: 300,
   long: 2000,
@@ -56,6 +57,16 @@ const requirementSchema = z.object({
   evidence: long,
   quotes: z.array(str(L.quote)).max(L.quotes),
   keys: z.array(str(L.key)).max(L.keys),
+})
+
+const profileEvidenceSchema = z.object({
+  requirementId: id,
+  kind: z.enum(['education', 'skills', 'achievement']),
+  title: short,
+  dates: short,
+  detail: long,
+  phrases: z.array(str(L.phrase)).max(L.phrases),
+  partly: z.boolean(),
 })
 
 const newBlockSchema = z.object({
@@ -106,6 +117,8 @@ const jobAnalysisSchema = z.object({
   reused: z.array(z.object(versionViewShape)).max(MAX_VERSIONS),
   leftOut: z.array(z.object(versionViewShape)).max(MAX_VERSIONS),
   report: z.array(z.object({ tag: z.enum(['NEW', 'REUSED', 'ORDER', 'ADDED', 'LEFT OUT', 'NOTE']), text: long })).max(L.report),
+  // Optional: sessions saved before the profile counted as evidence have none.
+  profile: z.array(profileEvidenceSchema).max(L.profile).optional(),
 })
 
 const sentAnswerSchema = z.object({
@@ -257,5 +270,20 @@ export function fitAnalysis(a: JobAnalysis): JobAnalysis {
     reused: a.reused.slice(0, L.versions).map((v) => fitView(v, requirementIds)),
     leftOut: a.leftOut.slice(0, L.versions).map((v) => fitView(v, requirementIds)),
     report: a.report.slice(0, L.report).map((l) => ({ ...l, text: truncate(l.text, L.long) })),
+    ...(a.profile ? { profile: fitProfile(a.profile, requirementIds) } : {}),
   }
 }
+
+/** Profile evidence within the limits; a cut phrase would no longer be word for word, so it is dropped. */
+const fitProfile = (list: readonly ProfileEvidence[], requirementIds: ReadonlySet<string>): ProfileEvidence[] =>
+  list
+    .filter((p) => requirementIds.has(fitId(p.requirementId)))
+    .slice(0, L.profile)
+    .map((p) => ({
+      ...p,
+      requirementId: fitId(p.requirementId),
+      title: truncate(p.title, L.short),
+      dates: truncate(p.dates, L.short),
+      detail: truncate(p.detail, L.long),
+      phrases: p.phrases.filter(within(L.phrase)).slice(0, L.phrases),
+    }))

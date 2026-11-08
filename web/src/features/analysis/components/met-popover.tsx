@@ -1,11 +1,12 @@
 // A requirement the CV meets (the prototype's metPopover, option B): what the posting says, word for word,
 // next to the CV blocks that show it with their words highlighted (P1, H6).
-import type { DraftBullet, JobRequirement } from '../../ai/types'
+import type { DraftBullet, JobRequirement, ProfileEvidence } from '../../ai/types'
 import { cvShowsLabel } from '../review-labels'
 import { c } from './ui/cx'
 import { HitCard, type BlockTagKind } from './ui/hit-card'
 import { Modal } from './ui/modal'
 import { PostingQuotes } from './ui/posting-quotes'
+import { ProfileCard } from './ui/profile-card'
 
 /**
  * A block of this CV that shows the requirement. Like the prototype's hit cards, a project block (one with a
@@ -30,6 +31,8 @@ export type Props = {
   /** The saved posting, split with postingLines(). */
   postingLines: string[]
   hits: MetHit[]
+  /** Profile items (Education, skills, achievements) that show it: they count for this CV too. */
+  profile?: ProfileEvidence[]
   /** Opened from a block's popover: "← Back to <block>". */
   backTo: string | null
   onBack?: () => void
@@ -38,7 +41,7 @@ export type Props = {
   onClose: () => void
 }
 
-export function MetPopover({ requirement, postingLines, hits, backTo, onBack, onOpenPosting, onEditBlock, onClose }: Props) {
+export function MetPopover({ requirement, postingLines, hits, profile = [], backTo, onBack, onOpenPosting, onEditBlock, onClose }: Props) {
   return (
     <Modal label={requirement.text} onClose={onClose}>
       <div className={c('a-pop src-b')}>
@@ -58,7 +61,7 @@ export function MetPopover({ requirement, postingLines, hits, backTo, onBack, on
             </button>
           </div>
           <div className={c('src-col')}>
-            <span className={c('pv-k')}>{cvShowsLabel(hits.length)}</span>
+            <span className={c('pv-k')}>{cvShowsLabel(hits.length + profile.length)}</span>
             {hits.map((h) => (
               <HitCard
                 key={h.id}
@@ -70,6 +73,9 @@ export function MetPopover({ requirement, postingLines, hits, backTo, onBack, on
                 phrases={h.phrases}
                 onEdit={h.editable ? () => onEditBlock(h.id) : undefined}
               />
+            ))}
+            {profile.map((p, i) => (
+              <ProfileCard key={`p${i}-${p.title}`} evidence={p} />
             ))}
           </div>
         </div>

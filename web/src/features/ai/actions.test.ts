@@ -127,6 +127,7 @@ describe('analyzeJob / analyzePosting', () => {
     reused: [{ versionId: 'v-bi-llm', why: 'Fits.', matches: [] }],
     leftOut: [],
     report: [],
+    profileMatches: [],
   }
 
   test('the fixed contract maps statuses to covered', async () => {

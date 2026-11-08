@@ -3,12 +3,14 @@
 // and quotes, keys and phrases are kept only when they really occur in the posting or the bullets (P1).
 import type { Section } from '@prisma/client'
 import { fitAnalysis } from '../analysis/session'
-import type { ExperienceContext, LibraryBlock, LibraryVersion } from './context-types'
+import type { ExperienceContext, LibraryBlock, LibraryVersion, ProfileContext } from './context-types'
 import { SECTIONS } from './context-types'
+import { cleanProfileMatches, profileItems, withProfileStatus } from './profile-evidence'
 import type { AnalysisOutput, BlockDraftOutput, CvPlanOutput } from './schemas'
 import type { AiAsk, AiReportLine, AnalysisDraft, CvPlan, DraftBullet, DraftVersion, JobAnalysis, JobRequirement, RequirementMatch, VersionView } from './types'
 
 export const MAX_BULLETS = 4
+const NO_PROFILE: ProfileContext = { education: [], skills: [], achievements: [] }
 const MAX_ASKS_CV = 3
 const MAX_ASKS_ANALYSIS = 4
 
@@ -286,12 +288,16 @@ export function finalizeAnalysis(
   jobName: string,
   experiences: readonly { id: string; title: string }[] = [],
   postingText = '',
+  profile: ProfileContext = NO_PROFILE,
 ): JobAnalysis {
   const index = indexVersions(library)
   const blocks = new Map(library.map((b) => [b.id, b]))
   const names = idNames(library, experiences)
-  const requirements = cleanRequirements(raw.requirements, prepareText(postingText), names)
-  const requirementIds = new Set(requirements.map((r) => r.id))
+  const cleaned = cleanRequirements(raw.requirements, prepareText(postingText), names)
+  const requirementIds = new Set(cleaned.map((r) => r.id))
+  // His profile counts as evidence: a requirement it shows in full is covered, even with no block for it.
+  const profileEvidence = cleanProfileMatches(raw.profileMatches ?? [], profileItems(profile), requirementIds)
+  const requirements = withProfileStatus(cleaned, profileEvidence)
   const asks = uniqueAskIds(raw.asks, new Set(experiences.map((e) => e.id)), requirementIds, names)
   const askIds = new Set(asks.map((a) => a.id))
   let unknownBlocks = 0
@@ -348,6 +354,7 @@ export function finalizeAnalysis(
       ...skippedNote(unknownBlocks, unknownBlocks === 1 ? 'block' : 'blocks'),
       ...skippedNote(unknownVersions, unknownVersions === 1 ? 'version' : 'versions'),
     ],
+    profile: profileEvidence,
   })
 }
 
