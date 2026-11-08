@@ -12,6 +12,7 @@ import type { LoadedAnalysisJob } from '../queries'
 import { applyRedraft, markSaved, markSent, newSession, setStep, type DraftUndo } from '../session-state'
 import type { AnalysisSession, ExperienceOption, JobSummary, SentAnswer } from '../types'
 import type { Destination, PlacementItem } from './placement-popover'
+import { typedLinks, unreadNotice } from './start-links'
 import { askNumber, topicFor } from './view-model'
 
 export type Phase = 'idle' | 'reading' | 'comparing' | 'placing' | 'redrafting' | 'saving'
@@ -127,20 +128,23 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     setPhase('idle')
   }
 
-  async function start(input: { url: string } | { text: string }): Promise<void> {
+  async function start(input: { urls: string[] } | { text: string }): Promise<void> {
     setPhase('reading')
     setProblem(null)
     setNotice(null)
     const res = await startFromPosting(input)
     if (!res.ok) return fail(res.error, null)
-    const { job: j, existed, postingText: text } = res.data
+    const { job: j, existed, postingText: text, unread } = res.data
     jobRef.current = j
     setJob(j)
     setPostingText(text)
     setResumed(false)
     commit(null)
     window.history.replaceState(null, '', `?job=${encodeURIComponent(j.id)}`)
-    if (existed) setNotice(`You already had ${j.label}. The AI is analyzing it again.`)
+    const unreadText = unreadNotice(unread, 'urls' in input ? typedLinks(input.urls).length : 0)
+    const already = existed ? `You already had ${j.label}. The AI is analyzing it again.` : null
+    const notice = [unreadText, already].filter(Boolean).join(' ')
+    if (notice) setNotice(notice)
     await compare(j, null)
   }
 
@@ -306,7 +310,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     job, postingText, session, resumed, phase, problem, notice, experiences, modal, undo, notMet, saveState: autosave,
     setModal, setUndo, setProblem, change, openNotMet, confirmPlacement, addExperience, reset,
     // Wrapped when called (from an event), never during render.
-    start: (input: { url: string } | { text: string }) => guard(start)(input),
+    start: (input: { urls: string[] } | { text: string }) => guard(start)(input),
     analyzeAgain: () => guard(analyzeAgain)(),
     redraft: (instruction: string | null = null) => guard(redraft)(instruction),
     updateDrafts: () => guard(updateDrafts)(),

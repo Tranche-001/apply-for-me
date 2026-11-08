@@ -3,7 +3,7 @@
 import { Prisma } from '@prisma/client'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import type { FetchResult } from './fetch-posting'
-import { SESSION_VERSION, type AnalysisSession } from './types'
+import { guessLinkKind, SESSION_VERSION, type AnalysisSession } from './types'
 
 const m = vi.hoisted(() => ({
   refresh: vi.fn(),
@@ -93,6 +93,7 @@ describe('startFromPosting', () => {
       data: {
         existed: false,
         postingText: POSTING,
+        unread: [],
         job: { id: 'j1', company: 'Acme', role: 'Backend Engineer', label: 'Acme · Backend Engineer', links: [{ id: 'l1', kind: 'APPLICATION', url: 'https://boards.greenhouse.io/acme/jobs/1' }], postingChars: POSTING.length },
       },
     })
@@ -129,7 +130,81 @@ describe('startFromPosting', () => {
     m.job.findUnique.mockResolvedValue(jobRow({ links: [{ id: 'l0', kind: 'POSTING', url: 'https://other.example/job', position: 4 }] }))
     m.job.update.mockResolvedValue(jobRow())
     await startFromPosting({ url: 'https://boards.greenhouse.io/acme/jobs/1' })
-    expect(m.job.update.mock.calls[0][0].data.links).toEqual({ create: { url: 'https://boards.greenhouse.io/acme/jobs/1', kind: 'APPLICATION', position: 5 } })
+    expect(m.job.update.mock.calls[0][0].data.links).toEqual({ create: [{ url: 'https://boards.greenhouse.io/acme/jobs/1', kind: 'APPLICATION', position: 5 }] })
+  })
+
+  const URL_A = 'https://boards.greenhouse.io/acme/jobs/1'
+  const URL_B = 'https://jobs.acme.com/apply/1'
+  const twoLinks = (blockB = false) =>
+    m.fetchPosting.mockImplementation(async (url: string) =>
+      url === URL_B && blockB ? { ok: false, message: 'Blocked. You can paste the job text instead.' } : fetched({ url, text: url === URL_A ? 'text A' : 'text B' }),
+    )
+
+  test('two links: both saved on a new job, the combined text goes to the AI', async () => {
+    twoLinks()
+    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.job.findUnique.mockResolvedValue(null)
+    m.job.create.mockResolvedValue(jobRow())
+    const r = await startFromPosting({ urls: [URL_A, URL_B] })
+    const combined = `From ${URL_A}:\ntext A\n\nFrom ${URL_B}:\ntext B`
+    expect(m.readJobInfo).toHaveBeenCalledWith({ postingText: combined })
+    expect(m.job.create.mock.calls[0][0].data.links).toEqual({
+      create: [
+        { url: URL_A, kind: 'APPLICATION', position: 0 },
+        { url: URL_B, kind: guessLinkKind(URL_B), position: 1 },
+      ],
+    })
+    expect(r.ok && r.data.unread).toEqual([])
+  })
+
+  test('{ url } still works as one link', async () => {
+    m.fetchPosting.mockResolvedValue(fetched())
+    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.job.findUnique.mockResolvedValue(null)
+    m.job.create.mockResolvedValue(jobRow())
+    await startFromPosting({ url: URL_A })
+    expect(m.job.create.mock.calls[0][0].data.links.create).toHaveLength(1)
+  })
+
+  test('one link that cannot be read: still starts from the other, saves both, returns unread', async () => {
+    twoLinks(true)
+    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.job.findUnique.mockResolvedValue(null)
+    m.job.create.mockResolvedValue(jobRow())
+    const r = await startFromPosting({ urls: [URL_A, URL_B] })
+    expect(m.readJobInfo).toHaveBeenCalledWith({ postingText: 'text A' })
+    expect(m.job.create.mock.calls[0][0].data.links.create).toHaveLength(2)
+    expect(r.ok && r.data.unread).toEqual([{ url: URL_B, error: 'Blocked. You can paste the job text instead.' }])
+  })
+
+  test('an existing job gets only the typed links it does not have, after its own', async () => {
+    twoLinks()
+    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.job.findUnique.mockResolvedValue(jobRow({ links: [{ id: 'l0', kind: 'APPLICATION', url: URL_A, position: 2 }] }))
+    m.job.update.mockResolvedValue(jobRow())
+    await startFromPosting({ urls: [URL_A, URL_B] })
+    expect(m.job.update.mock.calls[0][0].data.links).toEqual({ create: [{ url: URL_B, kind: guessLinkKind(URL_B), position: 3 }] })
+  })
+
+  test('more than 5 links is a plain error and nothing is read', async () => {
+    const urls = Array.from({ length: 6 }, (_, i) => `https://jobs.example.com/${i}`)
+    const r = await startFromPosting({ urls })
+    expect(r).toEqual({ ok: false, error: expect.stringMatching(/5 links/i) })
+    expect(m.fetchPosting).not.toHaveBeenCalled()
+  })
+
+  test('no links, or only empty ones, is refused', async () => {
+    expect((await startFromPosting({ urls: [] })).ok).toBe(false)
+    expect((await startFromPosting({ urls: ['  '] })).ok).toBe(false)
+    expect(m.fetchPosting).not.toHaveBeenCalled()
+  })
+
+  test('pasted text returns no unread links', async () => {
+    m.readJobInfo.mockResolvedValue({ ok: true, data: { company: 'Acme', role: 'Backend Engineer' } })
+    m.job.findUnique.mockResolvedValue(null)
+    m.job.create.mockResolvedValue(jobRow({ links: [] }))
+    const r = await startFromPosting({ text: POSTING })
+    expect(r.ok && r.data.unread).toEqual([])
   })
 
   test('the AI not being ready is passed on and nothing is written', async () => {

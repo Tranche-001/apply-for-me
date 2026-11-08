@@ -1,10 +1,11 @@
 'use client'
 
-// Frame "start": only the posting's link. "Paste the job text instead" (for sites like LinkedIn that block
+// Frame "start": the posting's link, or several links of the same job (up to 5). "Paste the job text instead" (for sites like LinkedIn that block
 // reading) swaps the link for a text box; "← Use a link instead" swaps back. The AI creates the job from it.
-import { useState, type FormEvent } from 'react'
+import { Fragment, useRef, useState, type FormEvent } from 'react'
 import { Icon } from '@/features/ai/ui/icon'
 import { MAX_POSTING_CHARS } from '../html-text'
+import { MAX_LINKS, typedLinks } from './start-links'
 import { c } from './ui/cx'
 
 export type Props = {
@@ -14,7 +15,7 @@ export type Props = {
   notReadyText: string
   /** The last problem reading the link or the text, in plain language. */
   error: string | null
-  onAnalyzeUrl: (url: string) => void
+  onAnalyzeUrls: (urls: string[]) => void
   onUsePasted: (text: string) => void
 }
 
@@ -31,9 +32,10 @@ function pastedProblem(text: string): string | null {
   return null
 }
 
-export function StartCard({ busy, aiReady, notReadyText, error, onAnalyzeUrl, onUsePasted }: Props) {
+export function StartCard({ busy, aiReady, notReadyText, error, onAnalyzeUrls, onUsePasted }: Props) {
   const [mode, setMode] = useState<'link' | 'text'>('link')
-  const [url, setUrl] = useState('')
+  const [links, setLinks] = useState<string[]>([''])
+  const inputs = useRef<(HTMLInputElement | null)[]>([])
   const [text, setText] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
   /** Focus follows a switch between link and text, never the first load. */
@@ -46,13 +48,21 @@ export function StartCard({ busy, aiReady, notReadyText, error, onAnalyzeUrl, on
     setSwitched(true)
     setMode(next)
   }
+  const setLink = (index: number, value: string) => setLinks((list) => list.map((l, i) => (i === index ? value : l)))
+  const removeLink = (index: number) => setLinks((list) => list.filter((_, i) => i !== index))
+  const addLink = () => {
+    const next = links.length
+    setLinks((list) => [...list, ''])
+    // The new row mounts on the next render: focus it then.
+    requestAnimationFrame(() => inputs.current[next]?.focus())
+  }
   const submit = (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault()
     if (blocked) return
     if (mode === 'link') {
-      const link = url.trim()
-      setProblem(link ? null : NO_LINK)
-      if (link) onAnalyzeUrl(link)
+      const typed = typedLinks(links)
+      setProblem(typed.length ? null : NO_LINK)
+      if (typed.length) onAnalyzeUrls(typed)
       return
     }
     const found = pastedProblem(text)
@@ -65,28 +75,51 @@ export function StartCard({ busy, aiReady, notReadyText, error, onAnalyzeUrl, on
       {mode === 'link' ? (
         <>
           <h3>Paste the link to the job posting</h3>
-          <div className={c('a-url')}>
-            <div>
-              <Icon name="link" />
-              <input
-                type="url"
-                inputMode="url"
-                autoComplete="off"
-                spellCheck={false}
-                aria-label="Link to the job posting"
-                aria-invalid={problem ? true : undefined}
-                placeholder="https://"
-                value={url}
-                onChange={(ev) => setUrl(ev.target.value)}
-                disabled={busy}
-                autoFocus={switched}
-              />
-            </div>
-            <button className={c('a-btn p')} type="submit" disabled={blocked}>
-              <Icon name="sparkle" />
-              Analyze
-            </button>
+          <div className={c('a-urls')}>
+            {links.map((link, i) => (
+              <Fragment key={i}>
+                <div className={c(i === 0 ? 'fld on' : 'fld')}>
+                  <Icon name="link" />
+                  <input
+                    ref={(el) => {
+                      inputs.current[i] = el
+                    }}
+                    type="url"
+                    inputMode="url"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-label={i === 0 ? 'Link to the job posting' : `Link ${i + 1} to the job`}
+                    aria-invalid={problem && i === 0 ? true : undefined}
+                    placeholder={i === 0 ? 'https://' : 'Another link, e.g. the application page'}
+                    value={link}
+                    onChange={(ev) => setLink(i, ev.target.value)}
+                    disabled={busy}
+                    autoFocus={switched && i === 0}
+                  />
+                  {i > 0 && (
+                    <button className={c('rm')} type="button" aria-label="Remove this link" onClick={() => removeLink(i)} disabled={busy}>
+                      ×
+                    </button>
+                  )}
+                </div>
+                {i === 0 ? (
+                  <button className={c('a-btn p')} type="submit" disabled={blocked}>
+                    <Icon name="sparkle" />
+                    Analyze
+                  </button>
+                ) : (
+                  <span />
+                )}
+              </Fragment>
+            ))}
           </div>
+          {links.length < MAX_LINKS ? (
+            <button className={c('a-add')} type="button" onClick={addLink} disabled={busy}>
+              + Add another link
+            </button>
+          ) : (
+            <p className={c('a-hint')}>Up to {MAX_LINKS} links per job.</p>
+          )}
         </>
       ) : (
         <>
@@ -114,7 +147,7 @@ export function StartCard({ busy, aiReady, notReadyText, error, onAnalyzeUrl, on
       )}
       <p className={c('a-hint')}>
         {mode === 'link'
-          ? 'The AI reads the posting and creates the job: company, role and link. Then it compares the job with your blocks.'
+          ? 'The AI reads every link (the posting, the application page…) and creates the job: company, role and links. Then it compares the job with your blocks.'
           : 'The AI reads the text and creates the job: company and role. Then it compares the job with your blocks.'}
       </p>
       {!aiReady && <p className={c('a-warn')}>{notReadyText}</p>}

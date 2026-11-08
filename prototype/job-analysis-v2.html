@@ -571,6 +571,17 @@
   .j-cv .cv { zoom: 0.86; }
   .j-cv .cv-block.new::before { display: none; }
   .a-last { color: var(--app-muted); }
+  /* Start: more than one link of the same job */
+  .a-urls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+  .a-urls .fld { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 6px 0 11px; border: 1px solid var(--app-border-strong); border-radius: 9px; background: var(--app-surface); color: var(--app-text); font-size: 13px; min-width: 0; overflow: hidden; white-space: nowrap; }
+  .a-urls .fld.on { border: 1.5px solid var(--app-indigo); }
+  .a-urls .fld svg { width: 14px; height: 14px; flex: none; fill: none; stroke: var(--app-muted); stroke-width: 2; }
+  .a-urls .fld .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .a-urls .fld .t.ph { color: var(--app-faint); }
+  .a-urls .rm { flex: none; width: 26px; height: 26px; border: 0; background: none; border-radius: 6px; color: var(--app-muted); cursor: pointer; font-size: 15px; line-height: 1; }
+  .a-urls .rm:hover { background: #f1f2f4; color: var(--app-text); }
+  .a-start .a-add { justify-self: start; border: 0; background: none; padding: 0; color: var(--app-indigo); font: 500 12.5px var(--sans); cursor: pointer; }
+  .a-start .a-add:hover { text-decoration: underline; text-underline-offset: 2px; }
 
   dialog.live { border: 0; padding: 0; background: transparent; max-width: 96vw; overflow: visible; }
   dialog.live::backdrop { background: var(--app-scrim); }
@@ -634,7 +645,8 @@
   <div class="steps">
     <section class="step" id="t-start">
       <div class="step-head"><span class="pill"><b>1</b>Read posting</span><h2>Só o link</h2></div>
-      <p class="note">A tela começa com uma coisa só: o link da vaga. Não tem seletor de vaga nem “New job”, porque quem cria a vaga é a IA. “Paste the job text instead” existe só aqui, para sites como o LinkedIn que bloqueiam a leitura.</p>
+      <p class="note">A tela começa com uma coisa só: o link da vaga. Não tem seletor de vaga nem “New job”, porque quem cria a vaga é a IA. “Paste the job text instead” existe só aqui, para sites como o LinkedIn que bloqueiam a leitura. “+ Add another link” acrescenta outro link da mesma vaga, como a página de candidatura na Gupy: a IA lê todos, junta o texto e guarda os links com a vaga. Até 5 links; o × tira um link.</p>
+      <p class="try">Experimente: clique em “+ Add another link” e no × de um link.</p>
       <div class="tags"><span class="tag gone">Job ▾</span><span class="tag gone">+ New job</span><span class="tag new">só o link</span></div>
       <div class="frame"><div class="bar"><i></i><i></i><i></i><span>localhost:3000/analyze</span></div><div class="scroll"><div data-frame="start"></div></div></div>
     </section>
@@ -1247,6 +1259,17 @@
     </div></div>`
   }
 
+  // ── Start: one link, or more links of the same job (the posting, the application page…), up to 5 ──
+  const START_UI = { links: ['https://jobs.exampleco.com/senior-genai-engineer', 'https://exampleco.gupy.io/jobs/4242'] }
+  const MAX_LINKS = 5
+  const startCard = () => {
+    const rows = START_UI.links.map((l, i) => `<div class="fld${i === 0 ? ' on' : ''}">${svg('link')}<span class="t${l ? '' : ' ph'}">${esc(l || 'Another link, e.g. the application page')}</span>${i ? `<button class="rm" type="button" data-start-rm="${i}" aria-label="Remove this link">×</button>` : ''}</div>${i === 0 ? `<span class="a-btn p">${svg('spark')}Analyze</span>` : '<span></span>'}`).join('')
+    const more = START_UI.links.length < MAX_LINKS ? '<button class="a-add" type="button" data-start-add>+ Add another link</button>' : `<p class="a-hint">Up to ${MAX_LINKS} links per job.</p>`
+    return `<div class="a-start"><h3>Paste the link to the job posting</h3><div class="a-urls">${rows}</div>${more}
+      <p class="a-hint">The AI reads every link (the posting, the application page…) and creates the job: company, role and links. Then it compares the job with your blocks.</p>
+      <button class="a-link-btn" type="button">Paste the job text instead</button></div>`
+  }
+
   // ── The Jobs screen (proposal): "Analyze again" and renaming a job in place ──
   const JOBS_UI = { editing: false, company: 'ExampleCo', role: 'Senior GenAI Engineer', renamed: '' }
   const jobName = (company, role) => (company ? `${company} · ${role}` : role)
@@ -1267,10 +1290,7 @@
   }
 
   const FRAMES = {
-    start: () => app(`${head('none')}${steps(0)}<div class="a-start"><h3>Paste the link to the job posting</h3>
-      <div class="a-url"><div>${svg('link')}https://jobs.exampleco.com/senior-genai-engineer</div><span class="a-btn p">${svg('spark')}Analyze</span></div>
-      <p class="a-hint">The AI reads the posting and creates the job: company, role and link. Then it compares the job with your blocks.</p>
-      <button class="a-link-btn" type="button">Paste the job text instead</button></div>`),
+    start: () => app(`${head('none')}${steps(0)}${startCard()}`),
     reading: () => app(`${head('creating')}${steps(0)}<p class="a-status">Reading the posting (up to 10 seconds per link)…</p><div class="a-cols">${reqPanel(null)}${qPanel('empty')}${madePanel('empty')}</div>`),
     compare: () => app(`${head('job')}${steps(1)}<p class="a-status">The AI is comparing the posting with your blocks. This takes a minute or two.</p><div class="a-cols">${reqPanel(null)}${qPanel('empty')}${madePanel('empty')}</div>`),
     input: () => app(`${head('job')}${steps(2)}<div class="a-cols">${reqPanel(REQ_BEFORE)}${qPanel('blank')}${madePanel('waiting')}</div>`),
@@ -1542,6 +1562,15 @@
     }
   })
   document.addEventListener('click', (e) => {
+    if (e.target.closest('[data-start-add]')) {
+      START_UI.links.push('')
+      return rerender('start', START_UI.links.length < MAX_LINKS ? '[data-start-add]' : null)
+    }
+    const rm = e.target.closest('[data-start-rm]')
+    if (rm) {
+      START_UI.links.splice(Number(rm.dataset.startRm), 1)
+      return rerender('start', '[data-start-add]')
+    }
     if (e.target.closest('[data-jobs-pen]')) {
       Object.assign(JOBS_UI, { editing: true, renamed: '' })
       return rerender('jobs', '[data-jobs-role]')

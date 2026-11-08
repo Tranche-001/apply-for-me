@@ -25,7 +25,7 @@ import { keptDraftInput, mapCvItems, updatesVersion } from './cv-save'
 import { fetchPosting } from './fetch-posting'
 import { MAX_POSTING_CHARS } from './html-text'
 import { toJobSummary } from './job-summary'
-import { readPostingUrl } from './read-posting'
+import { readPostingUrls } from './read-posting'
 import { analysisDraftForRequirement } from './requirement-draft'
 import { analysisSessionSchema, MAX_SESSION_CHARS } from './session'
 import { guessLinkKind, type JobSummary, type ReadResult } from './types'
@@ -208,31 +208,40 @@ const pastedInput = z
   .min(80, 'Paste the whole posting: what you pasted is too short to analyze.')
   .max(MAX_POSTING_CHARS, `That is too long (${MAX_POSTING_CHARS.toLocaleString('en')} characters at most). Paste only the posting.`)
 
-export type StartedJob = { job: JobSummary; existed: boolean; postingText: string }
+export type UnreadLink = { url: string; error: string }
+export type StartedJob = { job: JobSummary; existed: boolean; postingText: string; unread: UnreadLink[] }
 
-const startInput = z.union([z.object({ url: z.string() }), z.object({ text: z.string() })])
+const MAX_START_LINKS = 5
+const startUrls = z
+  .array(urlInput.or(z.literal('')))
+  .transform((list) => list.filter(Boolean))
+  .pipe(z.array(urlInput).min(1, 'Paste a link to the job posting.').max(MAX_START_LINKS, `Up to ${MAX_START_LINKS} links per job.`))
+const startInput = z.union([z.object({ urls: z.array(z.string()) }), z.object({ url: z.string() }), z.object({ text: z.string() })])
 
 /**
- * The v2 start: read the posting (from a link, or the pasted text), let the AI name the company and role,
- * then find the job with that exact pair (`existed: true`) or create it. The posting text is saved on the job
- * and the link is added to it when it is new.
+ * The v2 start: read the posting (from one or more links of the same job, or the pasted text), let the AI name the
+ * company and role, then find the job with that exact pair (`existed: true`) or create it. The posting text is saved
+ * on the job; every valid link typed is added to it (read or not) unless the job already has it. Links that could
+ * not be read come back in `unread`.
  */
-export async function startFromPosting(input: { url: string } | { text: string }): Promise<ActionResult<StartedJob>> {
+export async function startFromPosting(input: { urls: string[] } | { url: string } | { text: string }): Promise<ActionResult<StartedJob>> {
   const parsedInput = startInput.safeParse(input)
   if (!parsedInput.success) return fail('Paste a link to the job posting, or the job text.')
+  const data = parsedInput.data
   let postingText: string
-  let url: string | null = null
+  let urls: string[] = []
+  let unread: UnreadLink[] = []
   let title: string | null = null
-  if ('url' in parsedInput.data) {
-    const parsedUrl = urlInput.safeParse(parsedInput.data.url)
-    if (!parsedUrl.success) return fail(invalidInput(parsedUrl.error))
-    const read = await readPostingUrl(parsedUrl.data)
-    if (!read.ok) return fail(read.error)
-    ;({ text: postingText, url, title } = read)
-  } else {
-    const parsedText = pastedInput.safeParse(parsedInput.data.text)
+  if ('text' in data) {
+    const parsedText = pastedInput.safeParse(data.text)
     if (!parsedText.success) return fail(invalidInput(parsedText.error))
     postingText = parsedText.data
+  } else {
+    const parsedUrls = startUrls.safeParse('urls' in data ? data.urls : [data.url])
+    if (!parsedUrls.success) return fail(invalidInput(parsedUrls.error))
+    const read = await readPostingUrls(parsedUrls.data)
+    if (!read.ok) return fail(read.error)
+    ;({ text: postingText, urls, unread, title } = read)
   }
 
   const info = await readJobInfo({ postingText })
@@ -242,29 +251,33 @@ export async function startFromPosting(input: { url: string } | { text: string }
 
   return attempt<StartedJob>('startFromPosting', async () => {
     const include = { links: { orderBy: { position: 'asc' as const } } }
+    const newLinks = (known: { url: string; position: number }[]) => {
+      const first = known.reduce((max, l) => Math.max(max, l.position), -1) + 1
+      return urls.filter((u) => !known.some((l) => l.url === u)).map((url, i) => ({ url, kind: guessLinkKind(url), position: first + i }))
+    }
     const reuse = (existing: { id: string; postingText: string; links: { url: string; position: number }[] }) => {
-      const nextPosition = existing.links.reduce((max, l) => Math.max(max, l.position), -1) + 1
-      const link = url ? { url, kind: guessLinkKind(url), position: nextPosition } : null
+      const links = newLinks(existing.links)
       // A different posting text: the saved session quotes the old one, so it goes (old quotes never point at text that is gone).
       const staleSession = existing.postingText !== postingText ? { analysis: Prisma.DbNull, analyzedAt: null } : {}
       return db.job.update({
         where: { id: existing.id },
-        data: { postingText, ...staleSession, ...(link && !existing.links.some((l) => l.url === url) ? { links: { create: link } } : {}) },
+        data: { postingText, ...staleSession, ...(links.length ? { links: { create: links } } : {}) },
         include,
       })
     }
+    const started = (job: Parameters<typeof toJobSummary>[0], existed: boolean) => ok({ job: toJobSummary(job), existed, postingText, unread })
     const existing = await db.job.findUnique({ where: { company_role: names }, include })
-    if (existing) return ok({ job: toJobSummary(await reuse(existing)), existed: true, postingText })
-    const link = url ? { url, kind: guessLinkKind(url), position: 0 } : null
+    if (existing) return started(await reuse(existing), true)
+    const links = newLinks([])
     try {
-      const created = await db.job.create({ data: { ...names, postingText, ...(link ? { links: { create: [link] } } : {}) }, include })
-      return ok({ job: toJobSummary(created), existed: false, postingText })
+      const created = await db.job.create({ data: { ...names, postingText, ...(links.length ? { links: { create: links } } : {}) }, include })
+      return started(created, false)
     } catch (err) {
       if (!isUniqueViolation(err)) throw err
       // Another request created the same job between the read and the create: use that one.
       const raced = await db.job.findUnique({ where: { company_role: names }, include })
       if (!raced) throw err
-      return ok({ job: toJobSummary(await reuse(raced)), existed: true, postingText })
+      return started(await reuse(raced), true)
     }
   })
 }

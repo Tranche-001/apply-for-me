@@ -261,7 +261,7 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
       {/* Kept mounted while the posting is read, so a failed read gives back the link or text you pasted. */}
       {!a.job && (
         <div hidden={a.phase !== 'idle'}>
-          <StartCard busy={busy} aiReady={aiReady} notReadyText={notReadyText} error={null} onAnalyzeUrl={(url) => void a.start({ url })} onUsePasted={(text) => void a.start({ text })} />
+          <StartCard busy={busy} aiReady={aiReady} notReadyText={notReadyText} error={null} onAnalyzeUrls={(urls) => void a.start({ urls })} onUsePasted={(text) => void a.start({ text })} />
         </div>
       )}
       {/* Opened from Jobs ("Analyze") for a job never analyzed: compare its saved posting, or ask for one. */}
@@ -276,7 +276,7 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
             {!aiReady && <p className={c('a-hint')}>{notReadyText}</p>}
           </div>
         ) : (
-          <StartCard busy={busy} aiReady={aiReady} notReadyText={notReadyText} error={null} onAnalyzeUrl={(url) => void a.start({ url })} onUsePasted={(text) => void a.start({ text })} />
+          <StartCard busy={busy} aiReady={aiReady} notReadyText={notReadyText} error={null} onAnalyzeUrls={(urls) => void a.start({ urls })} onUsePasted={(text) => void a.start({ text })} />
         )
       ) : (
         (a.job || a.phase !== 'idle') && (reviewing ? review() : panels())
