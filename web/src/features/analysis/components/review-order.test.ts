@@ -100,7 +100,10 @@ describe('the card’s rows', () => {
 
   it('the Swap menu names each block left out and what it would match', () => {
     const { rows, out } = reviewRows(inputOf(s))
-    expect(swapItems(swapChoices({ rows, out, leftOut }), out, views, requirements)).toEqual([{ key: 'iaas', name: 'IAAS!', sub: 'Project · left out · would match 2 requirements' }])
+    const termo = rows.find((r) => r.key === 'termo')!
+    expect(swapItems(swapChoices({ rows, out, leftOut, reused, asIsOut: [] }, termo), out, views, requirements)).toEqual([
+      { key: 'iaas-v', name: 'IAAS!', sub: 'Project · Base · left out · would match 2 requirements' },
+    ])
   })
 
   it('the status says whose order it is', () => {
@@ -137,7 +140,7 @@ describe('reviewOrderActions', () => {
 
   it('swap, move to Experience, one section and reset', () => {
     const h = harness(session())
-    h.actions.swap('termo', 'iaas')
+    h.actions.swap('termo', 'iaas-v')
     expect(keys(h.get())).toEqual(['visio', 'afm', 'sr', 'iaas'])
     h.actions.toSection('afm', 'EXPERIENCE')
     expect(h.get().arrangement?.sections).toEqual({ afm: 'EXPERIENCE' })

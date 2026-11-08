@@ -101,22 +101,25 @@ export function reviewRows(input: ReviewInput): { rows: ReviewRow[]; out: Review
   const library = libraryWithDrafts(input.library, input.drafts)
   const asIsOut = new Set(input.asIsOut)
   const asIs = new Map(input.reused.filter((r) => !asIsOut.has(r.versionId)).map((r) => [r.blockId, r.versionId]))
+  // What can be swapped in: the AI's left-out versions and the versions you took out with ×.
   const wanted = new Set(arrangement.swappedIn ?? [])
-  const swapped = new Map((input.leftOut ?? []).filter((v) => wanted.has(v.versionId)).map((v) => [v.blockId, v.versionId]))
-  const all = [...library]
-    .sort((a, b) => a.position - b.position)
-    .flatMap((block): ReviewRow[] => {
-      if (!SECTIONS.includes(block.section)) return []
-      const own = block.versions.find((v) => isDraftVersionId(v.id))?.id ?? asIs.get(block.id)
-      const versionId = own ?? swapped.get(block.id)
-      if (!versionId) return []
-      const key = reviewBlockKey(block)
-      const section = arrangement.sections?.[key] ?? block.section
-      return [{ blockId: block.id, versionId, key, section, home: block.section, swappedIn: !own }]
-    })
+  const pool = [...(input.leftOut ?? []), ...input.reused.filter((r) => asIsOut.has(r.versionId))]
+  const swapped = new Map(pool.filter((v) => wanted.has(v.versionId)).map((v) => [v.blockId, v.versionId]))
   const outKeys = new Set(arrangement.swappedOut ?? [])
-  const rows = all.filter((r) => !outKeys.has(r.key))
-  return { rows: inOrder(rows, (r) => r.key, arrangement.order ?? input.order), out: all.filter((r) => outKeys.has(r.key)) }
+  const rows: ReviewRow[] = []
+  const out: ReviewRow[] = []
+  for (const block of [...library].sort((a, b) => a.position - b.position)) {
+    if (!SECTIONS.includes(block.section)) continue
+    const key = reviewBlockKey(block)
+    const row = (versionId: string, swappedIn: boolean): ReviewRow => ({ blockId: block.id, versionId, key, section: arrangement.sections?.[key] ?? block.section, home: block.section, swappedIn })
+    const own = block.versions.find((v) => isDraftVersionId(v.id))?.id ?? asIs.get(block.id)
+    const other = swapped.get(block.id)
+    // A block's own version stays unless you swapped it out; then a swapped-in version of it (if any) takes its place.
+    if (own && !outKeys.has(key)) rows.push(row(own, false))
+    else if (other) rows.push(row(other, true))
+    if (own && outKeys.has(key)) out.push(row(own, false))
+  }
+  return { rows: inOrder(rows, (r) => r.key, arrangement.order ?? input.order), out }
 }
 
 /** Rows as a composition: two sections (each keeps the rows' order), or one list in the first section. */

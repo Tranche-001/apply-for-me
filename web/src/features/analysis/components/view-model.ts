@@ -106,11 +106,11 @@ const isRow = (view: BlockView, row: RowRef): boolean =>
  * AI's left-out versions not on the CV, and the versions you took out with ×. A swapped-in block brings its matches.
  */
 export function cvViews(v: BlockViews, rows: readonly RowRef[], out: readonly RowRef[]): { onCv: BlockView[]; out: BlockView[] } {
-  const candidates = [...v.drafts, ...v.asIs, ...v.leftOut]
+  const candidates = [...v.drafts, ...v.asIs, ...v.leftOut, ...v.asIsOut]
   const viewsOf = (list: readonly RowRef[]) => list.flatMap((row) => candidates.find((view) => isRow(view, row)) ?? [])
   const onCv = viewsOf(rows)
   const taken = new Set(onCv.map((x) => x.ref))
-  const left = [...viewsOf(out), ...v.leftOut.filter((x) => !taken.has(x.ref)), ...v.asIsOut]
+  const left = [...viewsOf(out), ...[...v.leftOut, ...v.asIsOut].filter((x) => !taken.has(x.ref))]
   return { onCv, out: left.filter((x, i) => left.findIndex((y) => y.ref === x.ref) === i) }
 }
 

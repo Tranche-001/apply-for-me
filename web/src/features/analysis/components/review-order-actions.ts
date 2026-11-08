@@ -33,12 +33,13 @@ export function reviewOrderActions(change: Change, inputOf: (s: AnalysisSession)
   return {
     moveBy: (blockId: string, delta: number) => reorder(blockId, (c) => moveBy(c, blockId, delta)),
     moveTo: (fromId: string, toId: string) => reorder(fromId, (c) => moveTo(c, fromId, toId)),
-    swap: (key: string, choiceKey: string) =>
+    swap: (key: string, choiceId: string) =>
       change((s) => {
         const { rows, out } = arranged(s)
         const row = rows.find((r) => r.key === key)
-        const choice = swapChoices({ rows, out, leftOut: s.analysis.leftOut, arrangement: s.arrangement }).find((x) => x.key === choiceKey)
-        return row && choice ? swapBlock(s, row, choice, rows.map((r) => r.key)) : s
+        if (!row) return s
+        const choice = swapChoices({ rows, out, leftOut: s.analysis.leftOut, reused: s.analysis.reused, asIsOut: s.asIsOut, arrangement: s.arrangement }, row).find((x) => x.id === choiceId)
+        return choice ? swapBlock(s, row, choice, rows.map((r) => r.key)) : s
       }),
     toSection: (key: string, section: Section) =>
       change((s) => {

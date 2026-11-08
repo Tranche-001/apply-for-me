@@ -171,32 +171,80 @@ describe('Move to Experience / Move to Projects', () => {
 describe('Swap', () => {
   const rowOf = (s: AnalysisSession, key: string) => reviewRows(input(s)).rows.find((r) => r.key === key)!
 
-  it('the menu offers the blocks left out whose block is not on the CV', () => {
-    const s = session()
+  const choices = (s: AnalysisSession, key: string, lists: { leftOut?: LeftOutVersion[] } = {}) => {
     const { rows, out } = reviewRows(input(s))
-    expect(swapChoices({ rows, out, leftOut, arrangement: s.arrangement }).map((c) => c.key)).toEqual(['iaas', 'att'])
+    return swapChoices({ rows, out, leftOut: lists.leftOut ?? s.analysis.leftOut, reused: s.analysis.reused, asIsOut: s.asIsOut, arrangement: s.arrangement }, rowOf(s, key))
+  }
+  const iaasChoice = { id: 'iaas-v', key: 'iaas', versionId: 'iaas-v', home: 'PROJECT' as const }
+
+  it('the menu offers the blocks left out whose block is not on the CV', () => {
+    expect(choices(session(), 'termo').map((c) => c.key)).toEqual(['iaas', 'att'])
   })
 
   it('Termo → IAAS!: IAAS! takes Termo’s place, Termo goes to Left out', () => {
     const s = session()
-    const { rows, out } = reviewRows(input(s))
-    const iaas = swapChoices({ rows, out, leftOut, arrangement: s.arrangement }).find((c) => c.key === 'iaas')!
+    const iaas = choices(s, 'termo').find((c) => c.key === 'iaas')!
     const next = swapBlock(s, rowOf(s, 'termo'), iaas, keys(s))
     expect(keys(next)).toEqual(['visio', 'afm', 'vv', 'sr', 'bi', 'iaas'])
     expect(next.arrangement).toMatchObject({ swappedIn: ['iaas-v'], swappedOut: ['termo'] })
     const after = reviewRows(input(next))
     expect(after.out.map((r) => r.key)).toEqual(['termo'])
     // Termo can come back the same way, in IAAS!’s place.
-    const back = swapChoices({ rows: after.rows, out: after.out, leftOut, arrangement: next.arrangement })
-    expect(back.map((c) => [c.key, c.versionId])).toEqual([['termo', null], ['att', 'att-v']])
+    expect(choices(next, 'iaas').map((c) => [c.key, c.versionId])).toEqual([['termo', null], ['att', 'att-v']])
   })
 
   it('swapping back undoes the swap (IAAS! returns to Left out, Termo to its place)', () => {
     const s = session()
-    const first = swapBlock(s, rowOf(s, 'termo'), { key: 'iaas', versionId: 'iaas-v', home: 'PROJECT' }, keys(s))
-    const again = swapBlock(first, rowOf(first, 'iaas'), { key: 'termo', versionId: null, home: 'PROJECT' }, keys(first))
+    const first = swapBlock(s, rowOf(s, 'termo'), iaasChoice, keys(s))
+    const back = choices(first, 'iaas').find((c) => c.key === 'termo')!
+    const again = swapBlock(first, rowOf(first, 'iaas'), back, keys(first))
     expect(keys(again)).toEqual(AI_ORDER)
     expect(again.arrangement).toMatchObject({ swappedIn: [], swappedOut: [] })
+  })
+
+  // What the iFood check showed: every library block is on the CV, and the AI's left-out versions are other
+  // versions of those blocks. A row can take another version of its own block.
+  describe('another version of the same block', () => {
+    const alt = { ...view('termo', 'PROJECT', ['r2']), versionId: 'termo-alt', versionName: 'Web Full-Stack' }
+    const s = { ...session(), analysis: { ...analysis, leftOut: [...leftOut, alt] } }
+
+    it('is offered only on that block’s row', () => {
+      expect(choices(s, 'termo').map((c) => c.id)).toEqual(['iaas-v', 'att-v', 'termo-alt'])
+      expect(choices(s, 'bi').map((c) => c.id)).toEqual(['iaas-v', 'att-v'])
+    })
+
+    it('takes the row’s place; the version it replaces is offered back, and comes back', () => {
+      const pick = choices(s, 'termo').find((c) => c.id === 'termo-alt')!
+      const next = swapBlock(s, rowOf(s, 'termo'), pick, keys(s))
+      expect(keys(next)).toEqual(AI_ORDER)
+      expect(rowOf(next, 'termo')).toMatchObject({ versionId: 'termo-alt', swappedIn: true })
+      expect(reviewRows(input(next)).out.map((r) => r.versionId)).toEqual(['termo-v'])
+      const back = choices(next, 'termo').find((c) => c.versionId === null)!
+      expect(back).toMatchObject({ key: 'termo' })
+      const again = swapBlock(next, rowOf(next, 'termo'), back, keys(next))
+      expect(rowOf(again, 'termo')).toMatchObject({ versionId: 'termo-v', swappedIn: false })
+      expect(again.arrangement).toMatchObject({ swappedIn: [], swappedOut: [] })
+    })
+
+    it('one swapped-in version can be swapped for another of the same block', () => {
+      const other = { ...alt, versionId: 'termo-alt2' }
+      const s2 = { ...s, analysis: { ...s.analysis, leftOut: [...s.analysis.leftOut, other] } }
+      const first = swapBlock(s2, rowOf(s2, 'termo'), choices(s2, 'termo').find((c) => c.id === 'termo-alt')!, keys(s2))
+      const second = swapBlock(first, rowOf(first, 'termo'), choices(first, 'termo').find((c) => c.id === 'termo-alt2')!, keys(first))
+      expect(rowOf(second, 'termo')).toMatchObject({ versionId: 'termo-alt2', swappedIn: true })
+      expect(second.arrangement).toMatchObject({ swappedIn: ['termo-alt2'], swappedOut: ['termo'] })
+    })
+  })
+
+  it('a version you took out with × is offered too; Back to the AI’s order leaves it out again', () => {
+    const s = { ...session(), asIsOut: ['termo-v'] }
+    expect(keys(s)).toEqual(['visio', 'afm', 'vv', 'sr', 'bi'])
+    const pick = choices(s, 'bi').find((c) => c.key === 'termo')!
+    expect(pick).toMatchObject({ versionId: 'termo-v' })
+    const next = swapBlock(s, rowOf(s, 'bi'), pick, keys(s))
+    expect(keys(next)).toEqual(['visio', 'afm', 'vv', 'sr', 'termo'])
+    expect(next.asIsOut).toEqual(['termo-v'])
+    expect(keys(resetArrangement(next))).toEqual(['visio', 'afm', 'vv', 'sr', 'bi'])
   })
 
   it('“This CV” is recalculated: IAAS! brings r2 with it, and r3 (only Termo showed it) is no longer met', () => {
@@ -209,13 +257,13 @@ describe('Swap', () => {
     }
     const s = session()
     expect(coverage(s)).toEqual({ met: ['r1', 'r3'], notMet: ['r2'] })
-    const next = swapBlock(s, rowOf(s, 'termo'), { key: 'iaas', versionId: 'iaas-v', home: 'PROJECT' }, keys(s))
+    const next = swapBlock(s, rowOf(s, 'termo'), iaasChoice, keys(s))
     expect(coverage(next)).toEqual({ met: ['r1', 'r2'], notMet: ['r3'] })
   })
 
   it('an experience swapped into a project’s place sits in Projects on this CV', () => {
     const s = session()
-    const next = swapBlock(s, rowOf(s, 'termo'), { key: 'att', versionId: 'att-v', home: 'EXPERIENCE' }, keys(s))
+    const next = swapBlock(s, rowOf(s, 'termo'), { id: 'att-v', key: 'att', versionId: 'att-v', home: 'EXPERIENCE' }, keys(s))
     expect(next.arrangement?.sections).toEqual({ att: 'PROJECT' })
     expect(ids(next, 'PROJECT')).toEqual(['afm', 'vv', 'bi', 'att'])
   })

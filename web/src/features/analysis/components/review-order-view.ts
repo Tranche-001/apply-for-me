@@ -29,7 +29,8 @@ export function orderGroups(input: { rows: readonly ReviewRow[]; views: BlockVie
       blockId: row.blockId,
       key: row.key,
       name: view?.blockName ?? row.key,
-      sub: rowLine(row, view, input.requirements, input.oneSection),
+      // A swapped-in row says which version it is (it can be another version of a block the AI had chosen).
+      sub: [rowLine(row, view, input.requirements, input.oneSection), row.swappedIn && view ? `${view.versionName} version` : ''].filter(Boolean).join(' · '),
       swappedIn: row.swappedIn,
       moveTo: input.oneSection ? null : row.section === 'EXPERIENCE' ? ('PROJECT' as const) : ('EXPERIENCE' as const),
     }
@@ -40,14 +41,14 @@ export function orderGroups(input: { rows: readonly ReviewRow[]; views: BlockVie
     .filter((g) => g.rows.length > 0)
 }
 
-/** The Swap menu: each block it offers, named, with what it would match ("Left out · would match 2 requirements"). */
+/** The Swap menu: each block it offers, named, with its version and what it would match. */
 export function swapItems(choices: readonly SwapChoice[], out: readonly ReviewRow[], views: BlockViews, requirements: readonly JobRequirement[]): SwapItem[] {
   return choices.flatMap((choice) => {
     const row = choice.versionId ? null : out.find((r) => r.key === choice.key)
-    const view = row ? cvViews(views, [row], []).onCv[0] : views.leftOut.find((v) => v.versionId === choice.versionId)
+    const view = row ? cvViews(views, [row], []).onCv[0] : [...views.leftOut, ...views.asIsOut].find((v) => v.versionId === choice.versionId)
     if (!view) return []
     const count = requirementCountLabel(blockRequirements(view.matches, requirements), { wouldMatch: true })
-    return [{ key: choice.key, name: view.blockName, sub: `${KIND[choice.home]} · left out · ${lowerFirst(count)}` }]
+    return [{ key: choice.id, name: view.blockName, sub: `${KIND[choice.home]} · ${view.versionName} · left out · ${lowerFirst(count)}` }]
   })
 }
 

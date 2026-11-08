@@ -238,13 +238,17 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
         group: g,
         id: v.ref,
         name: v.blockName,
-        tag: g === 'asis' && v.kind === 'left-out' ? 'Swapped in' : reviewBlockTag(g, v.isNewBlock),
+        tag: g === 'asis' && (v.kind === 'left-out' || v.kind === 'asis-out') ? 'Swapped in' : reviewBlockTag(g, v.isNewBlock),
         sub: reviewBlockSub({ group: g, matches: blockRequirements(v.matches, reqs), versionName: v.versionName }),
         matched: v.matches.length > 0,
       }))
     const saved = s.step === 'saved'
     const oneSection = s.arrangement?.oneSection ?? false
-    const swaps = swapItems(swapChoices({ rows: printed.rows, out: printed.out, leftOut: s.analysis.leftOut, arrangement: s.arrangement }), printed.out, views, reqs)
+    const pool = { rows: printed.rows, out: printed.out, leftOut: s.analysis.leftOut, reused: s.analysis.reused, asIsOut: s.asIsOut, arrangement: s.arrangement }
+    const swapsFor = (key: string) => {
+      const row = printed.rows.find((r) => r.key === key)
+      return row ? swapItems(swapChoices(pool, row), printed.out, views, reqs) : []
+    }
     return (
       <>
         {saved && <SavedBanner savedCount={keptDrafts.length + forSave.retitled.length} jobLabel={job.label} onAnalyzeAnother={a.reset} />}
@@ -265,7 +269,7 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
               status={orderStatus(s)}
               canReset={arrangementChanged(s.arrangement)}
               disabled={saved || busy}
-              choicesFor={() => swaps}
+              choicesFor={swapsFor}
               onMoveBy={arrange.moveBy}
               onMoveTo={arrange.moveTo}
               onSwap={arrange.swap}

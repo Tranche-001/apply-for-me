@@ -2,12 +2,15 @@
 // to the other section, one "Experience & Projects" section. All of it lives in the session (`arrangement`) and only in
 // this CV; the library is never changed. Every function returns a new session.
 import type { Section } from '@prisma/client'
-import type { LeftOutVersion } from '../ai/types'
+import type { LeftOutVersion, ReusedVersion } from '../ai/types'
 import type { ReviewRow } from './cv-draft'
 import type { AnalysisSession, Arrangement } from './types'
 
-/** A block you can swap in: one you swapped out (`versionId` null: it comes back as it was) or one the AI left out. */
-export type SwapChoice = { key: string; versionId: string | null; home: Section }
+/**
+ * A block you can swap in: one you swapped out (`versionId` null: it comes back as it was), or a version that is left
+ * out. `id` tells them apart in the menu (two versions of one block share a key).
+ */
+export type SwapChoice = { id: string; key: string; versionId: string | null; home: Section }
 
 const withArrangement = (s: AnalysisSession, patch: Partial<Arrangement>): AnalysisSession => ({ ...s, arrangement: { ...(s.arrangement ?? {}), ...patch } })
 
@@ -43,16 +46,33 @@ export function resetArrangement(s: AnalysisSession): AnalysisSession {
   return arrangement?.oneSection ? { ...rest, arrangement: { oneSection: true } } : rest
 }
 
-/** The Swap menu: blocks you swapped out (they can come back), then the AI's left-out versions not on the CV. */
-export function swapChoices(input: { rows: readonly ReviewRow[]; out: readonly ReviewRow[]; leftOut: readonly LeftOutVersion[]; arrangement?: Arrangement }): SwapChoice[] {
-  const onCv = new Set(input.rows.map((r) => r.blockId))
+/**
+ * The Swap menu of `row`: blocks you swapped out (they come back as they were), then the versions the AI left out and
+ * the ones you took out with ×. A version of a block already on the CV is offered only on that block's own row (it
+ * takes the place of the version there).
+ */
+export function swapChoices(
+  input: {
+    rows: readonly ReviewRow[]
+    out: readonly ReviewRow[]
+    leftOut: readonly LeftOutVersion[]
+    reused: readonly Pick<ReusedVersion, 'versionId' | 'blockId' | 'section'>[]
+    asIsOut: readonly string[]
+    arrangement?: Arrangement
+  },
+  row: Pick<ReviewRow, 'key' | 'blockId' | 'versionId'>,
+): SwapChoice[] {
+  const elsewhere = new Set(input.rows.filter((r) => r.blockId !== row.blockId).map((r) => r.blockId))
+  const onCvKeys = new Set(input.rows.filter((r) => r.key !== row.key).map((r) => r.key))
   const swappedIn = new Set(input.arrangement?.swappedIn ?? [])
-  const back = input.out.map((r) => ({ key: r.key, versionId: null, home: r.home }))
-  const offered = new Set(back.map((c) => c.key))
-  const left = input.leftOut
-    .filter((v) => !swappedIn.has(v.versionId) && !onCv.has(v.blockId) && !offered.has(v.blockId))
-    .map((v) => ({ key: v.blockId, versionId: v.versionId, home: v.section }))
-  return [...back, ...left.filter((c, i) => left.findIndex((x) => x.key === c.key) === i)]
+  const back = input.out.filter((r) => !onCvKeys.has(r.key)).map((r) => ({ id: `back:${r.key}`, key: r.key, versionId: null, home: r.home }))
+  const tookOut = new Set(input.asIsOut)
+  const pool = [...input.leftOut, ...input.reused.filter((r) => tookOut.has(r.versionId))]
+  const versions = pool
+    .filter((v) => v.versionId !== row.versionId && !swappedIn.has(v.versionId) && !elsewhere.has(v.blockId))
+    .map((v) => ({ id: v.versionId, key: v.blockId, versionId: v.versionId, home: v.section }))
+  const all = [...back, ...versions]
+  return all.filter((c, i) => all.findIndex((x) => x.id === c.id) === i)
 }
 
 /**
@@ -62,7 +82,8 @@ export function swapChoices(input: { rows: readonly ReviewRow[]; out: readonly R
 export function swapBlock(s: AnalysisSession, row: ReviewRow, choice: SwapChoice, order: readonly string[]): AnalysisSession {
   const a = s.arrangement ?? {}
   const swappedIn = (a.swappedIn ?? []).filter((id) => !(row.swappedIn && id === row.versionId))
-  const swappedOut = (a.swappedOut ?? []).filter((key) => key !== choice.key)
+  // Only a block coming back leaves swappedOut; another version of a swapped-out block keeps it out.
+  const swappedOut = (a.swappedOut ?? []).filter((key) => choice.versionId !== null || key !== choice.key)
   const sections = Object.fromEntries(Object.entries(a.sections ?? {}).filter(([key]) => key !== row.key && key !== choice.key))
   return withArrangement(s, {
     order: order.map((key) => (key === row.key ? choice.key : key)),
