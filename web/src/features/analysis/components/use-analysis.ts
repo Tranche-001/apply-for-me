@@ -36,6 +36,9 @@ type SendItem = { askId: string; question: string; answer: string }
 const NO_NOT_MET: NotMetState = { busy: false, done: null, error: null }
 const now = () => new Date().toISOString()
 const OFFLINE = 'Couldn’t reach the app. Check that it is running, then try again.'
+const RELOAD = 'The app was updated since this page opened. Reload the page, then try again.'
+/** A tab opened before the app was rebuilt calls server actions that no longer exist. */
+const reloadNeeded = (err: unknown): boolean => err instanceof Error && /server action|older or newer deployment|unexpected response/i.test(err.message)
 
 // Stable on purpose: useAutosave rebuilds its timer when these change, and a new closure each render would
 // save the whole session on every keystroke.
@@ -110,7 +113,8 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     async (...args: A): Promise<void> => {
       try {
         await fn(...args)
-      } catch {
+      } catch (err) {
+        if (reloadNeeded(err)) return fail(RELOAD, () => window.location.reload())
         fail(OFFLINE, () => void guard(fn)(...args))
       }
     }
