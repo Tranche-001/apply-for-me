@@ -21,6 +21,7 @@ const rawJob = (over: Partial<RawJob> = {}): RawJob => ({
   lines: ['Design, build and run RAG pipelines in production.', 'Own our vector search layer on pgvector.'],
   requirementCount: 9,
   isTrack: false,
+  moreSections: [],
   ...over,
 })
 const rawB = (over: Partial<RawJob> = {}) =>
@@ -221,6 +222,61 @@ describe('finalizePostingJobs: tracks of one posting', () => {
     expect(eng.text.length).toBeLessThan(13_000)
     expect(eng.text).toContain(TRACK_ENG)
     expect(eng.text.startsWith('Sobre o programa')).toBe(true)
+  })
+
+  test('a track whose text is split across the posting keeps all its parts and none of the other track’s', () => {
+    const text = [
+      'Programa de Estágio - GenAI',
+      'Trilha AI Engineer\nConstrói soluções de software para produtos de IA.',
+      'Trilha AI Builder\nUsa IA como alavanca em qualquer área de negócio.',
+      'Seu Cardápio Diário',
+      'AI Engineer\nCursos Aceitos: Ciência da Computação ou afins.',
+      'AI Builder\nCursos Aceitos: qualquer área.',
+      'Ingredientes que buscamos',
+      'AI Engineer\nModelo de Trabalho: Remoto\nBolsa de R$ 5.200.',
+      'AI Builder\nModelo de Trabalho: Híbrido\nBolsa de R$ 5.200.',
+      'SOMOS AI FIRST',
+    ].join('\n\n')
+    const eng = trackEng({
+      firstLine: 'Trilha AI Engineer',
+      lastLine: 'Constrói soluções de software para produtos de IA.',
+      moreSections: [
+        { firstLine: 'AI Engineer', lastLine: 'Cursos Aceitos: Ciência da Computação ou afins.' },
+        { firstLine: 'AI Engineer', lastLine: 'Bolsa de R$ 5.200.' },
+      ],
+    })
+    const builder = trackBuilder({
+      firstLine: 'Trilha AI Builder',
+      lastLine: 'Usa IA como alavanca em qualquer área de negócio.',
+      moreSections: [
+        { firstLine: 'AI Builder', lastLine: 'Cursos Aceitos: qualquer área.' },
+        { firstLine: 'AI Builder', lastLine: 'Bolsa de R$ 5.200.' },
+      ],
+    })
+    const [e, b] = finalizePostingJobs({ jobs: [eng, builder], sharedHeadings: ['Seu Cardápio Diário', 'Ingredientes que buscamos'] }, text)
+    expect(e.text).toBe(
+      [
+        'Programa de Estágio - GenAI',
+        'Trilha AI Engineer\nConstrói soluções de software para produtos de IA.',
+        'Seu Cardápio Diário',
+        'AI Engineer\nCursos Aceitos: Ciência da Computação ou afins.',
+        'Ingredientes que buscamos',
+        'AI Engineer\nModelo de Trabalho: Remoto\nBolsa de R$ 5.200.',
+        'SOMOS AI FIRST',
+      ].join('\n\n'),
+    )
+    expect(b.text).toContain('Modelo de Trabalho: Híbrido')
+    expect(b.text).not.toContain('Remoto')
+    expect(b.text).not.toContain('Ciência da Computação')
+    expect(e.shared).toEqual(['Seu Cardápio Diário', 'Ingredientes que buscamos'])
+  })
+
+  test('a part that is not in the text, or only inside another track, is left out; the track keeps the rest', () => {
+    const text = [PROGRAM, TRACK_ENG, TRACK_BUILDER, BENEFITS].join('\n\n')
+    const eng = trackEng({ moreSections: [{ firstLine: 'Trilha AI Builder', lastLine: 'Requisitos: curiosidade e no-code.' }, { firstLine: 'Nowhere', lastLine: 'Nothing' }] })
+    const [e, b] = finalizePostingJobs({ jobs: [eng, trackBuilder()], sharedHeadings: [] }, text)
+    expect(e.text).toBe([PROGRAM, TRACK_ENG, BENEFITS].join('\n\n'))
+    expect(b.text).toBe([PROGRAM, TRACK_BUILDER, BENEFITS].join('\n\n'))
   })
 
   test('a single track that checks out falls back to one job with the whole text', () => {

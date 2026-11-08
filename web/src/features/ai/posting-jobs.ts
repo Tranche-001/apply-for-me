@@ -43,7 +43,7 @@ export type PostingJob = {
 type RawJob = PostingJobsOutput['jobs'][number]
 /** What the AI returned; the track fields may be missing (older callers and tests). */
 export type PostingJobsInput = {
-  jobs: (Omit<RawJob, 'isTrack'> & { isTrack?: boolean })[]
+  jobs: (Omit<RawJob, 'isTrack' | 'moreSections'> & { isTrack?: boolean; moreSections?: RawJob['moreSections'] })[]
   sharedHeadings?: string[]
 }
 type InputJob = PostingJobsInput['jobs'][number]
@@ -66,36 +66,88 @@ const describe = (raw: InputJob) => ({
   requirementCount: count(raw.requirementCount),
 })
 
-type Found = { raw: InputJob; start: number; end: number }
+type Prepared = ReturnType<typeof prepareText>
+/** A part of the posting: raw character offsets [start, end). */
+type Range = { start: number; end: number }
+/** `normEnd`: where the part ends in the normalized text (searches go on from there). */
+type Found = Range & { raw: InputJob; normEnd: number }
+
+const norm = (line: string): string => prepareText(line).norm.trim()
+const overlaps = (taken: readonly Range[], r: Range): boolean => taken.some((t) => r.start < t.end && t.start < r.end)
 
 /** Where each job sits in the text (raw character offsets), in order and never overlapping. */
-function locate(jobs: InputJob[], posting: ReturnType<typeof prepareText>): Found[] {
+function locate(jobs: InputJob[], posting: Prepared): Found[] {
   const found: Found[] = []
   let cursor = 0 // in normalized text: the end of the previous job
   for (const raw of jobs) {
     if (!tidy(raw.role, MAX_ROLE)) continue
-    const first = prepareText(raw.firstLine).norm.trim()
-    const last = prepareText(raw.lastLine).norm.trim()
+    const first = norm(raw.firstLine)
+    const last = norm(raw.lastLine)
     if (!first || !last) continue
     const at = posting.norm.indexOf(first, cursor)
     if (at < 0) continue
     const lastAt = posting.norm.indexOf(last, at)
     if (lastAt < 0) continue
     const end = lastAt + last.length
-    found.push({ raw, start: posting.map[at], end: posting.map[end - 1] + 1 })
+    found.push({ raw, start: posting.map[at], end: posting.map[end - 1] + 1, normEnd: end })
     cursor = end
   }
   return found
 }
 
+/** True when only spaces stand between `index` and the start of its line. */
+function atLineStart(raw: string, index: number): boolean {
+  let i = index - 1
+  while (i >= 0 && (raw[i] === ' ' || raw[i] === '\t')) i -= 1
+  return i < 0 || raw[i] === '\n'
+}
+
+/**
+ * One more part of a track: the first line must start a line of the posting (so "AI Engineer" is not found inside
+ * "Trilha AI Engineer"), after `from`, and the part must not overlap any part already taken.
+ */
+function findPart(posting: Prepared, part: { firstLine: string; lastLine: string }, from: number, taken: readonly Range[]): Range & { normEnd: number } | null {
+  const first = norm(part.firstLine)
+  const last = norm(part.lastLine)
+  if (!first || !last) return null
+  for (let at = posting.norm.indexOf(first, from); at >= 0; at = posting.norm.indexOf(first, at + 1)) {
+    const start = posting.map[at]
+    if (!atLineStart(posting.raw, start)) continue
+    const lastAt = posting.norm.indexOf(last, at)
+    if (lastAt < 0) return null
+    const normEnd = lastAt + last.length
+    const range = { start, end: posting.map[normEnd - 1] + 1 }
+    if (!overlaps(taken, range)) return { ...range, normEnd }
+  }
+  return null
+}
+
+/** Every track's parts: its first part, then the other parts the AI named that check out, in the posting's order. */
+function trackParts(located: Found[], posting: Prepared): Range[][] {
+  const taken: Range[] = located.map(({ start, end }) => ({ start, end }))
+  return located.map((track) => {
+    const parts: Range[] = [{ start: track.start, end: track.end }]
+    let cursor = track.normEnd
+    for (const more of track.raw.moreSections ?? []) {
+      const found = findPart(posting, more, cursor, taken)
+      if (!found) continue
+      parts.push({ start: found.start, end: found.end })
+      taken.push({ start: found.start, end: found.end })
+      cursor = found.normEnd
+    }
+    return parts.sort((a, b) => a.start - b.start)
+  })
+}
+
 /** The line a job starts with, in the posting's own wording. */
 const startLine = (text: string, start: number): string => tidy(text.slice(start).split('\n')[0] ?? '', MAX_ROLE)
 
-/** The pieces of `text` outside every located section, trimmed, in order, each tagged with where it sits. */
-function sharedPieces(text: string, located: Found[]): { at: number; text: string }[] {
-  const bounds = [{ end: 0 }, ...located.map((f) => ({ end: f.end }))]
+/** The pieces of `text` outside every range, trimmed, in order, each tagged with where it sits. */
+function sharedPieces(text: string, ranges: readonly Range[]): { at: number; text: string }[] {
+  const sorted = [...ranges].sort((a, b) => a.start - b.start)
+  const bounds = [{ end: 0 }, ...sorted.map((r) => ({ end: r.end }))]
   return bounds
-    .map((b, i) => ({ at: b.end, text: text.slice(b.end, located[i]?.start ?? text.length).trim() }))
+    .map((b, i) => ({ at: b.end, text: text.slice(b.end, sorted[i]?.start ?? text.length).trim() }))
     .filter((p) => p.text)
 }
 
@@ -121,13 +173,23 @@ function validHeadings(headings: string[], shared: string): string[] {
   return unique(found).slice(0, MAX_HEADINGS)
 }
 
-function tracks(located: Found[], postingText: string, headings: string[]): PostingJob[] {
-  const shared = capShared(sharedPieces(postingText, located))
-  const sharedHeadings = validHeadings(headings, sharedPieces(postingText, located).map((p) => p.text).join('\n\n'))
-  return located.map(({ raw, start, end }) => {
-    const before = shared.filter((p) => p.at <= start).map((p) => p.text)
-    const after = shared.filter((p) => p.at > start).map((p) => p.text)
-    const text = [...before, postingText.slice(start, end).trim(), ...after].join('\n\n').slice(0, MAX_JOB_TEXT_CHARS)
+/**
+ * Each track's text: the shared part (everything outside every track's parts, capped) and its own parts, in the
+ * posting's order. The other tracks' parts are left out.
+ */
+function tracks(located: Found[], posting: Prepared, headings: string[]): PostingJob[] {
+  const postingText = posting.raw
+  const parts = trackParts(located, posting)
+  const pieces = sharedPieces(postingText, parts.flat())
+  const shared = capShared(pieces)
+  const sharedHeadings = validHeadings(headings, pieces.map((p) => p.text).join('\n\n'))
+  return located.map(({ raw, start }, i) => {
+    const own = parts[i].map((r) => ({ at: r.start, text: postingText.slice(r.start, r.end).trim() }))
+    const text = [...shared, ...own]
+      .sort((a, b) => a.at - b.at)
+      .map((p) => p.text)
+      .join('\n\n')
+      .slice(0, MAX_JOB_TEXT_CHARS)
     return { ...describe(raw), text, lines: validLines(raw.lines, text), track: true, startsWith: startLine(postingText, start), shared: sharedHeadings }
   })
 }
@@ -153,7 +215,7 @@ export function finalizePostingJobs(raw: PostingJobsInput, postingText: string):
       },
     ]
   }
-  if (located.every((f) => f.raw.isTrack === true)) return tracks(located, postingText, raw.sharedHeadings ?? [])
+  if (located.every((f) => f.raw.isTrack === true)) return tracks(located, posting, raw.sharedHeadings ?? [])
   const intro = postingText.slice(0, located[0].start).trim()
   const prefix = intro && intro.length < MAX_INTRO_CHARS ? `${intro}\n\n` : ''
   return located.map(({ raw: job, start, end }) => {

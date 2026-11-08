@@ -46,7 +46,7 @@ beforeEach(() => {
 const ITEMS = [{ askId: 'q1', question: 'Did you use Kafka?', answer: 'Yes, at Visio AI.' }]
 
 const SINGLE = 'Acme is hiring a Backend Engineer to build things.'
-const entry = (over = {}) => ({ company: '  Acme  ', role: 'Backend\nEngineer', location: '', kind: '', firstLine: 'Acme is hiring', lastLine: 'to build things.', lines: [], requirementCount: 3, isTrack: false, ...over })
+const entry = (over = {}) => ({ company: '  Acme  ', role: 'Backend\nEngineer', location: '', kind: '', firstLine: 'Acme is hiring', lastLine: 'to build things.', lines: [], requirementCount: 3, isTrack: false, moreSections: [], ...over })
 
 describe('readPostingJobs', () => {
   test('one job: the tidy names and the whole text, asking with low effort and a small budget', async () => {

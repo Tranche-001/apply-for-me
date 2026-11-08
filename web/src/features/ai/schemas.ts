@@ -126,6 +126,9 @@ export const postingJobsOutputSchema = z.object({
         isTrack: z
           .boolean()
           .describe('true when this entry is one track, role or level of a single posting (a program with several tracks that each list their own requirements), not a separate posting.'),
+        moreSections: z
+          .array(z.object({ firstLine: z.string(), lastLine: z.string() }))
+          .describe('Tracks only: the other parts of this track\'s own text when it is split across the posting (e.g. its requirements under a shared heading further down), in order, each line copied word for word. Empty otherwise.'),
       }),
     )
     .describe('One entry per job in the posting, in the order they appear. One entry when the text holds a single job.'),
