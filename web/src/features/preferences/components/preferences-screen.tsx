@@ -5,7 +5,7 @@
 import { useState, useTransition } from 'react'
 import { Icon } from '@/features/ai/ui/icon'
 import { addRule, deleteRule, setRuleOn } from '../actions'
-import { GROUPS, groupRules, type GroupId, type RuleItem } from '../types'
+import { GROUPS, groupRules, isLearnedFromUse, type GroupId, type RuleItem } from '../types'
 
 export function PreferencesScreen({ initialRules }: { initialRules: RuleItem[] }) {
   const [rules, setRules] = useState(initialRules)
@@ -104,7 +104,14 @@ export function PreferencesScreen({ initialRules }: { initialRules: RuleItem[] }
                   <li key={r.id} className="flex flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-[#eef0f3] py-3">
                     <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-1">
                       <span className={`text-[14px] leading-[1.5] ${r.on ? 'text-[var(--text)]' : 'text-[var(--muted)] line-through'}`}>{r.text}</span>
-                      {r.source && <span className="text-[12px] text-[var(--muted)]">{r.source}</span>}
+                      {r.source && (
+                        <span className="flex flex-wrap items-center gap-1.5 text-[12px] text-[var(--muted)]">
+                          {isLearnedFromUse(r.source) && (
+                            <span className="rounded border border-[var(--amber-line)] bg-[var(--amber-soft)] px-1.5 font-mono text-[10px] uppercase tracking-[0.05em] text-[var(--amber)]">Learned from use</span>
+                          )}
+                          {r.source}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1">
                       <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 px-1.5 text-[13px] text-[var(--text-2)]">

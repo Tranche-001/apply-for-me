@@ -1397,6 +1397,27 @@
       "position": 4
     },
     {
+      "group": "cv",
+      "text": "Put experience at companies before personal projects.",
+      "source": "From your request on Nov 8",
+      "on": true,
+      "position": 5
+    },
+    {
+      "group": "cv",
+      "text": "Put the most recent work that best matches the job at the top.",
+      "source": "From your request on Nov 8",
+      "on": true,
+      "position": 6
+    },
+    {
+      "group": "cv",
+      "text": "Offer the job's title for my roles, and ask me before using it.",
+      "source": "From your request on Nov 8",
+      "on": true,
+      "position": 7
+    },
+    {
       "group": "qa",
       "text": "Write behavioral answers in Portuguese, first person, in STAR order.",
       "source": "You added this",

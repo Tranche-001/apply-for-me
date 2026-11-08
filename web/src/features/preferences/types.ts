@@ -10,6 +10,9 @@ export const GROUPS = [
 
 export type GroupId = (typeof GROUPS)[number]['id']
 
+/** A rule written from something you asked for while using the app ("From your request on Nov 8"): tagged "Learned from use". */
+export const isLearnedFromUse = (source: string): boolean => /^From your request\b/.test(source.trim())
+
 /** Known groups first, in their order, then any other group found in the data. */
 export function groupRules(rules: RuleItem[]): { id: string; name: string; rules: RuleItem[] }[] {
   const known = GROUPS.map((g) => ({ id: g.id as string, name: g.name as string, rules: rules.filter((r) => r.group === g.id) }))
