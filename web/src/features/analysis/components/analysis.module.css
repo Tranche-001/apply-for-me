@@ -564,3 +564,28 @@ a.a-chip:hover { border-color: var(--indigo-line); }
 .a-split .foot .sp { flex: 1; }
 /* Preflight removes list markers; the prototype's hit cards (and the full posting's lists) show discs. */
 .a-hl ul, .posting ul { list-style: disc; }
+
+/* "Role titles for this job" (prototype next-ideas.html #titles): a card above the CV on the review step. The
+   three options are radios (the input is visually hidden; the label is the card), so the keyboard moves between them. */
+.tt-card { width: 100%; max-width: 680px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; }
+.tt-card h4 { margin: 0; font: 500 10px/1 var(--font-geist-mono), ui-monospace, monospace; letter-spacing: 0.07em; color: var(--muted); text-transform: uppercase; }
+.tt-ask { font-weight: 600; font-size: 13px; }
+.tt { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 10px 0; border-top: 1px solid var(--border); }
+.tt:first-child { border-top: 0; }
+.tt > b { font-weight: 600; font-size: 12.5px; }
+.tt-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+@media (max-width: 560px) { .tt-opts { grid-template-columns: minmax(0, 1fr); } }
+.tt-opt { position: relative; display: grid; gap: 2px; text-align: left; padding: 7px 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); cursor: pointer; min-width: 0; }
+.tt-opt:hover { border-color: var(--indigo-line); }
+.tt-opt small { font: 500 10px var(--font-geist-mono), ui-monospace, monospace; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.tt-opt span { font-size: 12.5px; overflow-wrap: anywhere; }
+.tt-opt.on { border-color: var(--indigo); background: var(--indigo-soft); box-shadow: 0 0 0 1px var(--indigo) inset; }
+.tt-opt.on small { color: var(--indigo); }
+.tt-opt:has(input:focus-visible) { outline: 2px solid var(--indigo); outline-offset: 2px; }
+.tt-opt:has(input:disabled) { cursor: default; opacity: 0.7; }
+.tt-own { height: 30px; box-sizing: border-box; padding: 0 9px; border: 1px solid var(--border-strong); border-radius: 8px; font: 400 12.5px var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif; background: var(--surface); color: var(--text); }
+.tt-own:focus-visible { outline: 2px solid var(--indigo); outline-offset: 1px; }
+.tt-note { font-size: 11.5px; color: var(--muted); }
+/* A role title that is not the one you had, on the review page only: never on paper. */
+mark.tt-mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1px; }
+@media print { mark.tt-mark { background: none; padding: 0; } }

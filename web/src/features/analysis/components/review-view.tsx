@@ -1,7 +1,7 @@
 // "Review & save" (the prototype's review(saved)): on the left "This CV", the requirements it meets and the
 // blocks it uses, all clickable (H6); in the middle the real CV, new versions tagged NEW, double-click or
 // Enter edits a block (H7).
-import { Fragment } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { CvPreview, type EntryUi } from '@/features/cv/components/cv-preview'
 import type { CvLayout, LayoutEntry } from '@/features/cv/layout'
 import type { Printed } from '@/features/cv/print'
@@ -38,6 +38,10 @@ export type Props = {
   labels: Printed['labels']
   /** Block ids (LayoutEntry.block.id) of the new versions and new blocks: tagged NEW on the page. */
   newBlockIds: string[]
+  /** Block ids whose role title is not the one you had: highlighted on the page (not on paper). */
+  retitledBlockIds: string[]
+  /** "Role titles for this job", above the CV. */
+  titles: ReactNode
   pages: 1 | 2
   saved: boolean
   busy: boolean
@@ -172,10 +176,12 @@ function StageBar({ pages, saved, busy, saveLabel, onPages, onBack, onSave, onOp
 }
 
 export function ReviewView(props: Props) {
-  const { met, notMet, total, blocks, layout, profile, labels, newBlockIds, onOpenRequirement, onOpenBlock, onEditBlock } = props
+  const { met, notMet, total, blocks, layout, profile, labels, newBlockIds, retitledBlockIds, titles, onOpenRequirement, onOpenBlock, onEditBlock } = props
   const fresh = new Set(newBlockIds)
+  const retitled = new Set(retitledBlockIds)
   const entryUi = (e: LayoutEntry): EntryUi => ({
     className: c('cv-block', fresh.has(e.block.id) && 'new'),
+    titleMark: retitled.has(e.block.id) ? c('tt-mark') : undefined,
     tabIndex: 0,
     title: 'Double-click to edit',
     onDoubleClick: () => onEditBlock(e.block.id),
@@ -194,6 +200,7 @@ export function ReviewView(props: Props) {
       </section>
       <div className={c('a-stage')}>
         <StageBar {...props} />
+        {titles}
         <CvPreview layout={layout} profile={profile} labels={labels} entryUi={entryUi} />
       </div>
     </div>

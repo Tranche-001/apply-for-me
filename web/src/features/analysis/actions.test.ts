@@ -13,6 +13,7 @@ const m = vi.hoisted(() => ({
   appendAnswerToExperience: vi.fn(),
   saveDraftToLibrary: vi.fn(),
   updateVersionFromDraft: vi.fn(),
+  saveTitleForJob: vi.fn(),
   writeCv: vi.fn(),
   txOptions: vi.fn(),
   job: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
@@ -24,7 +25,7 @@ vi.mock('next/cache', () => ({ refresh: m.refresh }))
 vi.mock('./fetch-posting', () => ({ fetchPosting: m.fetchPosting }))
 vi.mock('../ai/actions', () => ({ readPostingJobs: m.readPostingJobs, draftBlockFromExperience: m.draftBlockFromExperience }))
 vi.mock('../experiences/answers', () => ({ appendAnswerToExperience: m.appendAnswerToExperience }))
-vi.mock('../ai/library-writes', () => ({ saveDraftToLibrary: m.saveDraftToLibrary, updateVersionFromDraft: m.updateVersionFromDraft }))
+vi.mock('../ai/library-writes', () => ({ saveDraftToLibrary: m.saveDraftToLibrary, updateVersionFromDraft: m.updateVersionFromDraft, saveTitleForJob: m.saveTitleForJob }))
 vi.mock('../cv/write-cv', () => ({ saveCvSchema: {}, writeCv: m.writeCv }))
 vi.mock('@/lib/db', () => {
   const tx = { job: m.job, block: m.block }
@@ -709,6 +710,29 @@ describe('saveAnalysisCv', () => {
     })
     const r = await saveAnalysisCv({ jobId: 'j1', drafts: [], cv: cv([]) })
     expect(r.ok).toBe(true)
+  })
+
+  test('a version used as it is with another role title gets a version for this job, named after the job, in the CV', async () => {
+    m.job.findUnique.mockResolvedValue({ id: 'j1', company: 'iFood', role: 'AI Builder' })
+    m.saveTitleForJob.mockResolvedValue({ blockId: 'b1', blockName: 'Visio', versionId: 'v-titled', versionName: 'iFood · AI Builder', isNewBlock: false })
+    const r = await saveAnalysisCv({
+      jobId: 'j1',
+      drafts: [],
+      cv: cv([
+        { section: 'EXPERIENCE', position: 0, versionId: 'v-visio' },
+        { section: 'PROJECT', position: 1, versionId: 'v-bi' },
+      ]),
+      retitled: [{ versionId: 'v-visio', title: ' AI Builder ' }],
+    })
+    expect(m.saveTitleForJob).toHaveBeenCalledWith(expect.anything(), 'v-visio', 'AI Builder', { jobId: 'j1', name: 'iFood · AI Builder' })
+    expect(m.writeCv.mock.calls[0][1].items.map((i: { versionId: string }) => i.versionId)).toEqual(['v-titled', 'v-bi'])
+    expect(r.ok && r.data.saved).toEqual([expect.objectContaining({ versionId: 'v-titled' })])
+  })
+
+  test('role titles for drafts, twice for one version, or empty are refused before the transaction', async () => {
+    const bad = [[{ versionId: 'draft:d1', title: 'X' }], [{ versionId: 'v1', title: 'X' }, { versionId: 'v1', title: 'Y' }], [{ versionId: 'v1', title: '  ' }]]
+    for (const retitled of bad) expect((await saveAnalysisCv({ jobId: 'j1', drafts: [], cv: cv([]), retitled })).ok).toBe(false)
+    expect(m.job.findUnique).not.toHaveBeenCalled()
   })
 
   test('a version that disappeared while updating is a plain message', async () => {

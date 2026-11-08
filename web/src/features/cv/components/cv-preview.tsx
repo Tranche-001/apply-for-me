@@ -21,6 +21,8 @@ export type EntryUi = {
   /** With onKeyDown, lets the keyboard reach the block (Enter edits it on Job analysis). */
   tabIndex?: number
   onKeyDown?: (ev: KeyboardEvent<HTMLDivElement>) => void
+  /** Job analysis review: the title is wrapped in a <mark> with this class (a role title that is not the one you had). */
+  titleMark?: string
 }
 
 type Props = {
@@ -69,12 +71,12 @@ function Entry({ entry, ui }: { entry: LayoutEntry; ui: EntryUi }) {
       )}
       {block.section === 'PROJECT' ? (
         <div style={{ fontSize: 12, lineHeight: 1.35 }}>
-          <strong>{version.title}</strong> | <em>{block.stack}</em>
+          <strong>{ui.titleMark ? <mark className={ui.titleMark}>{version.title}</mark> : version.title}</strong> | <em>{block.stack}</em>
         </div>
       ) : (
         <>
           <div style={{ ...row, alignItems: 'baseline' }}>
-            <span style={{ fontSize: 12, fontWeight: 700 }}>{version.title}</span>
+            <span style={{ fontSize: 12, fontWeight: 700 }}>{ui.titleMark ? <mark className={ui.titleMark}>{version.title}</mark> : version.title}</span>
             <span style={{ fontSize: 11 }}>{block.dates}</span>
           </div>
           <div style={{ ...row, fontSize: 11, fontStyle: 'italic' }}>

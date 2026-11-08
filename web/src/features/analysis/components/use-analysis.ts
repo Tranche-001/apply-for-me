@@ -11,7 +11,8 @@ import { addExperienceForRequirement, continueFromLinks, saveAnalysisCv, saveAna
 import type { LoadedAnalysisJob } from '../queries'
 import { applyRedraft, markSaved, markSent, newSession, setStep, type DraftUndo } from '../session-state'
 import type { OverlapLinks, SplitCandidate, StartedJob, StartResult, StartSource } from '../start-types'
-import type { AnalysisSession, ExperienceOption, JobSummary, SentAnswer } from '../types'
+import type { Retitle } from '../role-titles'
+import type { AnalysisSession, ExperienceOption, JobSummary, SentAnswer, SessionDraft } from '../types'
 import type { Destination, PlacementItem } from './placement-popover'
 import { splitNotice, typedLinks, unreadNotice } from './start-links'
 import { askNumber, topicFor } from './view-model'
@@ -33,6 +34,8 @@ export type NotMetState = { busy: boolean; done: { place: string; isNew: boolean
 export type UndoState = { undo: DraftUndo | null; asIsVersion: string | null; label: string }
 
 type SendItem = { askId: string; question: string; answer: string }
+/** What Save sends besides the job: kept drafts (with their role titles), versions that take another title, the CV. */
+export type SavePlan = { drafts: SessionDraft[]; retitled: Retitle[]; cv: Parameters<typeof saveAnalysisCv>[0]['cv'] }
 
 const NO_NOT_MET: NotMetState = { busy: false, done: null, error: null }
 const now = () => new Date().toISOString()
@@ -347,14 +350,14 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     setNotMet({ busy: false, done: { place: res.data.placed.title, isNew: res.data.placed.isNew }, error: null })
   }
 
-  async function save(cv: Parameters<typeof saveAnalysisCv>[0]['cv']): Promise<void> {
-    const s = sessionRef.current
+  /** Save: the kept drafts and the role titles as the review shows them (titlesForSave), then the CV. */
+  async function save(plan: SavePlan): Promise<void> {
     const j = jobRef.current
-    if (!s || !j) return
+    if (!sessionRef.current || !j) return
     setPhase('saving')
     setProblem(null)
-    const res = await saveAnalysisCv({ jobId: j.id, drafts: s.drafts.filter((d) => d.keep), cv })
-    if (!res.ok) return fail(res.error, () => void save(cv))
+    const res = await saveAnalysisCv({ jobId: j.id, ...plan })
+    if (!res.ok) return fail(res.error, () => void save(plan))
     change((cur) => markSaved(cur, now()))
     setPhase('idle')
   }
@@ -393,7 +396,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     redraft: (instruction: string | null = null) => guard(redraft)(instruction),
     updateDrafts: () => guard(updateDrafts)(),
     send: (askId: string) => guard(send)(askId),
-    save: (cv: Parameters<typeof saveAnalysisCv>[0]['cv']) => guard(save)(cv),
+    save: (plan: SavePlan) => guard(save)(plan),
   }
 }
 

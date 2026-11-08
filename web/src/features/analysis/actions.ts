@@ -11,7 +11,7 @@ import { draftBlockFromExperience, readPostingJobs } from '../ai/actions'
 import { dbLogContext, plainDbError } from '../ai/db-errors'
 import { jobNamesFrom, type JobNames } from '../ai/job-info'
 import { jobLabel } from '../ai/labels'
-import { saveDraftToLibrary, updateVersionFromDraft, type SavedDraft } from '../ai/library-writes'
+import { saveDraftToLibrary, saveTitleForJob, updateVersionFromDraft, type SavedDraft } from '../ai/library-writes'
 import { fail, invalidInput, ok, type ActionResult } from '../ai/result'
 import type { AnalysisDraft } from '../ai/types'
 import { sectionSchema } from '../blocks/schemas'
@@ -20,7 +20,7 @@ import { writeCv } from '../cv/write-cv'
 import { appendAnswerToExperience, type PlacedAnswer } from '../experiences/answers'
 import { answerEntry } from '../experiences/types'
 import { draftVersionId } from './cv-draft'
-import { keptDraftInput, mapCvItems, updatesVersion } from './cv-save'
+import { keptDraftInput, mapCvItems, retitledInput, updatesVersion } from './cv-save'
 import { MAX_POSTING_CHARS } from './html-text'
 import { toJobSummary } from './job-summary'
 import { readPostingUrls } from './read-posting'
@@ -300,22 +300,24 @@ const saveCvInput = z.object({
     .max(20, 'Keep at most 20 drafts.')
     .refine((drafts) => new Set(drafts.map((d) => d.key)).size === drafts.length, { message: 'Two drafts have the same key. Reload the page and try again.' }),
   cv: cvInput,
+  retitled: retitledInput.optional(),
 })
 
 export type SavedAnalysisCv = { saved: SavedDraft[]; savedLabel: string; idMap: Record<string, string> }
 
 /**
  * Save on the review step, in ONE transaction: the kept drafts go to the library (a new version for this job,
- * or an update of the version they came from), then the job's CV is written with the draft ids replaced by
- * the saved version ids. If any step fails nothing is saved.
+ * or an update of the version they came from); a version used as it is that takes another role title gets a
+ * version for this job with that title (the version itself never changes); then the job's CV is written with
+ * those ids in place of the draft and as-is ids. If any step fails nothing is saved.
  */
-export async function saveAnalysisCv(input: { jobId: string; drafts: unknown[]; cv: z.input<typeof cvInput> }): Promise<ActionResult<SavedAnalysisCv>> {
+export async function saveAnalysisCv(input: { jobId: string; drafts: unknown[]; cv: z.input<typeof cvInput>; retitled?: { versionId: string; title: string }[] }): Promise<ActionResult<SavedAnalysisCv>> {
   const parsed = saveCvInput.safeParse(input)
   if (!parsed.success) return fail(invalidInput(parsed.error))
-  const { jobId, drafts, cv } = parsed.data
+  const { jobId, drafts, cv, retitled = [] } = parsed.data
   return attempt('saveAnalysisCv', () =>
     db.$transaction(async (tx) => {
-      const job = await tx.job.findUnique({ where: { id: jobId }, select: { id: true } })
+      const job = await tx.job.findUnique({ where: { id: jobId }, select: { id: true, company: true, role: true } })
       if (!job) return fail<SavedAnalysisCv>(MISSING_JOB)
       const saved: SavedDraft[] = []
       const idMap: Record<string, string> = {}
@@ -323,6 +325,11 @@ export async function saveAnalysisCv(input: { jobId: string; drafts: unknown[]; 
         const result = updatesVersion(draft) ? await updateVersionFromDraft(tx, draft.fromVersionId, draft) : await saveDraftToLibrary(tx, draft, { jobId })
         saved.push(result)
         idMap[draftVersionId(draft.key)] = result.versionId
+      }
+      for (const r of retitled) {
+        const result = await saveTitleForJob(tx, r.versionId, r.title, { jobId, name: jobLabel(job) })
+        saved.push(result)
+        idMap[r.versionId] = result.versionId
       }
       const { savedLabel } = await writeCv(tx, { jobId, ...cv, items: mapCvItems(cv.items, idMap) })
       await tx.job.update({ where: { id: jobId }, data: { updatedAt: new Date() }, select: { id: true } })

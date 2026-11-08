@@ -26,6 +26,48 @@ export async function updateVersionFromDraft(tx: Tx, versionId: string, draft: D
   return { blockId: version.blockId, blockName: version.block.name, versionId: version.id, versionName: version.name, isNewBlock: false }
 }
 
+type BulletRow = { kind: string; text: string; want: string | null }
+const sameBullets = (a: readonly BulletRow[], b: readonly BulletRow[]): boolean =>
+  a.length === b.length && a.every((x, i) => x.kind === b[i].kind && x.text === b[i].text && x.want === b[i].want)
+
+/**
+ * "Role titles for this job" on a version used as it is: the version itself is never changed. A version of the same
+ * block made for this job with that title and the same bullets is used again; otherwise a copy of the version, with
+ * the new title, becomes a new version for this job (named `name`, the job's label). Throws 'block-missing' when the
+ * version is gone, so the caller's transaction rolls back.
+ */
+export async function saveTitleForJob(tx: Tx, versionId: string, title: string, link: { jobId: string; name: string }): Promise<SavedDraft> {
+  const bullets = { orderBy: { position: 'asc' as const }, select: { kind: true, text: true, want: true } }
+  const source = await tx.version.findUnique({
+    where: { id: versionId },
+    select: {
+      title: true,
+      bullets,
+      block: { select: { id: true, name: true, versions: { select: { id: true, name: true, title: true, position: true, bullets, jobs: { select: { jobId: true } } } } } },
+    },
+  })
+  if (!source) throw new Error('block-missing')
+  const { block } = source
+  const done = (id: string, name: string): SavedDraft => ({ blockId: block.id, blockName: block.name, versionId: id, versionName: name, isNewBlock: false })
+  const made = block.versions.find((v) => v.title === title && v.jobs.some((j) => j.jobId === link.jobId) && sameBullets(v.bullets, source.bullets))
+  if (made) return done(made.id, made.name)
+  const name = nextFreeName(link.name || 'New version', block.versions.map((v) => v.name))
+  const position = block.versions.reduce((max, v) => Math.max(max, v.position), -1) + 1
+  const version = await tx.version.create({
+    data: {
+      blockId: block.id,
+      name,
+      title,
+      isBase: false,
+      themes: [],
+      position,
+      bullets: { create: source.bullets.map((b, i) => ({ kind: b.kind, text: b.text, want: b.want, position: i })) },
+      jobs: { create: [{ jobId: link.jobId }] },
+    },
+  })
+  return done(version.id, name)
+}
+
 async function uniqueSlug(tx: Tx, name: string): Promise<string> {
   const base = slugify(name)
   const taken = await tx.block.findMany({ where: { slug: { startsWith: base } }, select: { slug: true } })

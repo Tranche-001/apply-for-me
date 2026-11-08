@@ -17,6 +17,20 @@ export const keptDraftInput = z
 
 export type KeptDraft = z.output<typeof keptDraftInput>
 
+/**
+ * Versions used as they are that take another role title on this CV ("Role titles for this job"). Only library ids
+ * (a draft takes its title in the draft itself), each once.
+ */
+export const retitledInput = z
+  .array(
+    z.object({
+      versionId: z.string().trim().min(1, 'is missing').max(64, 'is not a valid id').refine((v) => !isDraftVersionId(v), { message: 'is a draft' }),
+      title: z.string().trim().min(1, 'Write the title first.').max(300, 'The title is too long (300 characters at most).'),
+    }),
+  )
+  .max(40)
+  .refine((list) => new Set(list.map((r) => r.versionId)).size === list.length, { message: 'A role title is there twice. Reload the page and try again.' })
+
 /** True when Save updates the version the draft came from instead of adding a version. */
 export function updatesVersion(draft: KeptDraft): draft is KeptDraft & { fromVersionId: string; blockId: string } {
   return draft.saveAs === 'update' && Boolean(draft.fromVersionId) && Boolean(draft.blockId)

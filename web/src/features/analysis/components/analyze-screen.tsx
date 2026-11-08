@@ -17,6 +17,7 @@ import { postingLines, postingListItems } from '../highlight'
 import type { LoadedAnalysisJob } from '../queries'
 import { blocksSummary, discardedLabel, improvesLabel, metBlocksLine, reviewBlockSub, reviewBlockTag, saveLabel } from '../review-labels'
 import { discardDraft, editAsIs, pipelineStep, restoreDraft, setKeep, setPages, setStep, toggleAsIsOut, updateDraft } from '../session-state'
+import { libraryWithTitles, roleTitleRows, setTitleChoice, titlesForSave } from '../role-titles'
 import type { ExperienceOption } from '../types'
 import { AnalysisPopovers } from './analysis-popovers'
 import { AnswersDone } from './answers-done'
@@ -27,6 +28,7 @@ import { LinksOverlap } from './links-overlap'
 import { QuestionsPanel } from './questions-panel'
 import { RequirementsPanel } from './requirements-panel'
 import { ReviewView } from './review-view'
+import { RoleTitlesCard } from './role-titles-card'
 import { SavedBanner } from './saved-banner'
 import { StartCard } from './start-card'
 import { StatusLine } from './status-line'
@@ -71,8 +73,10 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
   const printed = useMemo(() => {
     if (!s || (s.step !== 'review' && s.step !== 'saved')) return null
     const comp = compositionForReview({ library, drafts: s.drafts, reused: s.analysis.reused, asIsOut: s.asIsOut, pages: s.pages, order: s.analysis.order })
-    return { comp, print: printCv(comp, libraryWithDrafts(library, s.drafts), profile) }
-  }, [s, library, profile])
+    const withDrafts = libraryWithDrafts(library, s.drafts)
+    const titles = roleTitleRows({ comp, library: withDrafts, drafts: s.drafts, roleTitles: s.analysis.roleTitles, titles: s.titles, jobRole: a.job?.role ?? '' })
+    return { comp, titles, print: printCv(comp, libraryWithTitles(withDrafts, titles), profile) }
+  }, [s, library, profile, a.job?.role])
   const busy = a.phase !== 'idle'
   const reqs = s?.analysis.requirements ?? []
 
@@ -217,13 +221,14 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
     const keptDrafts = views.drafts.filter((v) => v.keep)
     const kept = [...keptDrafts, ...views.asIs]
     const comp = printed.comp
+    const forSave = titlesForSave(s.drafts.filter((d) => d.keep), printed.titles)
     const { met, notMet } = cvRequirements(s.analysis, kept.map((v) => ({ id: v.ref, blockName: v.blockName, matches: v.matches })))
     const group = (g: 'new' | 'asis' | 'out', list: typeof kept) =>
       list.map((v) => ({ group: g, id: v.ref, name: v.blockName, tag: reviewBlockTag(g, v.isNewBlock), sub: reviewBlockSub({ group: g, matches: blockRequirements(v.matches, reqs), versionName: v.versionName }), matched: v.matches.length > 0 }))
     const saved = s.step === 'saved'
     return (
       <>
-        {saved && <SavedBanner savedCount={keptDrafts.length} jobLabel={job.label} onAnalyzeAnother={a.reset} />}
+        {saved && <SavedBanner savedCount={keptDrafts.length + forSave.retitled.length} jobLabel={job.label} onAnalyzeAnother={a.reset} />}
         <ReviewView
           met={met.map((x) => ({ id: x.requirement.id, name: x.requirement.text, blocks: metBlocksLine(x.hits), partly: x.partly }))}
           notMet={notMet.map((r) => ({ id: r.id, name: r.text }))}
@@ -233,13 +238,17 @@ export function AnalyzeScreen({ loaded, experiences, library, profile, aiReady, 
           profile={profile}
           labels={printed.print.labels}
           newBlockIds={keptDrafts.map((v) => v.blockId)}
+          retitledBlockIds={printed.titles.filter((r) => r.changed).map((r) => r.blockId)}
+          titles={<RoleTitlesCard jobRole={job.role} rows={printed.titles} disabled={saved || busy} onPick={(key, choice) => a.change((x) => setTitleChoice(x, key, choice))} />}
           pages={s.pages}
           saved={saved}
           busy={busy}
-          saveLabel={saveLabel(keptDrafts.length)}
+          saveLabel={saveLabel(keptDrafts.length + forSave.retitled.length)}
           onPages={(p) => a.change((x) => setPages(x, p))}
           onBack={() => a.change((x) => setStep(x, 'drafts'))}
-          onSave={() => void a.save({ pages: comp.pages, sectionOrder: comp.order, showEducation: comp.edu, showSkills: comp.skills, showAchievements: comp.ach, items: toSavedItems(comp) })}
+          onSave={() =>
+            void a.save({ ...forSave, cv: { pages: comp.pages, sectionOrder: comp.order, showEducation: comp.edu, showSkills: comp.skills, showAchievements: comp.ach, items: toSavedItems(comp) } })
+          }
           onOpenCompose={() => router.push(`/compose?job=${encodeURIComponent(job.id)}`)}
           onOpenRequirement={(id) => (met.some((x) => x.requirement.id === id) ? a.setModal({ kind: 'met', reqId: id, backBlock: null }) : a.openNotMet(id))}
           onOpenBlock={(ref) => a.setModal({ kind: 'block', ref })}
