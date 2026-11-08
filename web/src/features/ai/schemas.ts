@@ -93,8 +93,11 @@ export const analysisOutputSchema = z.object({
       }),
     )
     .describe('Requirements his profile (Education, Technical Skills, Leadership & Achievements) shows. Empty when none.'),
+  // Asked for (required in the JSON schema the model gets), but a model that leaves them out still gives a valid
+  // analysis: both default to empty, and the review falls back to the library order and the titles you have.
   order: z
     .array(z.string())
+    .default([])
     .describe('Every block of this CV (each draft and each reused version), in print order: the block id, or for a new block its newBlock name exactly. Each block once.'),
   roleTitles: z
     .array(
@@ -103,6 +106,7 @@ export const analysisOutputSchema = z.object({
         title: z.string().describe('The role title you recommend for it on this CV, taken from the job\'s role.'),
       }),
     )
+    .default([])
     .describe('One per EXPERIENCE block of this CV. Empty when there is none.'),
 })
 export type AnalysisOutput = z.infer<typeof analysisOutputSchema>

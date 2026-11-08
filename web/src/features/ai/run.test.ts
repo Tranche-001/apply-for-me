@@ -46,6 +46,28 @@ describe('strictJsonSchema', () => {
   })
 })
 
+describe('analysisOutputSchema: order and roleTitles', () => {
+  const base = { requirements: [], asks: [], drafts: [], reused: [], leftOut: [], report: [], profileMatches: [] }
+
+  test('a model that leaves out order and roleTitles still gives a valid analysis, with both empty', () => {
+    const parsed = analysisOutputSchema.safeParse(base)
+    expect(parsed.success).toBe(true)
+    expect(parsed.data).toMatchObject({ order: [], roleTitles: [] })
+  })
+
+  test('both are still asked for: the schema the model gets lists them as required', () => {
+    const schema = strictJsonSchema(analysisOutputSchema)
+    expect(schema.required).toEqual(expect.arrayContaining(['order', 'roleTitles']))
+    expect(JSON.stringify(schema)).not.toContain('"default"')
+  })
+
+  test('given, they are kept as they are', () => {
+    const parsed = analysisOutputSchema.parse({ ...base, order: ['b1'], roleTitles: [{ block: 'b1', title: 'AI Builder' }] })
+    expect(parsed.order).toEqual(['b1'])
+    expect(parsed.roleTitles).toEqual([{ block: 'b1', title: 'AI Builder' }])
+  })
+})
+
 describe('runStructured', () => {
   test('returns the validated output', async () => {
     const { client, stream } = fakeClient({ stop_reason: 'end_turn', content: [{ type: 'thinking' }, { type: 'text', text: '{"text":"Olá","changes":["Shorter"]}' }] })
