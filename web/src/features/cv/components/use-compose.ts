@@ -227,13 +227,15 @@ export function useCompose({ jobs: serverJobs, library: serverLibrary, profile: 
     setSaving(true)
     setSaveError(null)
     const items = cv.toSavedItems(comp)
-    const res = await saveCv({ jobId, pages: comp.pages, sectionOrder: comp.order, showEducation: comp.edu, showSkills: comp.skills, showAchievements: comp.ach, items })
+    // One section ("Experience & Projects") comes from Job analysis; Compose keeps it as it was saved.
+    const oneSection = comp.oneSection ?? false
+    const res = await saveCv({ jobId, pages: comp.pages, sectionOrder: comp.order, oneSection, showEducation: comp.edu, showSkills: comp.skills, showAchievements: comp.ach, items })
     setSaving(false)
     if (!res.ok) {
       setSaveError(res.error)
       return false
     }
-    const saved: SavedCv = { pages: comp.pages, sectionOrder: comp.order, showEducation: comp.edu, showSkills: comp.skills, showAchievements: comp.ach, savedLabel: res.data.savedLabel, items }
+    const saved: SavedCv = { pages: comp.pages, sectionOrder: comp.order, oneSection, showEducation: comp.edu, showSkills: comp.skills, showAchievements: comp.ach, savedLabel: res.data.savedLabel, items }
     setSavedCvs((m) => ({ ...m, [jobId]: saved }))
     setSavedSnap(cv.snapshot(comp))
     setSource('saved')

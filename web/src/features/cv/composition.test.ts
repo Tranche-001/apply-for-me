@@ -179,3 +179,42 @@ describe('composition', () => {
     expect(c.items.EXPERIENCE).toEqual([{ blockId: 'b', versionId: 'b2' }])
   })
 })
+
+describe('one section ("Experience & Projects")', () => {
+  const saved = (oneSection: boolean | undefined) => ({
+    pages: 1 as const,
+    sectionOrder: ['EXPERIENCE' as const, 'PROJECT' as const],
+    showEducation: true,
+    showSkills: true,
+    showAchievements: false,
+    savedLabel: 'Saved Nov 8',
+    ...(oneSection === undefined ? {} : { oneSection }),
+    items: [
+      { section: 'EXPERIENCE' as const, position: 0, versionId: 'a1' },
+      { section: 'PROJECT' as const, position: 1, versionId: 'p1' },
+      { section: 'EXPERIENCE' as const, position: 2, versionId: 'b1' },
+    ],
+  })
+
+  it('a CV saved with one section keeps every block in one list, in the saved order', () => {
+    const c = compositionFromSaved(saved(true), library)
+    expect(c.oneSection).toBe(true)
+    expect(ids(c)).toEqual(['a', 'p', 'b'])
+    expect(c.items.PROJECT).toEqual([])
+  })
+
+  it('a CV saved before (no flag) or with two sections stays in two sections', () => {
+    for (const flag of [undefined, false]) {
+      const c = compositionFromSaved(saved(flag), library)
+      expect(c.oneSection ?? false).toBe(false)
+      expect(ids(c)).toEqual(['a', 'b'])
+      expect(ids(c, 'PROJECT')).toEqual(['p'])
+    }
+  })
+
+  it('is part of what Save stores, so switching it is an unsaved change', () => {
+    const c = compositionFromSaved(saved(false), library)
+    expect(snapshot({ ...c, oneSection: true })).not.toBe(snapshot(c))
+    expect(snapshot({ ...c, oneSection: false })).toBe(snapshot(c))
+  })
+})

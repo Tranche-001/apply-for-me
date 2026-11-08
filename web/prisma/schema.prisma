@@ -134,6 +134,8 @@ model Cv {
   job              Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
   pages            Int       @default(1)
   sectionOrder     Section[]
+  /// Experience and Projects printed as one "Experience & Projects" section, in the items' order.
+  oneSection       Boolean   @default(false)
   showEducation    Boolean   @default(true)
   showSkills       Boolean   @default(true)
   showAchievements Boolean   @default(false)

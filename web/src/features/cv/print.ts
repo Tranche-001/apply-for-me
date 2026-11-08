@@ -2,7 +2,7 @@
 import type { LibBlock } from '../blocks/types'
 import type { ProfileData } from '../profile/types'
 import type { Composition } from './composition'
-import { fitOf, layoutCv, pageLabel, type CvLayout, type Fit, type LayoutEntry, type LayoutSectionInput, type PrintBlock, type PrintVersion } from './layout'
+import { fitOf, layoutCv, ONE_SECTION_NAME, pageLabel, type CvLayout, type Fit, type LayoutEntry, type LayoutSectionInput, type PrintBlock, type PrintVersion } from './layout'
 
 export function printBlockOf(b: Pick<LibBlock, 'id' | 'name' | 'section' | 'org' | 'location' | 'dates' | 'stack'>): PrintBlock {
   return { id: b.id, name: b.name, section: b.section, org: b.org, location: b.location, dates: b.dates, stack: b.stack }
@@ -19,8 +19,8 @@ export type PrintOptions = {
 
 export function sectionsFor(comp: Composition, library: readonly LibBlock[], opts: PrintOptions = {}): LayoutSectionInput[] {
   const blocks = new Map(library.map((b) => [b.id, b]))
-  const newSection = opts.newEntry ? (comp.order.includes(opts.newEntry.block.section) ? opts.newEntry.block.section : comp.order[0]) : null
-  return comp.order.map((section) => {
+  const newSection = opts.newEntry ? (comp.oneSection ? comp.order[0] : comp.order.includes(opts.newEntry.block.section) ? opts.newEntry.block.section : comp.order[0]) : null
+  const sections = comp.order.map((section) => {
     const entries = comp.items[section].flatMap((row): LayoutEntry[] => {
       const block = blocks.get(row.blockId)
       if (!block || !block.versions.length) return []
@@ -32,6 +32,9 @@ export function sectionsFor(comp: Composition, library: readonly LibBlock[], opt
     })
     return { section, entries: section === newSection && opts.newEntry ? [...entries, opts.newEntry] : entries }
   })
+  if (!comp.oneSection) return sections
+  // One section: every block under one heading, in print order; each block keeps its own look (block.section).
+  return [{ section: comp.order[0], name: ONE_SECTION_NAME, entries: sections.flatMap((s) => s.entries) }]
 }
 
 export type Printed = { layout: CvLayout; fit: Fit; labels: { text: string; beyond: boolean }[] }

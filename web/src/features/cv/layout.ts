@@ -33,6 +33,9 @@ export const SECTION_NAMES: Record<Section, string> = {
   PROJECT: 'AI & Automation Projects',
 }
 
+/** The heading of a CV that prints Experience and Projects as one section. */
+export const ONE_SECTION_NAME = 'Experience & Projects'
+
 /** The parts of a block's heading that never change between versions. */
 export type PrintBlock = {
   id: string
@@ -49,12 +52,13 @@ export type PrintVersion = { id: string; name: string; title: string; bullets: P
 
 /** One block as it lands on the page. `peeked` marks a version shown on hover, not chosen yet. */
 export type LayoutEntry = { key: string; block: PrintBlock; version: PrintVersion; peeked: boolean }
-export type LayoutSectionInput = { section: Section; entries: LayoutEntry[] }
+/** `name`: a heading other than the section's own (one "Experience & Projects" section). */
+export type LayoutSectionInput = { section: Section; name?: string; entries: LayoutEntry[] }
 export type ProfileShown = { showEducation: boolean; showSkills: boolean; showAchievements: boolean }
 
 export type PageSection =
   | { kind: 'edu'; heading: true }
-  | { kind: 'entries'; section: Section; heading: boolean; entries: LayoutEntry[] }
+  | { kind: 'entries'; section: Section; name?: string; heading: boolean; entries: LayoutEntry[] }
   | { kind: 'skills'; heading: true }
   | { kind: 'ach'; heading: true }
 
@@ -152,7 +156,8 @@ export function layoutCv(input: LayoutInput): CvLayout {
       const before = pages.length
       if (used + height > METRICS.cap && used > 0) newPage(entry.block.name)
       const brokePage = pages.length !== before
-      place({ kind: 'entries', section: sec.section, heading: idx === 0, entries: [entry] }, height, entry.block.name, idx === 0 || brokePage)
+      const part: PageSection = { kind: 'entries', section: sec.section, ...(sec.name ? { name: sec.name } : {}), heading: idx === 0, entries: [entry] }
+      place(part, height, entry.block.name, idx === 0 || brokePage)
       total += height
     })
     used += METRICS.secGap

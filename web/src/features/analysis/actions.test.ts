@@ -652,6 +652,12 @@ describe('saveAnalysisCv', () => {
     expect(m.saveDraftToLibrary).not.toHaveBeenCalled()
   })
 
+  test('one section ("Experience & Projects") reaches the CV that is written', async () => {
+    const r = await saveAnalysisCv({ jobId: 'j1', drafts: [], cv: { ...cv([{ section: 'EXPERIENCE', position: 0, versionId: 'v1' }]), oneSection: true } })
+    expect(r.ok).toBe(true)
+    expect(m.writeCv.mock.calls[0][1]).toMatchObject({ jobId: 'j1', oneSection: true })
+  })
+
   test('invalid drafts are refused before the transaction', async () => {
     const bad = [kept({ waitingOn: 'q1' }), kept({ blockId: null }), kept({ bullets: Array.from({ length: 13 }, () => ({ kind: 'IMPACT', text: 'x', want: null })) })]
     for (const d of bad) expect((await saveAnalysisCv({ jobId: 'j1', drafts: [d], cv: cv([]) })).ok).toBe(false)

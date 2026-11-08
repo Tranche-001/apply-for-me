@@ -11,6 +11,8 @@ export type SavedCv = {
   showEducation: boolean
   showSkills: boolean
   showAchievements: boolean
+  /** Experience and Projects printed as one "Experience & Projects" section. Missing = two sections. */
+  oneSection?: boolean
   /** "Saved Nov 3" or where it came from ("From toolbuilder.tex"). */
   savedLabel: string
   items: SavedCvItem[]

@@ -13,6 +13,11 @@ export type Composition = {
   edu: boolean
   skills: boolean
   ach: boolean
+  /**
+   * Experience and Projects printed as one "Experience & Projects" section, in print order (`order`, then each
+   * section's rows). A one-section CV keeps its rows in the first section. Missing = two sections.
+   */
+  oneSection?: boolean
 }
 
 export const SECTIONS: Section[] = ['EXPERIENCE', 'PROJECT']
@@ -48,14 +53,12 @@ export function rowsFromItems(items: readonly SavedCvItem[], library: readonly L
 }
 
 export function compositionFromSaved(cv: SavedCv, library: readonly LibBlock[]): Composition {
-  return {
-    pages: cv.pages,
-    order: normalizeOrder(cv.sectionOrder),
-    items: rowsFromItems(cv.items, library),
-    edu: cv.showEducation,
-    skills: cv.showSkills,
-    ach: cv.showAchievements,
-  }
+  const order = normalizeOrder(cv.sectionOrder)
+  const rows = rowsFromItems(cv.items, library)
+  const base = { pages: cv.pages, order, items: rows, edu: cv.showEducation, skills: cv.showSkills, ach: cv.showAchievements }
+  if (!cv.oneSection) return base
+  // One section: one list in the saved order (items are numbered across sections), kept in the first section.
+  return { ...base, oneSection: true, items: rowsFromItems(cv.items.map((i) => ({ ...i, section: order[0] })), library) }
 }
 
 export function baseVersion(block: LibBlock): LibVersion {
@@ -84,6 +87,7 @@ export function snapshot(c: Composition): string {
     edu: c.edu,
     skills: c.skills,
     ach: c.ach,
+    oneSection: c.oneSection ?? false,
   })
 }
 

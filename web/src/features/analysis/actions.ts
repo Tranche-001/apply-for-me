@@ -286,6 +286,7 @@ const MAX_CV_ITEMS = 200
 const cvInput = z.object({
   pages: z.union([z.literal(1), z.literal(2)]),
   sectionOrder: z.array(sectionSchema).min(1).max(2),
+  oneSection: z.boolean().optional(),
   showEducation: z.boolean(),
   showSkills: z.boolean(),
   showAchievements: z.boolean(),

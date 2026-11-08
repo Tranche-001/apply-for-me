@@ -24,6 +24,7 @@ function toSavedCv(cv: NonNullable<JobRow['cv']>): SavedCv {
     showEducation: cv.showEducation,
     showSkills: cv.showSkills,
     showAchievements: cv.showAchievements,
+    oneSection: cv.oneSection,
     savedLabel: savedLabel(cv.source, cv.savedAt),
     items: cv.items.map((i) => ({ section: i.section, position: i.position, versionId: i.versionId })),
   }

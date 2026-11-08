@@ -57,6 +57,7 @@ describe('writeCv', () => {
     expect(arg.update).toMatchObject({ pages: 2, showEducation: true, showSkills: false, showAchievements: true, source: '' })
     expect(arg.create).toMatchObject({ jobId: 'job1', pages: 2 })
     expect(arg.update.sectionOrder).toEqual(['EXPERIENCE', 'PROJECT'])
+    expect(arg.update.oneSection).toBe(false)
     expect(arg.update.savedAt).toBeInstanceOf(Date)
 
     expect(fns.cvItem.deleteMany).toHaveBeenCalledWith({ where: { cvId: 'cv1' } })
@@ -68,6 +69,14 @@ describe('writeCv', () => {
       ],
     })
     expect(calls).toEqual(['upsert', 'deleteMany', 'createMany'])
+  })
+
+  test('one section ("Experience & Projects") is stored with the CV', async () => {
+    const { tx, fns } = fakeTx()
+    await writeCv(tx, { ...INPUT, oneSection: true })
+    const call = fns.cv.upsert.mock.calls[0] as unknown as [{ create: Record<string, unknown>; update: Record<string, unknown> }]
+    expect(call[0].update.oneSection).toBe(true)
+    expect(call[0].create.oneSection).toBe(true)
   })
 
   test('an empty CV clears the items and creates none', async () => {

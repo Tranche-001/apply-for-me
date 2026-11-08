@@ -110,7 +110,7 @@ function ProfileBox({ kind, onClick, children, style }: { kind: ProfileKind; onC
 }
 
 function SectionView({ section, profile, entryUi, onProfileClick }: { section: PageSection; profile: ProfileData } & Pick<Props, 'entryUi' | 'onProfileClick'>) {
-  const name = section.kind === 'entries' ? SECTION_NAMES[section.section] : PROFILE_HEADINGS[section.kind === 'edu' ? 'education' : section.kind === 'skills' ? 'skills' : 'achievements']
+  const name = section.kind === 'entries' ? (section.name ?? SECTION_NAMES[section.section]) : PROFILE_HEADINGS[section.kind === 'edu' ? 'education' : section.kind === 'skills' ? 'skills' : 'achievements']
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
       {section.heading && (

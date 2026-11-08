@@ -11,6 +11,8 @@ export const saveCvSchema = z.object({
   jobId: idSchema,
   pages: z.union([z.literal(1), z.literal(2)]),
   sectionOrder: z.array(sectionSchema).min(1).max(2),
+  /** One "Experience & Projects" section; missing = two sections. */
+  oneSection: z.boolean().optional(),
   showEducation: z.boolean(),
   showSkills: z.boolean(),
   showAchievements: z.boolean(),
@@ -32,6 +34,7 @@ export async function writeCv(tx: Prisma.TransactionClient, input: SaveCvInput):
   const fields = {
     pages: input.pages,
     sectionOrder: [...new Set(input.sectionOrder)],
+    oneSection: input.oneSection ?? false,
     showEducation: input.showEducation,
     showSkills: input.showSkills,
     showAchievements: input.showAchievements,
