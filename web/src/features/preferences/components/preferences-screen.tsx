@@ -5,7 +5,7 @@
 import { useState, useTransition } from 'react'
 import { Icon } from '@/features/ai/ui/icon'
 import { addRule, deleteRule, setRuleOn } from '../actions'
-import { GROUPS, groupRules, isLearnedFromUse, type GroupId, type RuleItem } from '../types'
+import { filterRules, GROUPS, groupRules, isLearnedFromUse, RULE_FILTERS, type GroupId, type RuleFilter, type RuleItem } from '../types'
 
 export function PreferencesScreen({ initialRules }: { initialRules: RuleItem[] }) {
   const [rules, setRules] = useState(initialRules)
@@ -13,6 +13,7 @@ export function PreferencesScreen({ initialRules }: { initialRules: RuleItem[] }
   const [newGroup, setNewGroup] = useState<GroupId>('cv')
   const [error, setError] = useState<string | null>(null)
   const [deleted, setDeleted] = useState<RuleItem | null>(null)
+  const [show, setShow] = useState<RuleFilter>('all')
   const [adding, startAdding] = useTransition()
 
   const toggle = async (rule: RuleItem) => {
@@ -93,12 +94,29 @@ export function PreferencesScreen({ initialRules }: { initialRules: RuleItem[] }
               )}
             </div>
           )}
-          {groupRules(rules).map((g) => (
+          <div role="group" aria-label="Show rules" className="flex flex-wrap items-center gap-1.5 text-[13px] text-[var(--muted)]">
+            <span>Show:</span>
+            {RULE_FILTERS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                className="btn-s"
+                aria-pressed={show === f.id}
+                onClick={() => setShow(f.id)}
+                style={{ height: 30, borderRadius: 999, ...(show === f.id ? { borderColor: 'var(--indigo)', color: 'var(--indigo-hover)', background: 'var(--indigo-soft)' } : {}) }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          {groupRules(filterRules(rules, show)).map((g) => (
             <section key={g.id} aria-labelledby={`g-${g.id}`} className="flex flex-col rounded-xl border border-[var(--border)] bg-white px-[18px] pb-3 pt-2">
               <h2 id={`g-${g.id}`} className="m-0 pb-1.5 pt-3 text-[15px] font-semibold">
                 {g.name}
               </h2>
-              {g.rules.length === 0 && <p className="m-0 border-t border-[#eef0f3] py-3 text-[13px] text-[var(--muted)]">No rules yet.</p>}
+              {g.rules.length === 0 && (
+                <p className="m-0 border-t border-[#eef0f3] py-3 text-[13px] text-[var(--muted)]">{show === 'all' ? 'No rules yet.' : 'None with this filter.'}</p>
+              )}
               <ul className="m-0 flex list-none flex-col p-0">
                 {g.rules.map((r) => (
                   <li key={r.id} className="flex flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-[#eef0f3] py-3">
