@@ -9,6 +9,7 @@ import { saveAnswer, saveTailored, saveTheory, setUseFounder } from '../actions'
 import { tailoredKey, type BehavioralData } from '../types'
 import { GeneralistSection, TailoredSection } from './answer-sections'
 import { BehavioralPills } from './behavioral-pills'
+import { DeleteQuestion } from './delete-question'
 import { QuestionList } from './question-list'
 import { FounderSection, MyTheorySection } from './theory-sections'
 
@@ -96,24 +97,38 @@ export function BehavioralScreen({ data, initialJobId, aiReady }: Props) {
     setSelectedId(id)
   }
 
+  // After deleting, the question before it is shown (or the next one when it was the first).
+  const afterDelete = () => {
+    const at = questions.findIndex((q) => q.id === question.id)
+    const next = questions[at - 1] ?? questions[at + 1]
+    setSelectedId(next?.id ?? '')
+  }
+
   return (
     <div className="mx-auto flex max-w-[1180px] flex-col gap-5 px-3.5 pb-14 pt-[18px]">
       <header className="flex flex-col gap-1.5">
         <p className="eyebrow text-[12px]">BEHAVIORAL</p>
         <h1 className="sr-only">Interview answers</h1>
         <BehavioralPills current="answers" jobId={jobId} />
-        <SaveStatus status={status.status} error={status.error} className="text-[12px]" />
+        {/* Its line is always there, so "Saving…" appearing never pushes the page down. */}
+        <SaveStatus status={status.status} error={status.error} className="block min-h-[18px] text-[12px]" />
         <p className="m-0 max-w-[660px] text-[14px] leading-[1.5] text-[var(--muted)]">
           Keep one generalist answer per question, then let the AI adapt it to each job. Your own notes on how to answer live at the bottom.
         </p>
       </header>
 
       <div className="flex flex-wrap items-start gap-4">
-        <QuestionList questions={questions} answers={answers} tailored={tailored} selectedId={question.id} onSelect={select} />
+        <QuestionList questions={questions} answers={answers} tailored={tailored} selectedId={question.id} onSelect={select} onAdded={select} />
 
         <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
           <section className="flex flex-col gap-3.5 rounded-xl border border-[var(--border)] bg-white p-5">
-            <p className="m-0 font-mono text-[12px] text-[var(--muted)]">Question {question.n}</p>
+            <div className="flex min-h-9 flex-wrap items-center justify-between gap-2">
+              <p className="m-0 font-mono text-[12px] text-[var(--muted)]">
+                Question {question.n}
+                {question.custom && ' · added by you'}
+              </p>
+              {question.custom && <DeleteQuestion key={question.id} questionId={question.id} onDeleted={afterDelete} />}
+            </div>
             <h2 lang="pt-BR" className="m-0 text-[19px] font-semibold leading-[1.4] tracking-[-0.01em]">
               {question.full}
             </h2>

@@ -1,7 +1,7 @@
 import 'server-only'
 import { db } from '@/lib/db'
 import { jobLabel } from '../ai/labels'
-import { tailoredKey, type BehavioralData } from './types'
+import { isCustomKey, tailoredKey, type BehavioralData } from './types'
 
 export async function loadBehavioral(): Promise<BehavioralData> {
   const [questions, tailored, jobs] = await Promise.all([
@@ -23,6 +23,7 @@ export async function loadBehavioral(): Promise<BehavioralData> {
       useFounder: q.useFounder,
       founderNotes: q.founderNotes,
       founderRefs: q.founderRefs,
+      custom: isCustomKey(q.key),
     })),
     tailored: Object.fromEntries(tailored.map((t) => [tailoredKey(t.questionId, t.jobId), t.text])),
     jobs: jobs.map((j) => ({ id: j.id, label: jobLabel(j), company: j.company.trim() || j.role.trim() })),
