@@ -17,6 +17,7 @@ import { answersFor, dontSent, draftsBrief, toSend, type SendItem } from './anal
 import type { Destination, PlacementItem } from './placement-popover'
 import { splitNotice, typedLinks, unreadNotice } from './start-links'
 import { askNumber, topicFor } from './view-model'
+import { RELOAD, guardFlow, problemFor } from './flow-guard'
 
 export type Phase = 'idle' | 'reading' | 'comparing' | 'placing' | 'redrafting' | 'saving'
 
@@ -39,10 +40,6 @@ export type SavePlan = { drafts: SessionDraft[]; retitled: Retitle[]; cv: Parame
 
 const NO_NOT_MET: NotMetState = { busy: false, done: null, error: null }
 const now = () => new Date().toISOString()
-const OFFLINE = 'Couldn’t reach the app. Check that it is running, then try again.'
-const RELOAD = 'The app was updated since this page opened. Reload the page, then try again.'
-/** A tab opened before the app was rebuilt calls server actions that no longer exist. */
-const reloadNeeded = (err: unknown): boolean => err instanceof Error && /server action|older or newer deployment|unexpected response/i.test(err.message)
 
 // Stable on purpose: useAutosave rebuilds its timer when these change, and a new closure each render would
 // save the whole session on every keystroke.
@@ -89,23 +86,21 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
   }, [commit])
 
   // A failure closes any popover, so its message and Retry are seen (they sit at the top of the page).
-  const fail = (message: string, retry: (() => void) | null) => {
+  // Retry runs guarded too: a retried flow that throws (e.g. a stale tab after a rebuild) ends idle with a message.
+  const fail = (message: string, retry: (() => Promise<void> | void) | null) => {
     setPhase('idle')
     setModal(null)
-    setProblem({ message, retry })
+    setProblem({ message, retry: retry ? () => void guard(retry)() : null })
   }
 
-  /** Every flow ends idle: a thrown action (network, timeout) becomes a plain error with Retry. */
+  /** Every flow ends idle: a thrown action (network, timeout, stale build) becomes a plain error with Retry or Reload. */
   const guard =
-    <A extends unknown[]>(fn: (...args: A) => Promise<void>) =>
-    async (...args: A): Promise<void> => {
-      try {
-        await fn(...args)
-      } catch (err) {
-        if (reloadNeeded(err)) return fail(RELOAD, () => window.location.reload())
-        fail(OFFLINE, () => void guard(fn)(...args))
-      }
-    }
+    <A extends unknown[]>(fn: (...args: A) => Promise<void> | void) =>
+    (...args: A): Promise<void> =>
+      guardFlow(fn, (err) => {
+        const message = problemFor(err)
+        fail(message, message === RELOAD ? () => window.location.reload() : () => guard(fn)(...args))
+      })(...args)
 
   const addExperiences = (placed: { experienceId: string; title: string }[]) =>
     setExperiences((list) => {
@@ -117,7 +112,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     setPhase('comparing')
     setProblem(null)
     const res = await analyzeJob({ jobId: target.id, answers: base ? answersFor(base) : [], previousDrafts: base ? draftsBrief(base, false) : [] })
-    if (!res.ok) return fail(res.error, () => void compare(target, base))
+    if (!res.ok) return fail(res.error, () => compare(target, base))
     const current = sessionRef.current
     const next = base && current ? applyRedraft(current, res.data, now()) : newSession(res.data, now())
     commit(res.data.asks.length || base ? next : setStep(next, 'drafts'))
@@ -178,7 +173,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     setProblem(null)
     setNotice(null)
     const res = await continueFromLinks({ same, links: o.links, urls: o.urls, title: o.title })
-    if (!res.ok) return fail(res.error, () => void guard(continueLinks)(same))
+    if (!res.ok) return fail(res.error, () => continueLinks(same))
     setOverlap(null)
     await started(res.data, 0)
   }
@@ -191,7 +186,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     setProblem(null)
     setNotice(null)
     const res = await startPickedJob({ company: picked.company, role: picked.role, text: picked.text, urls: split.urls })
-    if (!res.ok) return fail(res.error, () => void guard(analyzePicked)(candidateId))
+    if (!res.ok) return fail(res.error, () => analyzePicked(candidateId))
     setSplit(null)
     setWhichJob('done')
     await open(res.data, 0, [])
@@ -221,7 +216,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     setPhase('redrafting')
     setProblem(null)
     const res = await analyzeJob({ jobId: j.id, answers: answersFor(s), instruction, previousDrafts: draftsBrief(s, Boolean(instruction)) })
-    if (!res.ok) return fail(res.error, () => void redraft(instruction))
+    if (!res.ok) return fail(res.error, () => redraft(instruction))
     const current = sessionRef.current
     if (current) commit(applyRedraft(current, res.data, now()))
     setPhase('idle')
@@ -239,7 +234,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
         return { question: i.question, answer: i.answer, experienceId: d?.kind === 'existing' ? d.id : null, newExperienceTitle: d?.kind === 'new' ? d.name : null }
       }),
     })
-    if (!res.ok) return fail(res.error, () => void file(dest, items))
+    if (!res.ok) return fail(res.error, () => file(dest, items))
     let next = sessionRef.current
     res.data.forEach((p, i) => {
       if (next) next = markSent(next, items[i].askId, { question: items[i].question, answer: items[i].answer, entry: p.entry, experienceId: p.experienceId, experienceTitle: p.title, isNewExperience: p.isNew, resent: false })
@@ -262,7 +257,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     setPhase('placing')
     setProblem(null)
     const placed = await placeAnswers({ jobId: j.id, items })
-    if (!placed.ok) return fail(placed.error, () => void updateDrafts())
+    if (!placed.ok) return fail(placed.error, () => updateDrafts())
     if (placed.data.every((p) => p.experienceId)) {
       return file(Object.fromEntries(placed.data.map((p) => [p.askId, { kind: 'existing', id: p.experienceId as string } as Destination])), items)
     }
@@ -297,7 +292,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     setProblem(null)
     if (prev?.entry && prev.experienceId) {
       const res = await resendAnswer({ jobId: j.id, experienceId: prev.experienceId, oldEntry: prev.entry, question: ask.text, answer: dont ? null : text })
-      if (!res.ok) return fail(res.error, () => void send(askId))
+      if (!res.ok) return fail(res.error, () => send(askId))
       change((cur) => markSent(cur, askId, { ...prev, answer: dont ? null : text, entry: res.data.entry, experienceId: res.data.experienceId, experienceTitle: res.data.title || prev.experienceTitle, resent: true }))
     } else if (dont) {
       change((cur) => markSent(cur, askId, { ...dontSent(ask.text), resent: true }))
@@ -305,7 +300,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
       const placed = await placeAnswers({ jobId: j.id, items: [{ askId, question: ask.text, answer: text }] })
       const p = placed.ok ? placed.data[0] : null
       const res = await addAnswersToExperiences({ jobId: j.id, items: [{ question: ask.text, answer: text, experienceId: p?.experienceId ?? null, newExperienceTitle: p?.experienceId ? null : (p?.newExperienceName ?? null) }] })
-      if (!res.ok) return fail(res.error, () => void send(askId))
+      if (!res.ok) return fail(res.error, () => send(askId))
       const r = res.data[0]
       change((cur) => markSent(cur, askId, { question: ask.text, answer: text, entry: r.entry, experienceId: r.experienceId, experienceTitle: r.title, isNewExperience: r.isNew, resent: true }))
       addExperiences(res.data)
@@ -323,8 +318,8 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     let res: Awaited<ReturnType<typeof addExperienceForRequirement>>
     try {
       res = await addExperienceForRequirement({ jobId: j.id, requirementId: reqId, requirementName: req.text, ...v })
-    } catch {
-      return setNotMet({ busy: false, done: null, error: OFFLINE })
+    } catch (err) {
+      return setNotMet({ busy: false, done: null, error: problemFor(err) })
     }
     if (!res.ok) return setNotMet({ busy: false, done: null, error: res.error })
     change((cur) => ({ ...cur, drafts: [...cur.drafts, { ...res.data.draft, keep: false, editedByHand: false, saveAs: 'new' }] }))
@@ -339,7 +334,7 @@ export function useAnalysis(init: { loaded: LoadedAnalysisJob | null; experience
     setPhase('saving')
     setProblem(null)
     const res = await saveAnalysisCv({ jobId: j.id, ...plan })
-    if (!res.ok) return fail(res.error, () => void save(plan))
+    if (!res.ok) return fail(res.error, () => save(plan))
     change((cur) => markSaved(cur, now()))
     setPhase('idle')
   }
