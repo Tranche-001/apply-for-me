@@ -80,6 +80,18 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
 .nav-status .dot { width: 8px; height: 8px; border-radius: 50%; }
 .nav-hint { margin: 0; font-size: 12px; line-height: 1.4; color: var(--muted); }
 
+/* Icon rail: a screen that needs the width (Jobs with "See behavioral" open) sets html[data-nav="rail"].
+   Labels stay for screen readers (visually hidden) and as tooltips (title). */
+html[data-nav="rail"] .nav { flex: 0 0 64px; padding: 20px 8px; gap: 20px; align-items: center; }
+html[data-nav="rail"] .nav-brand { padding: 4px 0; }
+html[data-nav="rail"] .nav-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+html[data-nav="rail"] .nav-list { flex-direction: column; flex-wrap: nowrap; }
+html[data-nav="rail"] .nav-link { flex: 0 0 auto; width: 44px; justify-content: center; padding: 0; }
+html[data-nav="rail"] .nav-group { flex: 0 0 1px; width: 28px; margin: 8px auto; padding: 0; height: 1px; overflow: hidden; color: transparent; background: var(--border); }
+html[data-nav="rail"] .nav-foot { padding: 10px; align-items: center; }
+html[data-nav="rail"] .nav-status { font-size: 0; gap: 0; }
+html[data-nav="rail"] .nav-hint { display: none; }
+
 /* Page header used by every screen. */
 .eyebrow { margin: 0; font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 10.5px; font-weight: 500; letter-spacing: 0.06em; color: var(--indigo); }
 .page-title { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }

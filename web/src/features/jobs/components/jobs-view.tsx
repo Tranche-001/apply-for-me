@@ -18,12 +18,30 @@ import { BehavioralPanel } from './behavioral-panel'
 type Props = { jobs: JobData[]; library: LibBlock[]; profile: ProfileData; behavioral: BehavioralForJobs; initialJobId: string | null }
 
 const linkStyle = { fontWeight: 500 } as const
+/** The CV beside the behavioral answers: its 680px page at 80%, plus the column’s padding and scrollbar. */
+const CV_SIDE_ZOOM = 0.8
+const CV_SIDE_WIDTH = Math.round(680 * CV_SIDE_ZOOM) + 24 + 16 // + a vertical scrollbar
 
 /** Read only: every job, its links and the exact CV saved for it. Editing happens in Compose CV (H6, H8). */
 export function JobsView({ jobs, library, profile, behavioral, initialJobId }: Props) {
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState(initialJobId && jobs.some((j) => j.id === initialJobId) ? initialJobId : (jobs[0]?.id ?? null))
   const [showBeh, setShowBeh] = useState(false)
+  const behBtn = useRef<HTMLButtonElement>(null)
+  const restoreBeh = useRef(false)
+  // With behavioral open, the app nav and the job list fold to the left so the CV and the answers
+  // sit side by side (decision log). The nav reads html[data-nav]; closing gives the focus back.
+  useEffect(() => {
+    if (!showBeh) {
+      if (restoreBeh.current) behBtn.current?.focus()
+      restoreBeh.current = false
+      return
+    }
+    restoreBeh.current = true
+    const root = document.documentElement
+    root.setAttribute('data-nav', 'rail')
+    return () => root.removeAttribute('data-nav')
+  }, [showBeh])
   const matches = jobs.filter((j) => jobMatches(j, query))
   const sel = jobs.find((j) => j.id === selectedId) ?? null
   const printed = sel?.cv ? printCv(compositionFromSaved(sel.cv, library), library, profile) : null
@@ -108,6 +126,16 @@ export function JobsView({ jobs, library, profile, behavioral, initialJobId }: P
       </header>
 
       <div style={{ flex: '1 1 auto', minHeight: 0, display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 12 }}>
+        {showBeh && sel ? (
+          <section aria-label="Jobs" style={{ flex: '0 0 48px', alignSelf: 'stretch', maxHeight: 'calc(100vh - 72px)', boxSizing: 'border-box', background: '#FFFFFF', border: `1px solid ${C.border}`, borderRadius: 10, padding: '8px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, overflow: 'hidden' }}>
+            <button type="button" className={cls.iconB} onClick={() => setShowBeh(false)} aria-label="Show the jobs list (hides behavioral)" title="Show the jobs list" style={iconB(34, { color: C.text2 })}>
+              <Icon name="list" size={18} />
+            </button>
+            <span aria-hidden="true" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: 'calc(100vh - 140px)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12.5, fontWeight: 600, color: C.text }}>
+              {sel.label}
+            </span>
+          </section>
+        ) : (
         <section aria-labelledby="jobs-h" style={{ flex: '0 1 340px', minWidth: 280, maxHeight: 'calc(100vh - 72px)', overflowY: 'auto', boxSizing: 'border-box', background: '#FFFFFF', border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <h2 id="jobs-h" style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Jobs</h2>
           <div style={{ position: 'relative' }}>
@@ -177,7 +205,7 @@ export function JobsView({ jobs, library, profile, behavioral, initialJobId }: P
                             PDF
                           </button>
                         )}
-                        <button type="button" className={cls.btnS} onClick={() => setShowBeh((s) => !s)} aria-pressed={showBeh} style={btnS(30, { padding: '0 12px', ...(showBeh ? { borderColor: C.indigo, color: C.indigoInk, background: C.indigoSoft } : {}) })}>
+                        <button ref={behBtn} type="button" className={cls.btnS} onClick={() => setShowBeh((s) => !s)} aria-pressed={showBeh} style={btnS(30, { padding: '0 12px', ...(showBeh ? { borderColor: C.indigo, color: C.indigoInk, background: C.indigoSoft } : {}) })}>
                           <Icon name="message" size={13} />
                           {showBeh ? 'Hide behavioral' : 'See behavioral'}
                         </button>
@@ -198,13 +226,14 @@ export function JobsView({ jobs, library, profile, behavioral, initialJobId }: P
           </ul>
           {matches.length === 0 && <p style={{ margin: 0, padding: '4px 2px', fontSize: 12.5, color: C.muted }}>{jobs.length ? `No job matches “${query}”.` : 'No jobs yet. Create one in Compose CV with “+ New job”.'}</p>}
         </section>
+        )}
 
         <section
           aria-label={sel ? `CV for ${sel.label}` : 'CV'}
-          style={{ ...(showBeh ? { flex: '0 0 auto', width: 432 } : { flex: '1 1 400px' }), minWidth: 0, maxHeight: 'calc(100vh - 72px)', overflowY: 'auto', boxSizing: 'border-box', padding: '12px 12px 16px', borderRadius: 10, background: C.previewBg, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}
+          style={{ ...(showBeh ? { flex: '0 0 auto', width: CV_SIDE_WIDTH } : { flex: '1 1 400px' }), minWidth: 0, maxHeight: 'calc(100vh - 72px)', overflowY: 'auto', boxSizing: 'border-box', padding: '12px 12px 16px', borderRadius: 10, background: C.previewBg, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}
         >
           {printed && sel ? (
-            <div style={{ maxWidth: 680, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, ...(showBeh ? { width: 680, zoom: 0.6 } : { width: '100%' }) }}>
+            <div style={{ maxWidth: 680, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, ...(showBeh ? { width: 680, zoom: CV_SIDE_ZOOM } : { width: '100%' }) }}>
               <CvPreview layout={printed.layout} profile={profile} labels={printed.layout.pages.map((_, i) => ({ text: `Page ${i + 1} of ${pageCount}`, beyond: false }))} />
             </div>
           ) : (

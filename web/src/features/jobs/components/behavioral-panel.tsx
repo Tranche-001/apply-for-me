@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Icon } from '@/components/ui/icons'
 import { C, MONO, cls, iconB } from '@/components/ui/styles'
@@ -18,11 +19,14 @@ export function BehavioralPanel({ job, behavioral, onClose }: Props) {
     })
     .filter((x) => x.answer)
   const someAdapted = items.some((x) => x.adapted)
+  // "See behavioral" folds away when the panel opens; the focus moves here instead of being lost.
+  const heading = useRef<HTMLHeadingElement>(null)
+  useEffect(() => heading.current?.focus(), [])
   return (
     <aside aria-labelledby="beh-h" style={{ flex: '1 1 340px', minWidth: 300, maxHeight: 'calc(100vh - 72px)', overflowY: 'auto', boxSizing: 'border-box', background: '#FFFFFF', border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
         <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <h2 id="beh-h" style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Behavioral for {job.label}</h2>
+          <h2 id="beh-h" ref={heading} tabIndex={-1} style={{ outline: 'none', margin: 0, fontSize: 14, fontWeight: 600 }}>Behavioral for {job.label}</h2>
           <span style={{ fontSize: 12, color: C.muted }}>
             {items.length} of {behavioral.questions.length} questions answered{someAdapted ? ', some adapted to this job' : ''}
           </span>

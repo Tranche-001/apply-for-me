@@ -36,9 +36,9 @@ export function Nav({ status }: { status: ReactNode }) {
   const link = (item: NavItem) => {
     const current = item.group === 'main' && isCurrent(item.href)
     return (
-      <Link key={item.href} href={item.href} className="nav-link" aria-current={current ? 'page' : undefined}>
+      <Link key={item.href} href={item.href} className="nav-link" aria-current={current ? 'page' : undefined} title={item.label}>
         <Icon paths={item.icon} />
-        {item.label}
+        <span className="nav-label">{item.label}</span>
       </Link>
     )
   }
@@ -46,7 +46,7 @@ export function Nav({ status }: { status: ReactNode }) {
     <nav aria-label="Main" className="nav">
       <div className="nav-brand">
         <span aria-hidden="true" className="nav-logo">af</span>
-        <span>apply-for-me</span>
+        <span className="nav-label">apply-for-me</span>
       </div>
       <div className="nav-list">
         {ITEMS.filter((i) => i.group === 'main').map(link)}
