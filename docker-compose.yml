@@ -27,10 +27,14 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://apply:apply@db:5432/apply_for_me
-      # The AI: ANTHROPIC_API_KEY (Claude) or GEMINI_API_KEY (Gemini), from ./.env or your shell.
+      # The AI: ANTHROPIC_API_KEY (Claude), GEMINI_API_KEY (Gemini) or OPENAI_API_KEY (OpenAI; OPEN_AI_API_KEY
+      # also works), from --env-file web/.env or your shell. AI_PROVIDER picks one when several are set.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPEN_AI_API_KEY: ${OPEN_AI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
       AI_PROVIDER: ${AI_PROVIDER:-}
     ports:
       - "3000:3000"

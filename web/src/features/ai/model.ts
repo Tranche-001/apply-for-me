@@ -17,6 +17,22 @@ export const GEMINI_FALLBACK_MODEL = 'gemini-3.6-flash'
  */
 export const GEMINI_ATTEMPT_TIMEOUT_MS = 120_000
 
+/**
+ * OpenAI model when the OpenAI key is used (OPENAI_MODEL in web/.env overrides it). gpt-6-luna: the cheapest of
+ * the GPT-6 family (~$0.10 / $0.50 per million input / output tokens, Oct 2026 prices) and the one a key with no
+ * credits could still call (2026-11-08; gpt-6.1-terra answered 429 "credit_balance_exhausted").
+ */
+export const OPENAI_DEFAULT_MODEL = 'gpt-6-luna'
+
+/** Tried when the chosen OpenAI model is overloaded or out of quota: stronger, paid (~$1 / $5), needs credits. */
+export const OPENAI_FALLBACK_MODEL = 'gpt-6.1-terra'
+
+/**
+ * One try per OpenAI model; the fallback is tried instead of waiting twice. A real Job analysis on gpt-6-luna
+ * (60k-character prompt, effort high) took 297 s on 2026-11-08, so 3 minutes was too short.
+ */
+export const OPENAI_ATTEMPT_TIMEOUT_MS = 600_000
+
 /** Server-side fallback on a policy decline: the API retries on its default fallback model. */
 export const FALLBACK_BETA = 'server-side-fallback-2026-07-01'
 

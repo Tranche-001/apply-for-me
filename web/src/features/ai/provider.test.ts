@@ -26,6 +26,14 @@ describe('pickProvider', () => {
   })
 
   test('an unknown AI_PROVIDER is ignored', () => {
-    expect(pickProvider({ GEMINI_API_KEY: 'AIza', AI_PROVIDER: 'openai' })).toBe('gemini')
+    expect(pickProvider({ GEMINI_API_KEY: 'AIza', AI_PROVIDER: 'mistral' })).toBe('gemini')
+  })
+
+  test('OpenAI: its key (or the OPEN_AI_API_KEY spelling) alone picks it; after Claude and Gemini otherwise', () => {
+    expect(pickProvider({ OPENAI_API_KEY: 'sk-1' })).toBe('openai')
+    expect(pickProvider({ OPEN_AI_API_KEY: 'sk-1' })).toBe('openai')
+    expect(pickProvider({ GEMINI_API_KEY: 'AIza', OPEN_AI_API_KEY: 'sk-1' })).toBe('gemini')
+    expect(pickProvider({ GEMINI_API_KEY: 'AIza', OPEN_AI_API_KEY: 'sk-1', AI_PROVIDER: 'openai' })).toBe('openai')
+    expect(pickProvider({ GEMINI_API_KEY: 'AIza', AI_PROVIDER: 'openai' })).toBeNull()
   })
 })
