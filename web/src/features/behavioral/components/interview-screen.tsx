@@ -111,22 +111,20 @@ export function InterviewScreen({ data, initialJobId, initialLang }: Props) {
         <div className="flex min-w-0 flex-[1_1_520px] flex-col gap-4">
           {items.map((q) => (
             <article key={q.id} id={`iv-${q.id}`} className="flex scroll-mt-[76px] flex-col gap-3 rounded-[14px] border border-[var(--border)] bg-white px-7 py-6">
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
-                <span className="font-mono text-[13px] text-[var(--muted)]">{q.n}</span>
-                <h2 lang="pt-BR" className="m-0 text-[21px] font-semibold leading-[1.3] tracking-[-0.01em]">
-                  {q.short}
+              {/* The title is the question as it is asked; whether the answer is generalist or adapted sits top right. */}
+              <div className="flex items-start gap-3">
+                <span className="flex-none pt-[5px] font-mono text-[13px] text-[var(--muted)]">{q.n}</span>
+                <h2 lang="pt-BR" className="m-0 min-w-0 flex-auto text-[21px] font-semibold leading-[1.3] tracking-[-0.01em]">
+                  {q.full}
                 </h2>
                 <span
-                  className={`rounded-full px-[9px] py-0.5 text-[11.5px] font-semibold ${
+                  className={`mt-1 flex-none whitespace-nowrap rounded-full px-[9px] py-0.5 text-[11.5px] font-semibold ${
                     q.adapted ? 'bg-[var(--indigo-soft)] text-[var(--indigo-hover)]' : 'bg-[#f1f2f4] text-[var(--text-2)]'
                   }`}
                 >
                   {q.adapted && job ? `Adapted for ${job.company}` : 'Generalist'}
                 </span>
               </div>
-              <p lang="pt-BR" className="m-0 text-[13.5px] leading-[1.5] text-[var(--muted)]">
-                {q.full}
-              </p>
               <div lang={htmlLang(lang)} className={`whitespace-pre-wrap leading-[1.7] text-[var(--text)] ${large ? 'text-[21px]' : 'text-[17px]'}`}>
                 {q.answer}
               </div>

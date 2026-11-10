@@ -25,20 +25,6 @@ export function isCustomKey(key: string): boolean {
   return key.startsWith(CUSTOM_KEY_PREFIX)
 }
 
-/** "What interviewers look for", typed one per line: trimmed, bullets and blank lines and repeats dropped. */
-export function looksForLines(text: string): string[] {
-  const seen = new Set<string>()
-  return text
-    .split('\n')
-    .map((l) => l.replace(/^\s*[-•*]\s*/, '').trim())
-    .filter((l) => {
-      const k = l.toLowerCase()
-      if (!l || seen.has(k)) return false
-      seen.add(k)
-      return true
-    })
-}
-
 /** The language you answer in. Each language keeps its own answers; switching never translates. */
 export type Lang = 'en' | 'pt'
 
@@ -72,6 +58,31 @@ export function behavioralQuery(jobId: string | null, lang: Lang): string {
   if (lang !== 'en') params.set('lang', lang)
   const q = params.toString()
   return q ? `?${q}` : ''
+}
+
+/** Dragging `from` onto `to`: `from` takes `to`'s place and the rest keep their order. */
+export function moveTo(ids: readonly string[], from: string, to: string): string[] {
+  const at = ids.indexOf(to)
+  if (from === to || at < 0 || !ids.includes(from)) return [...ids]
+  const rest = ids.filter((id) => id !== from)
+  return [...rest.slice(0, at), from, ...rest.slice(at)]
+}
+
+/** Alt+↑ / Alt+↓: one place up or down; nothing changes at the ends. */
+export function moveBy(ids: readonly string[], id: string, delta: number): string[] {
+  const at = ids.indexOf(id)
+  const to = ids[at + delta]
+  return at < 0 || to === undefined ? [...ids] : moveTo(ids, id, to)
+}
+
+/**
+ * The questions in the order you dragged them (`order`), renumbered 01, 02…; questions not in `order` (just added)
+ * keep their place at the end, and ids no longer there (deleted) are skipped.
+ */
+export function inOrder(questions: readonly QuestionItem[], order: readonly string[] | null): QuestionItem[] {
+  const byId = new Map(questions.map((q) => [q.id, q]))
+  const ids = order ? [...order.filter((id) => byId.has(id)), ...questions.map((q) => q.id).filter((id) => !order.includes(id))] : questions.map((q) => q.id)
+  return ids.map((id, i) => ({ ...byId.get(id)!, n: String(i + 1).padStart(2, '0') }))
 }
 
 export type JobOption = { id: string; label: string; company: string }

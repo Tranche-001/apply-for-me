@@ -58,17 +58,26 @@ export async function setUseFounder(input: { questionId: string; useFounder: boo
 const newQuestion = z.object({
   short: z.string().trim().min(1, 'Give the question a short name for the list.').max(80, 'The short name is too long (80 characters at most).'),
   full: z.string().trim().min(1, 'Write the question as the interviewer asks it.').max(1_000, 'The question is too long (1,000 characters at most).'),
-  looksFor: z.array(z.string().trim().min(1).max(300, 'A line is too long (300 characters at most).')).max(12, 'Too many lines (12 at most).'),
 })
 
-/** A question you add goes to the end of the list; its key marks it as yours, so it can be deleted. */
-export async function addQuestion(input: { short: string; full: string; looksFor: string[] }): Promise<ActionResult<{ id: string }>> {
+/** A question you add: a short name for the list and the question as asked. It goes to the end of the list; its key
+ * marks it as yours, so it can be deleted. */
+export async function addQuestion(input: { short: string; full: string }): Promise<ActionResult<{ id: string }>> {
   const parsed = newQuestion.safeParse(input)
   if (!parsed.success) return fail(invalidInput(parsed.error))
+  const { short, full } = parsed.data
   try {
     const last = await db.behavioralQuestion.aggregate({ _max: { position: true } })
     const created = await db.behavioralQuestion.create({
-      data: { ...parsed.data, key: `${CUSTOM_KEY_PREFIX}${randomUUID()}`, position: (last._max.position ?? -1) + 1, references: [], founderRefs: [] },
+      data: {
+        short,
+        full,
+        looksFor: [],
+        key: `${CUSTOM_KEY_PREFIX}${randomUUID()}`,
+        position: (last._max.position ?? -1) + 1,
+        references: [],
+        founderRefs: [],
+      },
       select: { id: true },
     })
     refresh()
@@ -77,6 +86,17 @@ export async function addQuestion(input: { short: string; full: string; looksFor
     console.error('[behavioral] addQuestion failed', dbLogContext(err))
     return fail(plainDbError(err))
   }
+}
+
+/** The list in the order you dragged it: each question's position becomes its place in `ids`. */
+export async function reorderQuestions(input: { ids: string[] }): Promise<ActionResult<null>> {
+  const parsed = z.object({ ids: z.array(id).min(1).max(500, 'Too many questions (500 at most).') }).safeParse(input)
+  if (!parsed.success) return fail(invalidInput(parsed.error))
+  const { ids } = parsed.data
+  if (new Set(ids).size !== ids.length) return fail('The new order lists a question twice. Reload the page and try again.')
+  return attempt('reorderQuestions', () =>
+    db.$transaction(ids.map((questionId, position) => db.behavioralQuestion.update({ where: { id: questionId }, data: { position } }))),
+  )
 }
 
 /** Deletes a question you added, with its answers. The app's own questions cannot be deleted. */

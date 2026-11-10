@@ -5,8 +5,8 @@
 import { useState } from 'react'
 import { SaveStatus } from '@/features/ai/ui/save-status'
 import { useAutosave, type SaveStatus as Status } from '@/features/ai/ui/use-autosave'
-import { saveAnswer, saveTailored, saveTheory, setUseFounder } from '../actions'
-import { behavioralQuery, LANGS, tailoredKey, type BehavioralData, type Lang } from '../types'
+import { reorderQuestions, saveAnswer, saveTailored, saveTheory, setUseFounder } from '../actions'
+import { behavioralQuery, inOrder, LANGS, moveBy, moveTo, tailoredKey, type BehavioralData, type Lang } from '../types'
 import { GeneralistSection, TailoredSection } from './answer-sections'
 import { BehavioralPills, LangSwitch } from './behavioral-pills'
 import { DeleteQuestion } from './delete-question'
@@ -36,7 +36,11 @@ function combined(saves: { status: Status; error: string | null }[]): { status: 
 type Props = { data: BehavioralData; initialJobId: string | null; initialLang: Lang; aiReady: boolean }
 
 export function BehavioralScreen({ data, initialJobId, initialLang, aiReady }: Props) {
-  const { questions, jobs } = data
+  const { jobs } = data
+  // The order you dragged the questions into, shown at once and saved on drop; null = the saved order.
+  const [order, setOrder] = useState<string[] | null>(null)
+  const [orderError, setOrderError] = useState<string | null>(null)
+  const questions = inOrder(data.questions, order)
   const [selectedId, setSelectedId] = useState(questions[0]?.id ?? '')
   const [jobId, setJobId] = useState(initialJobId)
   const [lang, setLang] = useState<Lang>(initialLang)
@@ -110,6 +114,31 @@ export function BehavioralScreen({ data, initialJobId, initialLang, aiReady }: P
     setSelectedId(id)
   }
 
+  const ids = questions.map((q) => q.id)
+
+  /** Saves the order on screen; if it fails the list goes back to the last saved order and says so. */
+  const saveOrder = async (next: string[]) => {
+    setOrderError(null)
+    const res = await reorderQuestions({ ids: next })
+    if (!res.ok) {
+      setOrder(null)
+      setOrderError(`Couldn’t save the new order: ${res.error}`)
+    }
+  }
+
+  const moveQuestionTo = (from: string, to: string) => setOrder(moveTo(ids, from, to))
+
+  const moveQuestionBy = (id: string, delta: number) => {
+    const next = moveBy(ids, id, delta)
+    if (next.join() === ids.join()) return
+    setOrder(next)
+    void saveOrder(next)
+  }
+
+  const dropped = (_id: string, moved: boolean) => {
+    if (moved) void saveOrder(ids)
+  }
+
   // After deleting, the question before it is shown (or the next one when it was the first).
   const afterDelete = () => {
     const at = questions.findIndex((q) => q.id === question.id)
@@ -128,6 +157,11 @@ export function BehavioralScreen({ data, initialJobId, initialLang, aiReady }: P
         </div>
         {/* Its line is always there, so "Saving…" appearing never pushes the page down. */}
         <SaveStatus status={status.status} error={status.error} className="block min-h-[18px] text-[12px]" />
+        {orderError && (
+          <p role="alert" className="m-0 text-[12px] font-medium text-[var(--amber)]">
+            {orderError}
+          </p>
+        )}
         <p className="m-0 max-w-[660px] text-[14px] leading-[1.5] text-[var(--muted)]">
           Keep one generalist answer per question, then let the AI adapt it to each job. Your own notes on how to answer live at the bottom.
         </p>
@@ -142,6 +176,9 @@ export function BehavioralScreen({ data, initialJobId, initialLang, aiReady }: P
           selectedId={question.id}
           onSelect={select}
           onAdded={select}
+          onMoveTo={moveQuestionTo}
+          onMoveBy={moveQuestionBy}
+          onDropped={dropped}
         />
 
         <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">

@@ -5,10 +5,12 @@ import {
   copyMessage,
   dbLang,
   fromDbLang,
+  inOrder,
   interviewItems,
+  moveBy,
+  moveTo,
   pickLang,
   isCustomKey,
-  looksForLines,
   pickJob,
   questionStatus,
   tailoredCount,
@@ -32,16 +34,32 @@ const q = (id: string, answer: string): QuestionItem => ({
   custom: false,
 })
 
+describe('reordering the questions', () => {
+  test('dragging one onto another takes its place, up or down', () => {
+    expect(moveTo(['a', 'b', 'c', 'd'], 'a', 'c')).toEqual(['b', 'c', 'a', 'd'])
+    expect(moveTo(['a', 'b', 'c', 'd'], 'd', 'b')).toEqual(['a', 'd', 'b', 'c'])
+    expect(moveTo(['a', 'b'], 'a', 'gone')).toEqual(['a', 'b'])
+  })
+
+  test('Alt+arrows move one place and stop at the ends', () => {
+    expect(moveBy(['a', 'b', 'c'], 'b', -1)).toEqual(['b', 'a', 'c'])
+    expect(moveBy(['a', 'b', 'c'], 'b', 1)).toEqual(['a', 'c', 'b'])
+    expect(moveBy(['a', 'b', 'c'], 'a', -1)).toEqual(['a', 'b', 'c'])
+    expect(moveBy(['a', 'b', 'c'], 'c', 1)).toEqual(['a', 'b', 'c'])
+  })
+
+  test('the list follows the dragged order, renumbered; new questions go last, deleted ones drop out', () => {
+    const qs = [q('a', ''), q('b', ''), q('c', '')]
+    expect(inOrder(qs, ['c', 'gone', 'a']).map((x) => `${x.n}:${x.id}`)).toEqual(['01:c', '02:a', '03:b'])
+    expect(inOrder(qs, null).map((x) => x.id)).toEqual(['a', 'b', 'c'])
+  })
+})
+
 describe('questions you add', () => {
   test('only keys made on this screen count as yours', () => {
     expect(isCustomKey('custom-k3x9')).toBe(true)
     expect(isCustomKey('initiative')).toBe(false)
     expect(isCustomKey('my-custom-')).toBe(false)
-  })
-
-  test('what interviewers look for: one per line, bullets, blanks and repeats dropped', () => {
-    expect(looksForLines('- Iniciativa\n\n• Impacto com números \n  iniciativa\n* Escuta')).toEqual(['Iniciativa', 'Impacto com números', 'Escuta'])
-    expect(looksForLines('   \n')).toEqual([])
   })
 })
 
