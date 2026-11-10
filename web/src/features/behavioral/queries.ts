@@ -1,12 +1,12 @@
 import 'server-only'
 import { db } from '@/lib/db'
 import { jobLabel } from '../ai/labels'
-import { isCustomKey, tailoredKey, type BehavioralData } from './types'
+import { fromDbLang, isCustomKey, tailoredKey, type BehavioralData } from './types'
 
 export async function loadBehavioral(): Promise<BehavioralData> {
   const [questions, tailored, jobs] = await Promise.all([
     db.behavioralQuestion.findMany({ orderBy: { position: 'asc' } }),
-    db.tailoredAnswer.findMany({ select: { questionId: true, jobId: true, text: true } }),
+    db.tailoredAnswer.findMany({ select: { questionId: true, jobId: true, lang: true, text: true } }),
     db.job.findMany({ orderBy: [{ updatedAt: 'desc' }], select: { id: true, company: true, role: true } }),
   ])
   return {
@@ -17,7 +17,7 @@ export async function loadBehavioral(): Promise<BehavioralData> {
       short: q.short,
       full: q.full,
       looksFor: q.looksFor,
-      answer: q.answer,
+      answers: { en: q.answer, pt: q.answerPt },
       theory: q.theory,
       references: q.references,
       useFounder: q.useFounder,
@@ -25,7 +25,7 @@ export async function loadBehavioral(): Promise<BehavioralData> {
       founderRefs: q.founderRefs,
       custom: isCustomKey(q.key),
     })),
-    tailored: Object.fromEntries(tailored.map((t) => [tailoredKey(t.questionId, t.jobId), t.text])),
+    tailored: Object.fromEntries(tailored.map((t) => [tailoredKey(t.questionId, t.jobId, fromDbLang(t.lang)), t.text])),
     jobs: jobs.map((j) => ({ id: j.id, label: jobLabel(j), company: j.company.trim() || j.role.trim() })),
   }
 }

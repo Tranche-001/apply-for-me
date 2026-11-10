@@ -66,7 +66,8 @@ export type QuestionContext = {
   short: string
   full: string
   looksFor: string[]
-  answer: string
+  answer: string // the generalist answer in English
+  answerPt: string // the generalist answer in Portuguese
   theory: string
   references: string[]
   useFounder: boolean

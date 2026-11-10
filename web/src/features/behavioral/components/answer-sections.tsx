@@ -8,7 +8,15 @@ import { draftAnswer, reviseAnswer } from '@/features/ai/actions'
 import { AiChanges, AiError } from '@/features/ai/ui/ai-changes'
 import { NOT_READY } from '@/features/ai/provider'
 import { Icon } from '@/features/ai/ui/icon'
-import type { JobOption } from '../types'
+import { htmlLang, LANGS, type JobOption, type Lang } from '../types'
+
+const langLabel = (lang: Lang) => LANGS.find((l) => l.id === lang)?.label ?? lang
+
+/** Each language is written by you; the other language's answer is never copied or translated here. */
+const GENERALIST_PLACEHOLDER: Record<Lang, string> = {
+  en: '[Write your best all-purpose answer in English. STAR works well: situation, task, action, result.]',
+  pt: '[Escreva sua melhor resposta em português. STAR funciona bem: situação, tarefa, ação, resultado.]',
+}
 
 type AiState = { target: string; changes: string[]; previous: string } | { target: string; error: string; retry: () => void } | null
 
@@ -18,6 +26,7 @@ const TEXTAREA =
 
 type GeneralistProps = {
   questionId: string
+  lang: Lang
   answer: string
   onAnswer: (text: string) => void
   aiReady: boolean
@@ -25,7 +34,7 @@ type GeneralistProps = {
   flushAll: () => void
 }
 
-export function GeneralistSection({ questionId, answer, onAnswer, aiReady, flushAll }: GeneralistProps) {
+export function GeneralistSection({ questionId, lang, answer, onAnswer, aiReady, flushAll }: GeneralistProps) {
   const [ai, setAi] = useState<AiState>(null)
   const [drafting, start] = useTransition()
 
@@ -33,7 +42,7 @@ export function GeneralistSection({ questionId, answer, onAnswer, aiReady, flush
     flushAll()
     const previous = answer
     start(async () => {
-      const res = await draftAnswer({ questionId, jobId: null })
+      const res = await draftAnswer({ questionId, jobId: null, lang })
       if (!res.ok) {
         setAi({ target: questionId, error: res.error, retry: draft })
         return
@@ -47,7 +56,7 @@ export function GeneralistSection({ questionId, answer, onAnswer, aiReady, flush
     <section aria-labelledby="g-h" className="flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-white p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="g-h" className="m-0 text-[16px] font-semibold">
-          Your generalist answer
+          Your generalist answer <span className="font-medium text-[var(--muted)]">· {langLabel(lang)}</span>
         </h2>
         <button type="button" className="btn-s min-h-9 rounded-lg px-3 text-[13px]" onClick={draft} disabled={drafting || !aiReady} title={aiReady ? undefined : NOT_READY}>
           <Icon name="sparkle" />
@@ -75,11 +84,11 @@ export function GeneralistSection({ questionId, answer, onAnswer, aiReady, flush
       </label>
       <textarea
         id="gen-a"
-        lang="pt-BR"
+        lang={htmlLang(lang)}
         rows={8}
         value={answer}
         onChange={(e) => onAnswer(e.target.value)}
-        placeholder="[Write your best all-purpose answer. STAR works well: situation, task, action, result.]"
+        placeholder={GENERALIST_PLACEHOLDER[lang]}
         className={TEXTAREA}
       />
     </section>
@@ -88,6 +97,7 @@ export function GeneralistSection({ questionId, answer, onAnswer, aiReady, flush
 
 type TailoredProps = {
   questionId: string
+  lang: Lang
   jobs: JobOption[]
   jobId: string | null
   onJob: (jobId: string) => void
@@ -97,11 +107,11 @@ type TailoredProps = {
   flushAll: () => void
 }
 
-export function TailoredSection({ questionId, jobs, jobId, onJob, text, onText, aiReady, flushAll }: TailoredProps) {
+export function TailoredSection({ questionId, lang, jobs, jobId, onJob, text, onText, aiReady, flushAll }: TailoredProps) {
   const [ai, setAi] = useState<AiState>(null)
   const [request, setRequest] = useState('')
   const [working, start] = useTransition()
-  const target = `${questionId}|${jobId}`
+  const target = `${questionId}|${jobId}|${lang}`
   const shown = ai && ai.target === target ? ai : null
 
   const run = (instruction: string | null) => {
@@ -110,8 +120,8 @@ export function TailoredSection({ questionId, jobs, jobId, onJob, text, onText, 
     const previous = text
     start(async () => {
       const res = instruction
-        ? await reviseAnswer({ questionId, jobId, current: previous, instruction })
-        : await draftAnswer({ questionId, jobId })
+        ? await reviseAnswer({ questionId, jobId, lang, current: previous, instruction })
+        : await draftAnswer({ questionId, jobId, lang })
       if (!res.ok) {
         setAi({ target, error: res.error, retry: () => run(instruction) })
         return
@@ -184,7 +194,7 @@ export function TailoredSection({ questionId, jobs, jobId, onJob, text, onText, 
           <label htmlFor="tail-a" className="sr-only">
             Answer adapted to the selected job
           </label>
-          <textarea id="tail-a" lang="pt-BR" rows={8} value={text} onChange={(e) => onText(e.target.value)} className={TEXTAREA} />
+          <textarea id="tail-a" lang={htmlLang(lang)} rows={8} value={text} onChange={(e) => onText(e.target.value)} className={TEXTAREA} />
           <form
             className="flex gap-2"
             onSubmit={(e) => {
@@ -214,7 +224,7 @@ export function TailoredSection({ questionId, jobs, jobId, onJob, text, onText, 
         </div>
       ) : (
         <p className="m-0 rounded-[10px] border border-dashed border-[var(--border-strong)] p-5 text-center text-[14px] text-[var(--muted)]">
-          No version for this job yet.
+          No version for this job in {langLabel(lang)} yet.
         </p>
       )}
     </section>

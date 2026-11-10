@@ -6,20 +6,23 @@ import { useState } from 'react'
 import { SaveStatus } from '@/features/ai/ui/save-status'
 import { useAutosave, type SaveStatus as Status } from '@/features/ai/ui/use-autosave'
 import { saveAnswer, saveTailored, saveTheory, setUseFounder } from '../actions'
-import { tailoredKey, type BehavioralData } from '../types'
+import { behavioralQuery, LANGS, tailoredKey, type BehavioralData, type Lang } from '../types'
 import { GeneralistSection, TailoredSection } from './answer-sections'
-import { BehavioralPills } from './behavioral-pills'
+import { BehavioralPills, LangSwitch } from './behavioral-pills'
 import { DeleteQuestion } from './delete-question'
 import { QuestionList } from './question-list'
 import { FounderSection, MyTheorySection } from './theory-sections'
 
 type Theory = { theory: string; references: string[] }
-type AnswerSave = { questionId: string; answer: string }
+type AnswerSave = { questionId: string; lang: Lang; answer: string }
 type TheorySave = Theory & { questionId: string }
-type TailoredSave = { questionId: string; jobId: string; text: string }
+type TailoredSave = { questionId: string; jobId: string; lang: Lang; text: string }
 
 const sameQuestion = (a: { questionId: string }, b: { questionId: string }) => a.questionId === b.questionId
-const sameTailored = (a: TailoredSave, b: TailoredSave) => a.questionId === b.questionId && a.jobId === b.jobId
+const sameAnswer = (a: AnswerSave, b: AnswerSave) => a.questionId === b.questionId && a.lang === b.lang
+const sameTailored = (a: TailoredSave, b: TailoredSave) => a.questionId === b.questionId && a.jobId === b.jobId && a.lang === b.lang
+/** The generalist answers on screen, one per question and language. */
+const answerKey = (questionId: string, lang: Lang) => `${questionId}|${lang}`
 
 /** One status for all autosaves on the screen: an error wins, then saving, then saved. */
 function combined(saves: { status: Status; error: string | null }[]): { status: Status; error: string | null } {
@@ -30,13 +33,16 @@ function combined(saves: { status: Status; error: string | null }[]): { status: 
   return { status: 'idle', error: null }
 }
 
-type Props = { data: BehavioralData; initialJobId: string | null; aiReady: boolean }
+type Props = { data: BehavioralData; initialJobId: string | null; initialLang: Lang; aiReady: boolean }
 
-export function BehavioralScreen({ data, initialJobId, aiReady }: Props) {
+export function BehavioralScreen({ data, initialJobId, initialLang, aiReady }: Props) {
   const { questions, jobs } = data
   const [selectedId, setSelectedId] = useState(questions[0]?.id ?? '')
   const [jobId, setJobId] = useState(initialJobId)
-  const [answers, setAnswers] = useState<Record<string, string>>(() => Object.fromEntries(questions.map((q) => [q.id, q.answer])))
+  const [lang, setLang] = useState<Lang>(initialLang)
+  const [answers, setAnswers] = useState<Record<string, string>>(() =>
+    Object.fromEntries(questions.flatMap((q) => LANGS.map((l) => [answerKey(q.id, l.id), q.answers[l.id]]))),
+  )
   const [theories, setTheories] = useState<Record<string, Theory>>(() =>
     Object.fromEntries(questions.map((q) => [q.id, { theory: q.theory, references: q.references }])),
   )
@@ -44,7 +50,7 @@ export function BehavioralScreen({ data, initialJobId, aiReady }: Props) {
   const [founderError, setFounderError] = useState<string | null>(null)
   const [tailored, setTailored] = useState(data.tailored)
 
-  const answerSave = useAutosave<AnswerSave>(saveAnswer, { sameTarget: sameQuestion })
+  const answerSave = useAutosave<AnswerSave>(saveAnswer, { sameTarget: sameAnswer })
   const theorySave = useAutosave<TheorySave>(saveTheory, { sameTarget: sameQuestion })
   const tailoredSave = useAutosave<TailoredSave>(saveTailored, { sameTarget: sameTailored })
   const status = combined([answerSave, theorySave, tailoredSave])
@@ -59,8 +65,8 @@ export function BehavioralScreen({ data, initialJobId, aiReady }: Props) {
   }
 
   const setAnswer = (text: string) => {
-    setAnswers((all) => ({ ...all, [question.id]: text }))
-    answerSave.queue({ questionId: question.id, answer: text })
+    setAnswers((all) => ({ ...all, [answerKey(question.id, lang)]: text }))
+    answerSave.queue({ questionId: question.id, lang, answer: text })
   }
 
   const setTheory = (next: Theory) => {
@@ -70,8 +76,8 @@ export function BehavioralScreen({ data, initialJobId, aiReady }: Props) {
 
   const setTailoredText = (text: string) => {
     if (!jobId) return
-    setTailored((all) => ({ ...all, [tailoredKey(question.id, jobId)]: text }))
-    tailoredSave.queue({ questionId: question.id, jobId, text })
+    setTailored((all) => ({ ...all, [tailoredKey(question.id, jobId, lang)]: text }))
+    tailoredSave.queue({ questionId: question.id, jobId, lang, text })
   }
 
   const toggleFounder = async (next: boolean) => {
@@ -88,7 +94,14 @@ export function BehavioralScreen({ data, initialJobId, aiReady }: Props) {
   const chooseJob = (id: string) => {
     tailoredSave.flush()
     setJobId(id)
-    window.history.replaceState(null, '', `?job=${encodeURIComponent(id)}`)
+    window.history.replaceState(null, '', `/behavioral${behavioralQuery(id, lang)}`)
+  }
+
+  // Switching language shows that language's answers (empty until you write them); nothing is translated.
+  const chooseLang = (next: Lang) => {
+    flushAll()
+    setLang(next)
+    window.history.replaceState(null, '', `/behavioral${behavioralQuery(jobId, next)}`)
   }
 
   const select = (id: string) => {
@@ -109,7 +122,10 @@ export function BehavioralScreen({ data, initialJobId, aiReady }: Props) {
       <header className="flex flex-col gap-1.5">
         <p className="eyebrow text-[12px]">BEHAVIORAL</p>
         <h1 className="sr-only">Interview answers</h1>
-        <BehavioralPills current="answers" jobId={jobId} />
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <BehavioralPills current="answers" jobId={jobId} lang={lang} />
+          <LangSwitch lang={lang} onChange={chooseLang} />
+        </div>
         {/* Its line is always there, so "Saving…" appearing never pushes the page down. */}
         <SaveStatus status={status.status} error={status.error} className="block min-h-[18px] text-[12px]" />
         <p className="m-0 max-w-[660px] text-[14px] leading-[1.5] text-[var(--muted)]">
@@ -118,7 +134,15 @@ export function BehavioralScreen({ data, initialJobId, aiReady }: Props) {
       </header>
 
       <div className="flex flex-wrap items-start gap-4">
-        <QuestionList questions={questions} answers={answers} tailored={tailored} selectedId={question.id} onSelect={select} onAdded={select} />
+        <QuestionList
+          questions={questions}
+          answerOf={(id) => answers[answerKey(id, lang)] ?? ''}
+          lang={lang}
+          tailored={tailored}
+          selectedId={question.id}
+          onSelect={select}
+          onAdded={select}
+        />
 
         <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-4">
           <section className="flex flex-col gap-3.5 rounded-xl border border-[var(--border)] bg-white p-5">
@@ -144,15 +168,24 @@ export function BehavioralScreen({ data, initialJobId, aiReady }: Props) {
             )}
           </section>
 
-          <GeneralistSection key={question.id} questionId={question.id} answer={answers[question.id] ?? ''} onAnswer={setAnswer} aiReady={aiReady} flushAll={flushAll} />
+          <GeneralistSection
+            key={`${question.id}-${lang}`}
+            questionId={question.id}
+            lang={lang}
+            answer={answers[answerKey(question.id, lang)] ?? ''}
+            onAnswer={setAnswer}
+            aiReady={aiReady}
+            flushAll={flushAll}
+          />
 
           <TailoredSection
-            key={`t-${question.id}`}
+            key={`t-${question.id}-${lang}`}
             questionId={question.id}
+            lang={lang}
             jobs={jobs}
             jobId={jobId}
             onJob={chooseJob}
-            text={jobId ? (tailored[tailoredKey(question.id, jobId)] ?? '') : ''}
+            text={jobId ? (tailored[tailoredKey(question.id, jobId, lang)] ?? '') : ''}
             onText={setTailoredText}
             aiReady={aiReady}
             flushAll={flushAll}

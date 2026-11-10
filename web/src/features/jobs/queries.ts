@@ -51,11 +51,11 @@ export async function listJobs(): Promise<JobData[]> {
 /** Read only: your behavioral answers and the ones adapted to each job (edited in Behavioral). */
 export async function getBehavioralForJobs(): Promise<BehavioralForJobs> {
   const [questions, tailored] = await Promise.all([
-    db.behavioralQuestion.findMany({ orderBy: { position: 'asc' }, select: { id: true, position: true, short: true, answer: true } }),
-    db.tailoredAnswer.findMany({ select: { questionId: true, jobId: true, text: true } }),
+    db.behavioralQuestion.findMany({ orderBy: { position: 'asc' }, select: { id: true, position: true, short: true, answer: true, answerPt: true } }),
+    db.tailoredAnswer.findMany({ select: { questionId: true, jobId: true, lang: true, text: true } }),
   ])
   return {
-    questions,
-    tailored: Object.fromEntries(tailored.map((t) => [`${t.questionId}|${t.jobId}`, t.text])),
+    questions: questions.map((q) => ({ id: q.id, position: q.position, short: q.short, answers: { en: q.answer, pt: q.answerPt } })),
+    tailored: Object.fromEntries(tailored.map((t) => [`${t.questionId}|${t.jobId}|${t.lang === 'PT' ? 'pt' : 'en'}`, t.text])),
   }
 }

@@ -222,6 +222,8 @@ export type AnswerPromptInput = {
   library: LibraryBlock[]
   experiences: ExperienceContext[]
   rules: string[]
+  /** The language to write in; `generalist` is his answer in that same language (never translated from the other). */
+  lang: 'en' | 'pt'
   /** The generalist answer he has now ('' when none). */
   generalist: string
   /** When revising: the current draft and what he asked to change. */
@@ -253,10 +255,22 @@ export function buildAnswerPrompt(input: AnswerPromptInput): Prompt {
     : input.generalist.trim()
       ? 'Improve his current answer: keep its story and its facts, tighten it and fix the structure.'
       : 'He has no answer yet. Pick the story from his material that best answers the question.'
+  const language =
+    input.lang === 'pt'
+      ? {
+          write: 'Write in Brazilian Portuguese, in the first person ("eu", not "nós", for what he did)',
+          star: 'STAR (situação, tarefa, ação, resultado)',
+          placeholder: '[colchetes]',
+        }
+      : {
+          write: 'Write in English, in the first person ("I", not "we", for what he did), even though the question is in Portuguese',
+          star: 'STAR (situation, task, action, result)',
+          placeholder: '[brackets]',
+        }
   const task = `Task: write his answer to a behavioral interview question${job ? ', adapted to one job' : ''}.
-- Write in Brazilian Portuguese, in the first person ("eu", not "nós", for what he did), the way he would say it out loud: 150 to 300 words, 1 to 2 minutes spoken.
-- Use STAR (situação, tarefa, ação, resultado) when the question asks for a story; otherwise follow the structure his notes suggest.
-- Facts come only from his blocks, his Experiences notes and his current answer. Where a detail would make it stronger but is missing, put a placeholder in [colchetes] saying what to add.
+- ${language.write}, the way he would say it out loud: 150 to 300 words, 1 to 2 minutes spoken.
+- Use ${language.star} when the question asks for a story; otherwise follow the structure his notes suggest.
+- Facts come only from his blocks, his Experiences notes and his current answer. Where a detail would make it stronger but is missing, put a placeholder in ${language.placeholder} saying what to add.
 - ${notes}
 - ${mode}
 - changes: 2 to 4 short English labels of what you did, such as "Opens with the scale (130+ clients)" or "Ends by linking to the role".`

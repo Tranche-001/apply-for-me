@@ -174,7 +174,7 @@ describe('buildAnalysisPrompt', () => {
 
 describe('buildAnswerPrompt', () => {
   test('generalist with no answer picks a story, in Portuguese, with the Founder notes when on', () => {
-    const p = buildAnswerPrompt({ question: QUESTION, job: null, library: LIBRARY, experiences: [EXPERIENCE], rules: [], generalist: '', revise: null })
+    const p = buildAnswerPrompt({ question: QUESTION, job: null, library: LIBRARY, experiences: [EXPERIENCE], rules: [], lang: 'pt', generalist: '', revise: null })
     expect(p.system).toContain('Brazilian Portuguese')
     expect(p.system).toContain('He has no answer yet')
     expect(p.system).toContain('Founder’s notes')
@@ -190,6 +190,7 @@ describe('buildAnswerPrompt', () => {
       library: LIBRARY,
       experiences: [],
       rules: [],
+      lang: 'pt',
       generalist: 'Minha resposta.',
       revise: null,
     })
@@ -200,7 +201,7 @@ describe('buildAnswerPrompt', () => {
   })
 
   test('adapting to a job includes the job and forbids invented company facts', () => {
-    const p = buildAnswerPrompt({ question: QUESTION, job: JOB, library: LIBRARY, experiences: [], rules: ['Answer in STAR.'], generalist: 'X', revise: null })
+    const p = buildAnswerPrompt({ question: QUESTION, job: JOB, library: LIBRARY, experiences: [], rules: ['Answer in STAR.'], lang: 'pt', generalist: 'X', revise: null })
     expect(p.system).toContain('never invent company facts')
     expect(p.context).toContain('<job label="iFood · GenAI Engineer"')
     expect(p.request).toBe('Write the answer adapted to iFood · GenAI Engineer.')
@@ -213,11 +214,20 @@ describe('buildAnswerPrompt', () => {
       library: [],
       experiences: [],
       rules: [],
+      lang: 'pt',
       generalist: '',
       revise: { current: 'Rascunho atual.', instruction: 'mais curto' },
     })
     expect(p.request).toContain('<current_draft>\nRascunho atual.\n</current_draft>')
     expect(p.request).toContain('He asked for this change: mais curto')
+  })
+
+  test('in English it writes in English, from his English answer only', () => {
+    const p = buildAnswerPrompt({ question: QUESTION, job: null, library: LIBRARY, experiences: [], rules: [], lang: 'en', generalist: 'My answer.', revise: null })
+    expect(p.system).toContain('Write in English')
+    expect(p.system).toContain('STAR (situation, task, action, result)')
+    expect(p.system).not.toContain('Brazilian Portuguese')
+    expect(p.context).toContain('<his_generalist_answer>\nMy answer.')
   })
 })
 

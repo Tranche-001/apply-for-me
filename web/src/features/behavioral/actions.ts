@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { dbLogContext, plainDbError } from '../ai/db-errors'
 import { fail, invalidInput, ok, type ActionResult } from '../ai/result'
-import { CUSTOM_KEY_PREFIX } from './types'
+import { CUSTOM_KEY_PREFIX, dbLang, type Lang } from './types'
 
 const id = z.string().trim().min(1, 'is missing').max(64, 'is not a valid id')
 const answerText = z.string().max(20_000, 'The answer is too long (20,000 characters at most).')
@@ -24,11 +24,15 @@ async function attempt(what: string, work: () => Promise<unknown>): Promise<Acti
   }
 }
 
-export async function saveAnswer(input: { questionId: string; answer: string }): Promise<ActionResult<null>> {
-  const parsed = z.object({ questionId: id, answer: answerText }).safeParse(input)
+const lang = z.enum(['en', 'pt'])
+
+/** The generalist answer in one language; the other language's answer is never touched. */
+export async function saveAnswer(input: { questionId: string; lang: Lang; answer: string }): Promise<ActionResult<null>> {
+  const parsed = z.object({ questionId: id, lang, answer: answerText }).safeParse(input)
   if (!parsed.success) return fail(invalidInput(parsed.error))
   const { questionId, answer } = parsed.data
-  return attempt('saveAnswer', () => db.behavioralQuestion.update({ where: { id: questionId }, data: { answer } }))
+  const data = parsed.data.lang === 'pt' ? { answerPt: answer } : { answer }
+  return attempt('saveAnswer', () => db.behavioralQuestion.update({ where: { id: questionId }, data }))
 }
 
 const theoryInput = z.object({
@@ -92,17 +96,18 @@ export async function deleteQuestion(input: { questionId: string }): Promise<Act
 }
 
 /** The answer adapted to one job. Clearing the text removes it, so the generalist one is used again. */
-export async function saveTailored(input: { questionId: string; jobId: string; text: string }): Promise<ActionResult<null>> {
-  const parsed = z.object({ questionId: id, jobId: id, text: answerText }).safeParse(input)
+export async function saveTailored(input: { questionId: string; jobId: string; lang: Lang; text: string }): Promise<ActionResult<null>> {
+  const parsed = z.object({ questionId: id, jobId: id, lang, text: answerText }).safeParse(input)
   if (!parsed.success) return fail(invalidInput(parsed.error))
   const { questionId, jobId, text } = parsed.data
+  const l = dbLang(parsed.data.lang)
   return attempt('saveTailored', () =>
     text.trim()
       ? db.tailoredAnswer.upsert({
-          where: { questionId_jobId: { questionId, jobId } },
-          create: { questionId, jobId, text },
+          where: { questionId_jobId_lang: { questionId, jobId, lang: l } },
+          create: { questionId, jobId, lang: l, text },
           update: { text },
         })
-      : db.tailoredAnswer.deleteMany({ where: { questionId, jobId } }),
+      : db.tailoredAnswer.deleteMany({ where: { questionId, jobId, lang: l } }),
   )
 }

@@ -1,11 +1,13 @@
 'use client'
 
-import { questionStatus, tailoredCount, type QuestionItem, type TailoredMap } from '../types'
+import { questionStatus, tailoredCount, type Lang, type QuestionItem, type TailoredMap } from '../types'
 import { AddQuestion } from './add-question'
 
 type Props = {
   questions: QuestionItem[]
-  answers: Record<string, string>
+  /** The generalist answer in the chosen language. */
+  answerOf: (questionId: string) => string
+  lang: Lang
   tailored: TailoredMap
   selectedId: string
   onSelect: (id: string) => void
@@ -14,7 +16,7 @@ type Props = {
 
 // Wide screens: the list stays put (sticky, scrolling on its own) while the question beside it changes
 // height, so the row you clicked never jumps under the mouse.
-export function QuestionList({ questions, answers, tailored, selectedId, onSelect, onAdded }: Props) {
+export function QuestionList({ questions, answerOf, lang, tailored, selectedId, onSelect, onAdded }: Props) {
   return (
     <section
       aria-labelledby="ql-h"
@@ -25,7 +27,8 @@ export function QuestionList({ questions, answers, tailored, selectedId, onSelec
       </h2>
       {questions.map((q) => {
         const on = q.id === selectedId
-        const answered = Boolean((answers[q.id] ?? '').trim())
+        const answer = answerOf(q.id)
+        const answered = Boolean(answer.trim())
         return (
           <button
             key={q.id}
@@ -42,7 +45,7 @@ export function QuestionList({ questions, answers, tailored, selectedId, onSelec
                 {q.short}
               </span>
               <span className={`text-[12px] ${answered ? 'font-medium text-[var(--ok-ink)]' : 'text-[var(--muted)]'}`}>
-                {questionStatus(answers[q.id] ?? '', tailoredCount(tailored, q.id))}
+                {questionStatus(answer, tailoredCount(tailored, q.id, lang))}
               </span>
             </span>
           </button>

@@ -3,7 +3,7 @@ import { aiReady as isAiReady } from '@/features/ai/settings'
 import { Suspense } from 'react'
 import { BehavioralScreen } from '@/features/behavioral/components/behavioral-screen'
 import { loadBehavioral } from '@/features/behavioral/queries'
-import { pickJob } from '@/features/behavioral/types'
+import { pickJob, pickLang } from '@/features/behavioral/types'
 
 export const metadata = { title: 'Interview answers' }
 
@@ -22,7 +22,8 @@ async function Behavioral({ searchParams }: Props) {
   const [data, params] = await Promise.all([loadBehavioral(), searchParams])
   const wanted = typeof params.job === 'string' ? params.job : null
   const aiReady = await isAiReady()
-  return <BehavioralScreen data={data} initialJobId={pickJob(data.jobs, wanted)} aiReady={aiReady} />
+  const lang = pickLang(typeof params.lang === 'string' ? params.lang : null)
+  return <BehavioralScreen data={data} initialJobId={pickJob(data.jobs, wanted)} initialLang={lang} aiReady={aiReady} />
 }
 
 function Loading() {

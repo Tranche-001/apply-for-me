@@ -4,23 +4,31 @@
 // The job's adapted answer when there is one, else the generalist one, labelled. Large text with A+.
 import Link from 'next/link'
 import { useState } from 'react'
-import { interviewItems, type BehavioralData } from '../types'
-import { BehavioralPills } from './behavioral-pills'
+import { behavioralQuery, htmlLang, interviewItems, type BehavioralData, type Lang } from '../types'
+import { BehavioralPills, LangSwitch } from './behavioral-pills'
 
 const SEG_ON = 'bg-white font-semibold text-[var(--text)] shadow-[0_1px_2px_rgba(20,22,27,0.1)]'
 const SEG_OFF = 'bg-transparent font-medium text-[var(--muted)]'
 
-export function InterviewScreen({ data, initialJobId }: { data: BehavioralData; initialJobId: string | null }) {
+type Props = { data: BehavioralData; initialJobId: string | null; initialLang: Lang }
+
+export function InterviewScreen({ data, initialJobId, initialLang }: Props) {
   const [jobId, setJobId] = useState(initialJobId)
+  const [lang, setLang] = useState<Lang>(initialLang)
   const [large, setLarge] = useState(false)
   const job = data.jobs.find((j) => j.id === jobId) ?? null
-  const items = interviewItems(data.questions, data.tailored, jobId)
+  const items = interviewItems(data.questions, data.tailored, jobId, lang)
   const missing = data.questions.length - items.length
   const count = `${items.length} of ${data.questions.length} answered`
 
   const chooseJob = (id: string) => {
     setJobId(id)
-    window.history.replaceState(null, '', `?job=${encodeURIComponent(id)}`)
+    window.history.replaceState(null, '', `/behavioral/interview${behavioralQuery(id, lang)}`)
+  }
+
+  const chooseLang = (next: Lang) => {
+    setLang(next)
+    window.history.replaceState(null, '', `/behavioral/interview${behavioralQuery(jobId, next)}`)
   }
 
   const jump = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
@@ -34,7 +42,7 @@ export function InterviewScreen({ data, initialJobId }: { data: BehavioralData; 
       <header className="flex flex-col gap-2.5">
         <p className="eyebrow text-[12px]">BEHAVIORAL</p>
         <h1 className="sr-only">Interview mode</h1>
-        <BehavioralPills current="interview" jobId={jobId} />
+        <BehavioralPills current="interview" jobId={jobId} lang={lang} />
         <p className="m-0 max-w-[660px] text-[14px] leading-[1.5] text-[var(--muted)]">
           Every answer you have for one job, one after the other. Keep it open while you are interviewed.
         </p>
@@ -65,6 +73,7 @@ export function InterviewScreen({ data, initialJobId }: { data: BehavioralData; 
             </select>
           </div>
         )}
+        <LangSwitch lang={lang} onChange={chooseLang} />
         <div role="group" aria-label="Text size" className="flex gap-[3px] rounded-lg bg-[#e6e7ea] p-[3px]">
           <button type="button" onClick={() => setLarge(false)} aria-pressed={!large} className={`h-7 rounded-md border-0 px-2.5 text-[12.5px] ${large ? SEG_OFF : SEG_ON}`}>
             A
@@ -118,7 +127,7 @@ export function InterviewScreen({ data, initialJobId }: { data: BehavioralData; 
               <p lang="pt-BR" className="m-0 text-[13.5px] leading-[1.5] text-[var(--muted)]">
                 {q.full}
               </p>
-              <div lang="pt-BR" className={`whitespace-pre-wrap leading-[1.7] text-[var(--text)] ${large ? 'text-[21px]' : 'text-[17px]'}`}>
+              <div lang={htmlLang(lang)} className={`whitespace-pre-wrap leading-[1.7] text-[var(--text)] ${large ? 'text-[21px]' : 'text-[17px]'}`}>
                 {q.answer}
               </div>
               {q.looksFor.length > 0 && (

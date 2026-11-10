@@ -33,7 +33,7 @@ export type JobData = {
 
 /** A behavioral question with what you answered, for the read-only panel on Jobs. */
 export type BehavioralForJobs = {
-  questions: { id: string; position: number; short: string; answer: string }[]
-  /** Answers adapted to a job, keyed `${questionId}|${jobId}`. */
+  questions: { id: string; position: number; short: string; answers: { en: string; pt: string } }[]
+  /** Answers adapted to a job, keyed `${questionId}|${jobId}|${lang}` (lang = en | pt). */
   tailored: Record<string, string>
 }

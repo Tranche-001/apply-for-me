@@ -80,6 +80,7 @@ export const QUESTION: QuestionContext = {
   full: 'Fale sobre você.',
   looksFor: ['Linha do tempo curta'],
   answer: '',
+  answerPt: '',
   theory: 'Presente, passado, futuro.',
   references: ['Livro A'],
   useFounder: true,

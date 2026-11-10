@@ -87,6 +87,7 @@ export async function loadQuestion(questionId: string): Promise<QuestionContext 
     full: q.full,
     looksFor: q.looksFor,
     answer: q.answer,
+    answerPt: q.answerPt,
     theory: q.theory,
     references: q.references,
     useFounder: q.useFounder,

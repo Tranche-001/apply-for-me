@@ -1,8 +1,12 @@
 import { describe, expect, test } from 'vitest'
 import {
+  behavioralQuery,
   copyFounder,
   copyMessage,
+  dbLang,
+  fromDbLang,
   interviewItems,
+  pickLang,
   isCustomKey,
   looksForLines,
   pickJob,
@@ -19,7 +23,7 @@ const q = (id: string, answer: string): QuestionItem => ({
   short: `Short ${id}`,
   full: `Full ${id}`,
   looksFor: [],
-  answer,
+  answers: { en: answer, pt: '' },
   theory: '',
   references: [],
   useFounder: true,
@@ -57,21 +61,44 @@ describe('copyFounder', () => {
 })
 
 describe('statuses and interview mode', () => {
-  const tailored = { [tailoredKey('q1', 'j1')]: 'Adapted', [tailoredKey('q1', 'j2')]: '  ', [tailoredKey('q2', 'j1')]: 'Only adapted' }
+  const tailored = {
+    [tailoredKey('q1', 'j1', 'en')]: 'Adapted',
+    [tailoredKey('q1', 'j2', 'en')]: '  ',
+    [tailoredKey('q2', 'j1', 'en')]: 'Only adapted',
+    [tailoredKey('q1', 'j2', 'pt')]: 'Adaptada',
+  }
 
-  test('counts job versions with text', () => {
-    expect(tailoredCount(tailored, 'q1')).toBe(1)
+  test('counts job versions with text, in the chosen language only', () => {
+    expect(tailoredCount(tailored, 'q1', 'en')).toBe(1)
+    expect(tailoredCount(tailored, 'q1', 'pt')).toBe(1)
+    expect(tailoredCount(tailored, 'q2', 'pt')).toBe(0)
     expect(questionStatus('Resposta', 2)).toBe('Answered · 2 job versions')
     expect(questionStatus('', 0)).toBe('Not started')
   })
 
   test('uses the adapted answer for the job, else the generalist one, and skips unanswered questions', () => {
-    const items = interviewItems([q('q1', 'General'), q('q2', ''), q('q3', '  ')], tailored, 'j1')
+    const items = interviewItems([q('q1', 'General'), q('q2', ''), q('q3', '  ')], tailored, 'j1', 'en')
     expect(items.map((i) => [i.id, i.answer, i.adapted])).toEqual([
       ['q1', 'Adapted', true],
       ['q2', 'Only adapted', true],
     ])
-    expect(interviewItems([q('q1', 'General')], tailored, null)[0]).toMatchObject({ answer: 'General', adapted: false })
+    expect(interviewItems([q('q1', 'General')], tailored, null, 'en')[0]).toMatchObject({ answer: 'General', adapted: false })
+  })
+
+  test('switching language never shows the other language’s answer', () => {
+    const both = { ...q('q1', 'In English'), answers: { en: 'In English', pt: '' } }
+    expect(interviewItems([both], tailored, 'j1', 'pt')).toEqual([])
+    expect(interviewItems([both], tailored, 'j2', 'pt')[0]).toMatchObject({ answer: 'Adaptada', adapted: true })
+  })
+
+  test('the language comes from the link, English when missing or unknown, and goes back into it', () => {
+    expect(pickLang('pt')).toBe('pt')
+    expect(pickLang('fr')).toBe('en')
+    expect(pickLang(null)).toBe('en')
+    expect(behavioralQuery('j1', 'pt')).toBe('?job=j1&lang=pt')
+    expect(behavioralQuery('j1', 'en')).toBe('?job=j1')
+    expect(behavioralQuery(null, 'en')).toBe('')
+    expect([dbLang('pt'), dbLang('en'), fromDbLang('PT'), fromDbLang('EN')]).toEqual(['PT', 'EN', 'pt', 'en'])
   })
 
   test('pickJob keeps the job from the link when it exists', () => {

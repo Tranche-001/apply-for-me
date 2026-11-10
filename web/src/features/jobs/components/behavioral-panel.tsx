@@ -12,10 +12,16 @@ type Props = { job: JobData; behavioral: BehavioralForJobs; onClose: () => void 
  */
 export function BehavioralPanel({ job, behavioral, onClose }: Props) {
   const company = job.company || job.label
+  // English first; a question answered only in Portuguese shows that one, labelled.
   const items = behavioral.questions
     .map((q, i) => {
-      const adapted = (behavioral.tailored[`${q.id}|${job.id}`] ?? '').trim()
-      return { q, n: String(i + 1).padStart(2, '0'), adapted: !!adapted, answer: adapted || q.answer.trim() }
+      const n = String(i + 1).padStart(2, '0')
+      for (const lang of ['en', 'pt'] as const) {
+        const adapted = (behavioral.tailored[`${q.id}|${job.id}|${lang}`] ?? '').trim()
+        const answer = adapted || q.answers[lang].trim()
+        if (answer) return { q, n, lang, adapted: !!adapted, answer }
+      }
+      return { q, n, lang: 'en' as const, adapted: false, answer: '' }
     })
     .filter((x) => x.answer)
   const someAdapted = items.some((x) => x.adapted)
@@ -42,9 +48,10 @@ export function BehavioralPanel({ job, behavioral, onClose }: Props) {
             <h3 lang="pt-BR" style={{ margin: 0, fontSize: 14, fontWeight: 600, lineHeight: 1.35 }}>{x.q.short}</h3>
             <span style={{ padding: '1px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, ...(x.adapted ? { background: C.indigoSoft, color: C.indigoInk } : { background: '#F1F2F4', color: C.text2 }) }}>
               {x.adapted ? `Adapted for ${company}` : 'Generalist'}
+              {x.lang === 'pt' ? ' · Português' : ''}
             </span>
           </div>
-          <p lang="pt-BR" style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: C.ink }}>{x.answer}</p>
+          <p lang={x.lang === 'pt' ? 'pt-BR' : 'en'} style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: C.ink }}>{x.answer}</p>
         </article>
       ))}
       {items.length === 0 && (

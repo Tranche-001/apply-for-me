@@ -94,11 +94,12 @@ export async function analyzePosting(input: { jobId: string }): Promise<
   return result.ok ? ok(toPostingSummary(result.data)) : result
 }
 
-const answerInput = z.object({ questionId: id, jobId: id.nullable() })
+const answerInput = z.object({ questionId: id, jobId: id.nullable(), lang: z.enum(['en', 'pt']).default('en') })
 
 async function draftAnswerWith(
   questionId: string,
   jobId: string | null,
+  lang: 'en' | 'pt',
   revise: { current: string; instruction: string } | null,
 ): Promise<AiResult<AnswerDraft>> {
   const ai = await getAi()
@@ -109,7 +110,8 @@ async function draftAnswerWith(
     const job = jobId ? await loadJob(jobId) : null
     if (jobId && !job) return fail(MISSING_JOB)
     const [library, experiences, rules] = await Promise.all([loadLibrary(), loadExperiences(), loadRules('qa')])
-    const prompt = buildAnswerPrompt({ question, job, library, experiences, rules, generalist: question.answer, revise })
+    const generalist = lang === 'pt' ? question.answerPt : question.answer
+    const prompt = buildAnswerPrompt({ question, job, library, experiences, rules, lang, generalist, revise })
     const raw = await ai.run(prompt, answerOutputSchema, TASKS.answer)
     const text = raw.text.trim()
     if (!text) return fail('The AI returned an empty answer. Nothing was changed; try again.')
@@ -118,10 +120,14 @@ async function draftAnswerWith(
 }
 
 /** Behavioral → Draft from my blocks / Generate answer for a job. */
-export async function draftAnswer(input: { questionId: string; jobId: string | null }): Promise<AiResult<{ text: string; changes: string[] }>> {
+export async function draftAnswer(input: {
+  questionId: string
+  jobId: string | null
+  lang?: 'en' | 'pt'
+}): Promise<AiResult<{ text: string; changes: string[] }>> {
   const parsed = answerInput.safeParse(input)
   if (!parsed.success) return fail(invalidInput(parsed.error))
-  return draftAnswerWith(parsed.data.questionId, parsed.data.jobId, null)
+  return draftAnswerWith(parsed.data.questionId, parsed.data.jobId, parsed.data.lang, null)
 }
 
 const reviseInput = answerInput.extend({
@@ -133,13 +139,14 @@ const reviseInput = answerInput.extend({
 export async function reviseAnswer(input: {
   questionId: string
   jobId: string | null
+  lang?: 'en' | 'pt'
   current: string
   instruction: string
 }): Promise<AiResult<AnswerDraft>> {
   const parsed = reviseInput.safeParse(input)
   if (!parsed.success) return fail(invalidInput(parsed.error))
-  const { questionId, jobId, current, instruction } = parsed.data
-  return draftAnswerWith(questionId, jobId, { current, instruction })
+  const { questionId, jobId, lang, current, instruction } = parsed.data
+  return draftAnswerWith(questionId, jobId, lang, { current, instruction })
 }
 
 const blockInput = z.object({ experienceId: id })

@@ -184,8 +184,9 @@ model BehavioralQuestion {
   short        String
   full         String
   looksFor     String[]
-  answer       String           @default("")
-  theory       String           @default("")
+  answer       String           @default("") // the generalist answer in English
+  answerPt     String           @default("") // the generalist answer in Portuguese (written by you, never translated)
+  theory      String           @default("")
   references   String[]
   useFounder   Boolean          @default(true)
   founderNotes String           @default("")
@@ -198,9 +199,16 @@ model TailoredAnswer {
   question   BehavioralQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
   jobId      String
   job        Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  lang       AnswerLang         @default(EN)
   text       String
 
-  @@id([questionId, jobId])
+  @@id([questionId, jobId, lang])
+}
+
+// The language an interview answer is written in. Each language has its own answer; nothing is translated.
+enum AnswerLang {
+  EN
+  PT
 }
 
 // What the AI learned: rules distilled from your edits, each switchable.

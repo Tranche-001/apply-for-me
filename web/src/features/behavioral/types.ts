@@ -7,7 +7,8 @@ export type QuestionItem = {
   short: string
   full: string
   looksFor: string[]
-  answer: string
+  /** Your generalist answer in each language; each one is written by you, nothing is translated. */
+  answers: Record<Lang, string>
   theory: string
   references: string[]
   useFounder: boolean
@@ -38,20 +39,55 @@ export function looksForLines(text: string): string[] {
     })
 }
 
+/** The language you answer in. Each language keeps its own answers; switching never translates. */
+export type Lang = 'en' | 'pt'
+
+export const LANGS: { id: Lang; label: string }[] = [
+  { id: 'en', label: 'English' },
+  { id: 'pt', label: 'Português' },
+]
+
+/** The language a view opens with: the one in the link (?lang=pt), else English. */
+export function pickLang(wanted: string | null | undefined): Lang {
+  return wanted === 'pt' ? 'pt' : 'en'
+}
+
+export function htmlLang(lang: Lang): string {
+  return lang === 'pt' ? 'pt-BR' : 'en'
+}
+
+/** The database's name for a language (enum AnswerLang). */
+export function dbLang(lang: Lang): 'EN' | 'PT' {
+  return lang === 'pt' ? 'PT' : 'EN'
+}
+
+export function fromDbLang(lang: 'EN' | 'PT'): Lang {
+  return lang === 'PT' ? 'pt' : 'en'
+}
+
+/** The link to a Behavioral view with the chosen job and language ("?job=…&lang=pt"; English is the default, left out). */
+export function behavioralQuery(jobId: string | null, lang: Lang): string {
+  const params = new URLSearchParams()
+  if (jobId) params.set('job', jobId)
+  if (lang !== 'en') params.set('lang', lang)
+  const q = params.toString()
+  return q ? `?${q}` : ''
+}
+
 export type JobOption = { id: string; label: string; company: string }
 
-/** Adapted answers, keyed by tailoredKey(questionId, jobId). */
+/** Adapted answers, keyed by tailoredKey(questionId, jobId, lang). */
 export type TailoredMap = Record<string, string>
 
 export type BehavioralData = { questions: QuestionItem[]; tailored: TailoredMap; jobs: JobOption[] }
 
-export function tailoredKey(questionId: string, jobId: string): string {
-  return `${questionId}|${jobId}`
+export function tailoredKey(questionId: string, jobId: string, lang: Lang): string {
+  return `${questionId}|${jobId}|${lang}`
 }
 
-/** How many jobs have an adapted answer for this question. */
-export function tailoredCount(tailored: TailoredMap, questionId: string): number {
-  return Object.entries(tailored).filter(([k, v]) => k.startsWith(`${questionId}|`) && v.trim()).length
+/** How many jobs have an adapted answer for this question in this language. */
+export function tailoredCount(tailored: TailoredMap, questionId: string, lang: Lang): number {
+  return Object.entries(tailored).filter(([k, v]) => k.startsWith(`${questionId}|`) && k.endsWith(`|${lang}`) && v.trim()).length
 }
 
 /** "Answered · 2 job versions" / "Answered" / "Not started". */
@@ -81,12 +117,12 @@ export function copyMessage(c: Pick<CopyResult, 'notesAdded' | 'refsAdded'>): st
 
 export type InterviewItem = { id: string; n: string; short: string; full: string; answer: string; adapted: boolean; looksFor: string[] }
 
-/** Interview mode: every answered question, the job's adapted answer when there is one, else the generalist one. */
-export function interviewItems(questions: QuestionItem[], tailored: TailoredMap, jobId: string | null): InterviewItem[] {
+/** Interview mode: every question answered in this language, the job's adapted answer when there is one, else the generalist one. */
+export function interviewItems(questions: QuestionItem[], tailored: TailoredMap, jobId: string | null, lang: Lang): InterviewItem[] {
   return questions
     .map((q) => {
-      const adapted = jobId ? (tailored[tailoredKey(q.id, jobId)] ?? '').trim() : ''
-      const answer = adapted || q.answer.trim()
+      const adapted = jobId ? (tailored[tailoredKey(q.id, jobId, lang)] ?? '').trim() : ''
+      const answer = adapted || q.answers[lang].trim()
       return { id: q.id, n: q.n, short: q.short, full: q.full, answer, adapted: Boolean(adapted), looksFor: q.looksFor }
     })
     .filter((x) => x.answer)

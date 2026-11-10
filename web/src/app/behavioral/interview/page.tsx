@@ -2,7 +2,7 @@ import { connection } from 'next/server'
 import { Suspense } from 'react'
 import { InterviewScreen } from '@/features/behavioral/components/interview-screen'
 import { loadBehavioral } from '@/features/behavioral/queries'
-import { pickJob } from '@/features/behavioral/types'
+import { pickJob, pickLang } from '@/features/behavioral/types'
 
 export const metadata = { title: 'Interview mode' }
 
@@ -20,7 +20,8 @@ async function Interview({ searchParams }: Props) {
   await connection() // request time only: the build never queries the database
   const [data, params] = await Promise.all([loadBehavioral(), searchParams])
   const wanted = typeof params.job === 'string' ? params.job : null
-  return <InterviewScreen data={data} initialJobId={pickJob(data.jobs, wanted)} />
+  const lang = pickLang(typeof params.lang === 'string' ? params.lang : null)
+  return <InterviewScreen data={data} initialJobId={pickJob(data.jobs, wanted)} initialLang={lang} />
 }
 
 function Loading() {

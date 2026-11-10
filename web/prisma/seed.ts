@@ -101,9 +101,10 @@ async function main() {
     for (const q of data.questions) {
       await tx.behavioralQuestion.create({
         data: {
-          key: q.key, position: q.position, short: q.short, full: q.full, looksFor: q.looksFor, answer: q.answer,
+          // The seed's answers are written in Portuguese, so they are the Portuguese ones.
+          key: q.key, position: q.position, short: q.short, full: q.full, looksFor: q.looksFor, answerPt: q.answer,
           founderNotes: q.founderNotes, founderRefs: q.founderRefs, references: [],
-          tailored: { create: q.tailored.filter((t) => jobIdByLabel.has(t.jobLabel)).map((t) => ({ jobId: jobIdByLabel.get(t.jobLabel)!, text: t.text })) },
+          tailored: { create: q.tailored.filter((t) => jobIdByLabel.has(t.jobLabel)).map((t) => ({ jobId: jobIdByLabel.get(t.jobLabel)!, lang: 'PT' as const, text: t.text })) },
         },
       })
     }
