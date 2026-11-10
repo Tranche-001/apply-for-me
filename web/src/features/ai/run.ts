@@ -46,14 +46,16 @@ export function outputFormat(schema: z.ZodType): { type: 'json_schema'; schema: 
   return { type: 'json_schema', schema: strictJsonSchema(schema) }
 }
 
-export function buildRequest(prompt: Prompt, schema: z.ZodType, task: TaskConfig) {
+/** Haiku has no server-side fallback on a refusal; the bigger models do. */
+export const hasServerFallback = (model: string): boolean => !model.startsWith('claude-haiku')
+
+export function buildRequest(prompt: Prompt, schema: z.ZodType, task: TaskConfig, model: string = MODEL) {
   return {
-    model: MODEL,
+    model,
     max_tokens: task.maxTokens,
     thinking: { type: 'adaptive' as const },
     output_config: { effort: task.effort, format: outputFormat(schema) },
-    betas: [FALLBACK_BETA],
-    fallbacks: 'default' as const,
+    ...(hasServerFallback(model) ? { betas: [FALLBACK_BETA], fallbacks: 'default' as const } : {}),
     // The rules and the user's material are stable between retries, so both are cached.
     system: [{ type: 'text' as const, text: prompt.system, cache_control: { type: 'ephemeral' as const } }],
     messages: [
@@ -68,8 +70,8 @@ export function buildRequest(prompt: Prompt, schema: z.ZodType, task: TaskConfig
   }
 }
 
-export async function runStructured<T>(client: Anthropic, prompt: Prompt, schema: z.ZodType<T>, task: TaskConfig): Promise<T> {
-  const stream = client.beta.messages.stream(buildRequest(prompt, schema, task))
+export async function runStructured<T>(client: Anthropic, prompt: Prompt, schema: z.ZodType<T>, task: TaskConfig, model: string = MODEL): Promise<T> {
+  const stream = client.beta.messages.stream(buildRequest(prompt, schema, task, model))
   const message = await stream.finalMessage()
   if (message.stop_reason === 'refusal') throw new AiRefusalError()
   if (message.stop_reason === 'max_tokens') throw new AiTruncatedError()

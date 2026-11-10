@@ -1,5 +1,6 @@
 import { connection } from 'next/server'
-import { NOT_READY, aiProvider } from '@/features/ai/provider'
+import { NOT_READY } from '@/features/ai/provider'
+import { aiReady as isAiReady } from '@/features/ai/settings'
 import { Suspense } from 'react'
 import { AnalyzeScreen } from '@/features/analysis/components/analyze-screen'
 import { listExperienceOptions, loadAnalysisJob } from '@/features/analysis/queries'
@@ -24,7 +25,7 @@ async function Analyze({ searchParams }: Props) {
   const wanted = typeof params.job === 'string' ? params.job : null
   // ?job=<id> resumes that job's saved analysis (a reload, or "Analyze again" on Jobs); no job = start from a link.
   const [experiences, library, profile, loaded] = await Promise.all([listExperienceOptions(), getLibrary(), getProfile(), wanted ? loadAnalysisJob(wanted) : null])
-  const aiReady = aiProvider() !== null
+  const aiReady = await isAiReady()
   return (
     // No key: a refresh() after a write re-renders this page with ?job=, and the screen must keep its state.
     <AnalyzeScreen

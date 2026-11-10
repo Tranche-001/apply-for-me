@@ -53,7 +53,7 @@ export function Nav({ status }: { status: ReactNode }) {
         <div className="nav-group">PROFILE</div>
         {ITEMS.filter((i) => i.group === 'profile').map(link)}
       </div>
-      <div className="nav-foot">{status}</div>
+      {status}
     </nav>
   )
 }

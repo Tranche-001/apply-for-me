@@ -1,5 +1,5 @@
 import { connection } from 'next/server'
-import { aiProvider } from '@/features/ai/provider'
+import { aiReady as isAiReady } from '@/features/ai/settings'
 import { Suspense } from 'react'
 import { ExperiencesScreen } from '@/features/experiences/components/experiences-screen'
 import { readPairingNeeds } from '@/features/experiences/pairing'
@@ -23,7 +23,7 @@ async function Experiences({ searchParams }: Props) {
   // ?open=<id>: the experience to show first (Job analysis links here after adding an answer).
   const open = typeof params.open === 'string' && items.some((e) => e.id === params.open) ? params.open : null
   // The key stays on the server; the screen only learns whether the AI can run.
-  const aiReady = aiProvider() !== null
+  const aiReady = await isAiReady()
   return <ExperiencesScreen initialItems={items} initialSelectedId={open} aiReady={aiReady} initialNeeds={needs} />
 }
 

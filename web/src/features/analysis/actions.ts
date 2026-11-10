@@ -123,7 +123,7 @@ const startInput = z.union([z.object({ urls: z.array(z.string()) }), z.object({ 
  * (decision log), so the analysis that follows sees the whole library. It never fails the start.
  */
 export async function startFromPosting(input: { urls: string[] } | { url: string } | { text: string }): Promise<ActionResult<StartResult>> {
-  const [result] = await Promise.all([startFrom(input), pairLibraryQuietly(getAi())])
+  const [result] = await Promise.all([startFrom(input), (async () => pairLibraryQuietly(await getAi()))()])
   return result
 }
 

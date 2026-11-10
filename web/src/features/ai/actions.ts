@@ -31,7 +31,7 @@ async function guarded<T>(what: string, ai: AiRunner, work: () => Promise<AiResu
     return await work()
   } catch (err) {
     console.error(`[ai] ${what} failed`, errorLogContext(err))
-    return fail(plainAiError(err, ai.provider))
+    return fail(plainAiError(err, ai.provider, ai.source))
   }
 }
 
@@ -41,7 +41,7 @@ const cvPlanInput = z.object({ jobId: id, pages: z.union([z.literal(1), z.litera
 export async function generateCvPlan(input: { jobId: string; pages: 1 | 2 }): Promise<AiResult<CvPlan>> {
   const parsed = cvPlanInput.safeParse(input)
   if (!parsed.success) return fail(invalidInput(parsed.error))
-  const ai = getAi()
+  const ai = await getAi()
   if (!ai) return fail(NOT_READY)
   const { jobId, pages } = parsed.data
   return guarded('generateCvPlan', ai, async () => {
@@ -72,7 +72,7 @@ const analyzeJobInput = z.object({
 export async function analyzeJob(input: AnalyzeJobInput): Promise<AiResult<JobAnalysis>> {
   const parsed = analyzeJobInput.safeParse(input)
   if (!parsed.success) return fail(invalidInput(parsed.error))
-  const ai = getAi()
+  const ai = await getAi()
   if (!ai) return fail(NOT_READY)
   const { jobId, answers = [], instruction = null, previousDrafts = [] } = parsed.data
   return guarded('analyzeJob', ai, async () => {
@@ -101,7 +101,7 @@ async function draftAnswerWith(
   jobId: string | null,
   revise: { current: string; instruction: string } | null,
 ): Promise<AiResult<AnswerDraft>> {
-  const ai = getAi()
+  const ai = await getAi()
   if (!ai) return fail(NOT_READY)
   return guarded('draftAnswer', ai, async () => {
     const question = await loadQuestion(questionId)
@@ -148,7 +148,7 @@ const blockInput = z.object({ experienceId: id })
 export async function draftBlockFromExperience(input: { experienceId: string }): Promise<AiResult<DraftVersion>> {
   const parsed = blockInput.safeParse(input)
   if (!parsed.success) return fail(invalidInput(parsed.error))
-  const ai = getAi()
+  const ai = await getAi()
   if (!ai) return fail(NOT_READY)
   return guarded('draftBlockFromExperience', ai, async () => {
     const [experiences, library, rules] = await Promise.all([loadExperiences(), loadLibrary(), loadRules('cv')])
@@ -171,7 +171,7 @@ const postingJobsInput = z.object({
 export async function readPostingJobs(input: { postingText: string }): Promise<AiResult<PostingJob[]>> {
   const parsed = postingJobsInput.safeParse(input)
   if (!parsed.success) return fail(invalidInput(parsed.error))
-  const ai = getAi()
+  const ai = await getAi()
   if (!ai) return fail(NOT_READY)
   const { postingText } = parsed.data
   return guarded('readPostingJobs', ai, async () => {
@@ -198,7 +198,7 @@ const placeInput = z.object({
 export async function placeAnswers(input: { jobId: string; items: { askId: string; question: string; answer: string }[] }): Promise<AiResult<AnswerPlacement[]>> {
   const parsed = placeInput.safeParse(input)
   if (!parsed.success) return fail(invalidInput(parsed.error))
-  const ai = getAi()
+  const ai = await getAi()
   if (!ai) return fail(NOT_READY)
   const { jobId, items } = parsed.data
   return guarded('placeAnswers', ai, async () => {

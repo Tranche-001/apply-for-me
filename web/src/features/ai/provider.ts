@@ -12,7 +12,7 @@ export const PROVIDERS = {
 /** Other names accepted for a key (OPEN_AI_API_KEY is a common spelling of OPENAI_API_KEY). */
 const KEY_ALIASES: Partial<Record<ProviderId, readonly string[]>> = { openai: ['OPEN_AI_API_KEY'] }
 
-export const NOT_READY = 'The AI is not set up yet. Add ANTHROPIC_API_KEY (Claude), GEMINI_API_KEY (Gemini) or OPENAI_API_KEY (OpenAI) to web/.env.'
+export const NOT_READY = 'The AI is not set up yet. Open the AI menu at the bottom of the left menu and add a key, or put ANTHROPIC_API_KEY, GEMINI_API_KEY or OPENAI_API_KEY in web/.env.'
 
 type Env = Partial<Record<string, string | undefined>>
 

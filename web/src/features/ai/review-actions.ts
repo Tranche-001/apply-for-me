@@ -34,7 +34,7 @@ async function guarded<T>(what: string, ai: AiRunner, work: () => Promise<AiResu
     return await work()
   } catch (err) {
     console.error(`[ai] ${what} failed`, errorLogContext(err))
-    return fail(plainAiError(err, ai.provider))
+    return fail(plainAiError(err, ai.provider, ai.source))
   }
 }
 
@@ -47,7 +47,7 @@ export async function reviewCv(input: { jobId: string; request: string; remember
   const s = analysisSessionSchema.safeParse(parsed.data.session)
   if (!s.success) return fail('The CV on this page couldn’t be read. Reload the page and try again.')
   const session = s.data as AnalysisSession
-  const ai = getAi()
+  const ai = await getAi()
   if (!ai) return fail(NOT_READY)
   const { jobId, remember } = parsed.data
   const text = parsed.data.request
@@ -80,7 +80,7 @@ export async function learnRulesFromReview(input: { jobId: string; request: stri
   if (!existing) return fail('Couldn’t read your rules. Try again.')
   let candidates = rulesFromRequest(text)
   if (!candidates) {
-    const ai = getAi()
+    const ai = await getAi()
     if (!ai) return fail(NOT_READY)
     const written = await guarded('learnRulesFromReview', ai, async () => {
       const raw = await ai.run(buildReviewRulesPrompt({ request: text, jobLabel: job.label, existing: existing.map((r) => r.text) }), reviewRulesOutputSchema, TASKS.reviewRules)

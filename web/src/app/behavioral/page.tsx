@@ -1,5 +1,5 @@
 import { connection } from 'next/server'
-import { aiProvider } from '@/features/ai/provider'
+import { aiReady as isAiReady } from '@/features/ai/settings'
 import { Suspense } from 'react'
 import { BehavioralScreen } from '@/features/behavioral/components/behavioral-screen'
 import { loadBehavioral } from '@/features/behavioral/queries'
@@ -21,7 +21,7 @@ async function Behavioral({ searchParams }: Props) {
   await connection() // request time only: the build never queries the database
   const [data, params] = await Promise.all([loadBehavioral(), searchParams])
   const wanted = typeof params.job === 'string' ? params.job : null
-  const aiReady = aiProvider() !== null
+  const aiReady = await isAiReady()
   return <BehavioralScreen data={data} initialJobId={pickJob(data.jobs, wanted)} aiReady={aiReady} />
 }
 

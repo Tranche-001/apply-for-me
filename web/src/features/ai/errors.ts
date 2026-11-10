@@ -2,7 +2,9 @@
 // No codes, no stack traces: say what happened and what to do next.
 import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
-import { PROVIDERS, type ProviderId } from './provider'
+import type { KeySource } from './ai-config'
+import { isBuiltIn, serviceName, type ServiceId } from './catalog'
+import { PROVIDERS } from './provider'
 
 /** The model declined (Claude: stop_reason "refusal", even after the fallback; Gemini: blocked). */
 export class AiRefusalError extends Error {
@@ -28,14 +30,20 @@ export class AiInvalidOutputError extends Error {
   }
 }
 
-/** What to tell you, worded for the provider in use (its name, its key, where to check it). */
-export function aiMessages(provider: ProviderId) {
-  const { label, keyVar, console } = PROVIDERS[provider]
+/**
+ * What to tell you, worded for the service in use (its name, its key, where to check it). A key from web/.env is
+ * named by its variable; a key saved in the nav's AI menu is called "your saved key".
+ */
+export function aiMessages(service: ServiceId, source: KeySource = 'env') {
+  const label = serviceName(service)
+  const fromEnv = source === 'env' && isBuiltIn(service)
+  const keyName = fromEnv ? `${label} API key (${PROVIDERS[service].keyVar} in web/.env)` : `${label} key you saved in the AI menu`
+  const console = isBuiltIn(service) ? PROVIDERS[service].console : `your ${label} account`
   return {
     refusal: 'The AI declined to write this one. Try rewording your notes, or write it yourself.',
     truncated: 'The AI’s answer was cut off before it finished. Nothing was changed; try again.',
     invalid: 'The AI’s answer came back in an unexpected shape, so nothing was changed. Try again.',
-    auth: `The ${label} API key (${keyVar} in web/.env) was refused. Check that it is correct and still active.`,
+    auth: `The ${keyName} was refused. Check that it is correct and still active.`,
     permission: `This ${label} API key can’t use the model. Check its access and billing in ${console}.`,
     rateLimit: 'Too many AI requests right now, or the key’s quota is used up. Wait a minute and try again.',
     timeout: 'The AI took too long to answer. Nothing was changed; try again.',
@@ -125,8 +133,8 @@ function errorKind(err: unknown): MessageKey {
   return fetchKind(err) ?? 'unknown'
 }
 
-export function plainAiError(err: unknown, provider: ProviderId): string {
-  return aiMessages(provider)[errorKind(err)]
+export function plainAiError(err: unknown, service: ServiceId, source: KeySource = 'env'): string {
+  return aiMessages(service, source)[errorKind(err)]
 }
 
 /** What may be logged on the server: the error's class and status, never prompt or CV text. */

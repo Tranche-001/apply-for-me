@@ -53,7 +53,7 @@ export type PairingOutcome = PairingResult & { items: ExperienceItem[]; needs: P
 /** Experiences → "Make them": a block for each experience with notes and none, an experience for each block with none. */
 export async function pairExperiencesAndBlocks(): Promise<ActionResult<PairingOutcome>> {
   return attempt('pair', async () => {
-    const result = await pairLibrary(getAi())
+    const result = await pairLibrary(await getAi())
     const [items, needs] = await Promise.all([listExperiences(), readPairingNeeds()])
     return { ...result, items, needs }
   })

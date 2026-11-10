@@ -212,3 +212,21 @@ model PreferenceRule {
   on       Boolean @default(true)
   position Int     @default(0)
 }
+
+// Your own AI keys, saved from the nav's AI menu. `cipher` is the key encrypted with AI_KEYS_SECRET (AES-256-GCM);
+// only `last4` is ever shown. `baseUrl` and `model` are set for OpenAI-compatible services (Mistral, OpenRouter…).
+model AiKey {
+  service   String   @id
+  cipher    String
+  last4     String
+  baseUrl   String?
+  model     String?
+  createdAt DateTime @default(now())
+}
+
+// The AI model picked in the nav's AI menu: one row.
+model AiChoice {
+  id      String @id @default("current")
+  service String
+  model   String
+}

@@ -36,6 +36,9 @@ services:
       OPEN_AI_API_KEY: ${OPEN_AI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-}
       AI_PROVIDER: ${AI_PROVIDER:-}
+      # Encrypts the AI keys you save from the nav's AI menu (any random text, 16+ characters). Changing it makes
+      # saved keys unreadable; add them again.
+      AI_KEYS_SECRET: ${AI_KEYS_SECRET:-}
     ports:
       - "3000:3000"
 
