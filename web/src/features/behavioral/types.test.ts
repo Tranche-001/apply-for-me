@@ -1,5 +1,16 @@
 import { describe, expect, test } from 'vitest'
-import { copyFounder, copyMessage, interviewItems, pickJob, questionStatus, tailoredCount, tailoredKey, type QuestionItem } from './types'
+import {
+  copyFounder,
+  copyMessage,
+  interviewItems,
+  isCustomKey,
+  looksForLines,
+  pickJob,
+  questionStatus,
+  tailoredCount,
+  tailoredKey,
+  type QuestionItem,
+} from './types'
 
 const q = (id: string, answer: string): QuestionItem => ({
   id,
@@ -14,6 +25,20 @@ const q = (id: string, answer: string): QuestionItem => ({
   useFounder: true,
   founderNotes: '',
   founderRefs: [],
+  custom: false,
+})
+
+describe('questions you add', () => {
+  test('only keys made on this screen count as yours', () => {
+    expect(isCustomKey('custom-k3x9')).toBe(true)
+    expect(isCustomKey('initiative')).toBe(false)
+    expect(isCustomKey('my-custom-')).toBe(false)
+  })
+
+  test('what interviewers look for: one per line, bullets, blanks and repeats dropped', () => {
+    expect(looksForLines('- Iniciativa\n\n• Impacto com números \n  iniciativa\n* Escuta')).toEqual(['Iniciativa', 'Impacto com números', 'Escuta'])
+    expect(looksForLines('   \n')).toEqual([])
+  })
 })
 
 describe('copyFounder', () => {

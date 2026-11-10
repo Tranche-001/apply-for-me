@@ -55,8 +55,11 @@ body {
   font-size: 14px;
 }
 
-a { color: var(--indigo); }
-a:hover { color: var(--indigo-hover); }
+/* In the base layer so a link's own text-* utility wins (an unlayered `a` beat text-white on the indigo pills). */
+@layer base {
+  a { color: var(--indigo); }
+  a:hover { color: var(--indigo-hover); }
+}
 :focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
 button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; }

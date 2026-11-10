@@ -2,11 +2,13 @@
 
 // Behavioral writes: the generalist answer, your theory notes and references, "Use in my answers",
 // and the answer adapted to a job. Every input is validated; every success refreshes the route.
+import { randomUUID } from 'node:crypto'
 import { refresh } from 'next/cache'
 import { z } from 'zod'
 import { db } from '@/lib/db'
 import { dbLogContext, plainDbError } from '../ai/db-errors'
 import { fail, invalidInput, ok, type ActionResult } from '../ai/result'
+import { CUSTOM_KEY_PREFIX } from './types'
 
 const id = z.string().trim().min(1, 'is missing').max(64, 'is not a valid id')
 const answerText = z.string().max(20_000, 'The answer is too long (20,000 characters at most).')
@@ -47,6 +49,46 @@ export async function setUseFounder(input: { questionId: string; useFounder: boo
   if (!parsed.success) return fail(invalidInput(parsed.error))
   const { questionId, useFounder } = parsed.data
   return attempt('setUseFounder', () => db.behavioralQuestion.update({ where: { id: questionId }, data: { useFounder } }))
+}
+
+const newQuestion = z.object({
+  short: z.string().trim().min(1, 'Give the question a short name for the list.').max(80, 'The short name is too long (80 characters at most).'),
+  full: z.string().trim().min(1, 'Write the question as the interviewer asks it.').max(1_000, 'The question is too long (1,000 characters at most).'),
+  looksFor: z.array(z.string().trim().min(1).max(300, 'A line is too long (300 characters at most).')).max(12, 'Too many lines (12 at most).'),
+})
+
+/** A question you add goes to the end of the list; its key marks it as yours, so it can be deleted. */
+export async function addQuestion(input: { short: string; full: string; looksFor: string[] }): Promise<ActionResult<{ id: string }>> {
+  const parsed = newQuestion.safeParse(input)
+  if (!parsed.success) return fail(invalidInput(parsed.error))
+  try {
+    const last = await db.behavioralQuestion.aggregate({ _max: { position: true } })
+    const created = await db.behavioralQuestion.create({
+      data: { ...parsed.data, key: `${CUSTOM_KEY_PREFIX}${randomUUID()}`, position: (last._max.position ?? -1) + 1, references: [], founderRefs: [] },
+      select: { id: true },
+    })
+    refresh()
+    return ok(created)
+  } catch (err) {
+    console.error('[behavioral] addQuestion failed', dbLogContext(err))
+    return fail(plainDbError(err))
+  }
+}
+
+/** Deletes a question you added, with its answers. The app's own questions cannot be deleted. */
+export async function deleteQuestion(input: { questionId: string }): Promise<ActionResult<null>> {
+  const parsed = z.object({ questionId: id }).safeParse(input)
+  if (!parsed.success) return fail(invalidInput(parsed.error))
+  const { questionId } = parsed.data
+  try {
+    const { count } = await db.behavioralQuestion.deleteMany({ where: { id: questionId, key: { startsWith: CUSTOM_KEY_PREFIX } } })
+    if (count === 0) return fail('Only questions you added can be deleted. Reload the page if this one is already gone.')
+    refresh()
+    return ok(null)
+  } catch (err) {
+    console.error('[behavioral] deleteQuestion failed', dbLogContext(err))
+    return fail(plainDbError(err))
+  }
 }
 
 /** The answer adapted to one job. Clearing the text removes it, so the generalist one is used again. */

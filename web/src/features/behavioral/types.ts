@@ -13,6 +13,29 @@ export type QuestionItem = {
   useFounder: boolean
   founderNotes: string
   founderRefs: string[]
+  /** Added by you on this screen (not one of the questions the app came with), so it can be deleted. */
+  custom: boolean
+}
+
+/** Questions you add get a key with this prefix; the app's own questions keep their seed keys. */
+export const CUSTOM_KEY_PREFIX = 'custom-'
+
+export function isCustomKey(key: string): boolean {
+  return key.startsWith(CUSTOM_KEY_PREFIX)
+}
+
+/** "What interviewers look for", typed one per line: trimmed, bullets and blank lines and repeats dropped. */
+export function looksForLines(text: string): string[] {
+  const seen = new Set<string>()
+  return text
+    .split('\n')
+    .map((l) => l.replace(/^\s*[-•*]\s*/, '').trim())
+    .filter((l) => {
+      const k = l.toLowerCase()
+      if (!l || seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
 }
 
 export type JobOption = { id: string; label: string; company: string }
