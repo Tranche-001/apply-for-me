@@ -111,8 +111,11 @@ export function TailoredSection({ questionId, lang, jobs, jobId, onJob, text, on
   const [ai, setAi] = useState<AiState>(null)
   const [request, setRequest] = useState('')
   const [working, start] = useTransition()
+  // Which question+job+language the person chose to write by hand, so the empty editor stays open for it.
+  const [writingTarget, setWritingTarget] = useState<string | null>(null)
   const target = `${questionId}|${jobId}|${lang}`
   const shown = ai && ai.target === target ? ai : null
+  const writing = writingTarget === target
 
   const run = (instruction: string | null) => {
     if (!jobId) return
@@ -189,12 +192,21 @@ export function TailoredSection({ questionId, lang, jobs, jobId, onJob, text, on
         />
       )}
       {shown && 'error' in shown && <AiError message={shown.error} onRetry={shown.retry} />}
-      {text.trim() || (shown && 'changes' in shown) ? (
+      {text.trim() || writing || (shown && 'changes' in shown) ? (
         <div className="flex flex-col gap-2.5">
           <label htmlFor="tail-a" className="sr-only">
             Answer adapted to the selected job
           </label>
-          <textarea id="tail-a" lang={htmlLang(lang)} rows={8} value={text} onChange={(e) => onText(e.target.value)} className={TEXTAREA} />
+          <textarea
+            id="tail-a"
+            lang={htmlLang(lang)}
+            rows={8}
+            value={text}
+            onChange={(e) => onText(e.target.value)}
+            autoFocus={writing && !text.trim()}
+            placeholder="[Write the version of your answer for this job.]"
+            className={TEXTAREA}
+          />
           <form
             className="flex gap-2"
             onSubmit={(e) => {
@@ -223,9 +235,12 @@ export function TailoredSection({ questionId, lang, jobs, jobId, onJob, text, on
           </form>
         </div>
       ) : (
-        <p className="m-0 rounded-[10px] border border-dashed border-[var(--border-strong)] p-5 text-center text-[14px] text-[var(--muted)]">
-          No version for this job in {langLabel(lang)} yet.
-        </p>
+        <div className="flex flex-col items-center gap-3 rounded-[10px] border border-dashed border-[var(--border-strong)] p-5 text-center">
+          <p className="m-0 text-[14px] text-[var(--muted)]">No version for this job in {langLabel(lang)} yet.</p>
+          <button type="button" className="btn-s min-h-9 rounded-lg px-3 text-[13px]" onClick={() => setWritingTarget(target)}>
+            Write it yourself
+          </button>
+        </div>
       )}
     </section>
   )
